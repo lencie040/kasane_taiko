@@ -492,6 +492,10 @@ kbd.gk{font-size:14px;padding:1px 7px}kbd.gk.d{color:#ff8a72;border-color:var(--
       <h2 class="h-sec">読み込みと難易度CSV</h2>
       <p class="lead">.osz はこのブラウザに保存され、次回も残ります。難易度（コースとレベル）と段位道場の内容は CSV で指定します。CSV がなくても遊べますが、レベルは「?」表示になり、重段位は自動で組まれます。</p>
     </div>
+    <div class="card" style="margin-bottom:16px">
+      <button class="btn primary" id="fetchGithub">GitHubから今すぐ取得</button>
+      <p id="fetchGithubStatus" role="status" aria-live="polite">mainの曲・CSV・封印設定を取得します。編集中の封印設定は優先されます。</p>
+    </div>
     <label class="dropzone" for="fileIn"><b>.osz と .csv をここにドロップ</b><span>またはクリックして選ぶ（複数まとめてでも大丈夫です）</span></label>
     <div class="cards2">
       <div class="card">
@@ -2084,11 +2088,28 @@ window.addEventListener('resize',()=>{if(!$('#stage').hidden){layoutStage();retu
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&G&&!G.finished&&!G.paused&&!D)pauseGame();});
 
 
-async function loadRepositorySongs(){if(location.protocol==='file:')return;try{const response=await fetch('content/manifest.json',{cache:'no-cache'});if(response.status===404)return;if(!response.ok)throw new Error('曲一覧 HTTP '+response.status);const manifest=await response.json();
-for(const path of manifest.songs||[]){try{const r=await fetch(path);if(!r.ok)throw new Error('HTTP '+r.status);await loadOsz(decodeURIComponent(path.split('/').pop()),await r.arrayBuffer());}catch(e){Lib.loadWarn.push(path+': '+e.message);}}
-for(const kind of ['charts','dan']){if(!manifest[kind])continue;const r=await fetch(manifest[kind],{cache:'no-cache'});if(!r.ok)throw new Error(kind+' CSV HTTP '+r.status);Lib[kind+'Csv']=decodeText(new Uint8Array(await r.arrayBuffer()));Lib[kind+'CsvName']=kind+'.csv';}
-if(manifest.noise){const r=await fetch(manifest.noise,{cache:'no-cache'});if(!r.ok)throw new Error('封印設定 HTTP '+r.status);const data=await r.json();for(const set of Lib.sets)for(const c of set.charts)c.repoNoise=data[c.uid]||{};}
-resolveAll();}catch(e){Lib.loadWarn.push('リポジトリ読込: '+e.message);}}
+let repositoryLoading=false;
+async function loadRepositorySongs(direct=false){if(repositoryLoading)return;if(!direct&&location.protocol==='file:')return;
+repositoryLoading=true;const button=$('#fetchGithub'),status=$('#fetchGithubStatus');button.disabled=true;let failed=0,loaded=0;
+try{let manifest,base=new URL('.',location.href).href;
+if(direct){status.textContent='GitHubの最新ファイル一覧を取得中…';
+  const r=await fetch('https://api.github.com/repos/lencie040/kasane_taiko/git/trees/main?recursive=1&t='+Date.now(),{cache:'no-store'});
+  if(!r.ok)throw new Error('GitHub HTTP '+r.status+(r.status===403?'（取得制限の可能性があります。時間を置いて再試行してください）':''));
+  const tree=await r.json();if(tree.truncated)throw new Error('ファイル一覧が大きすぎるため取得できません');
+  const paths=tree.tree.filter(x=>x.type==='blob').map(x=>x.path);base='https://raw.githubusercontent.com/lencie040/kasane_taiko/'+tree.sha+'/';
+  manifest={songs:paths.filter(p=>p.startsWith('content/songs/')&&/\.(osz|zip)$/i.test(p)).map(p=>p.split('/').map(encodeURIComponent).join('/'))};
+  for(const k of ['charts','dan'])if(paths.includes('content/csv/'+k+'.csv'))manifest[k]='content/csv/'+k+'.csv';
+  if(paths.includes('content/noise.json'))manifest.noise='content/noise.json';
+}else{const response=await fetch('content/manifest.json',{cache:'no-cache'});if(response.status===404)return;if(!response.ok)throw new Error('曲一覧 HTTP '+response.status);manifest=await response.json();}
+const get=async(path)=>{const r=await fetch(new URL(path,base),{cache:direct?'no-store':'no-cache'});if(!r.ok)throw new Error('HTTP '+r.status);return r;};
+for(const [i,path] of (manifest.songs||[]).entries()){status.textContent=`曲を取得中… ${i+1} / ${manifest.songs.length}`;try{const r=await get(path);await loadOsz(decodeURIComponent(path.split('/').pop()),await r.arrayBuffer());loaded++;}catch(e){failed++;Lib.loadWarn.push(path+': '+e.message);}}
+for(const kind of ['charts','dan']){if(!manifest[kind])continue;try{const r=await get(manifest[kind]);Lib[kind+'Csv']=decodeText(new Uint8Array(await r.arrayBuffer()));Lib[kind+'CsvName']=kind+'.csv';}catch(e){failed++;Lib.loadWarn.push(kind+': '+e.message);}}
+if(manifest.noise){try{const r=await get(manifest.noise),data=await r.json();for(const set of Lib.sets)for(const c of set.charts)c.repoNoise=data[c.uid]||{};}catch(e){failed++;Lib.loadWarn.push('封印設定: '+e.message);}}
+resolveAll();refreshAll();renderTitleStat();status.textContent=`取得完了：${loaded}曲`+(failed?`・${failed}件失敗（読み込みの警告を確認してください）`:'・CSV／封印設定を更新しました');
+if(direct)toast(status.textContent,failed?'err':undefined);
+}catch(e){Lib.loadWarn.push('リポジトリ読込: '+e.message);status.textContent='取得できませんでした：'+e.message;if(direct){refreshAll();toast(status.textContent,'err');}}
+finally{repositoryLoading=false;button.disabled=false;}}
+$('#fetchGithub').addEventListener('click',()=>loadRepositorySongs(true));
 
 /* ================= 起動 ================= */
 (async function boot(){
