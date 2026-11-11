@@ -599,6 +599,7 @@ kbd.gk{font-size:14px;padding:1px 7px}kbd.gk.d{color:#ff8a72;border-color:var(--
       <div class="card">
         <h3>確認用</h3>
         <label class="switch"><input type="checkbox" id="setLowFx"> 演出を少なくする（動作が重いとき用。花火・観客・飛ぶ音符などを省きます）</label>
+        <label class="switch"><input type="checkbox" id="setNoiseEdit"> 赤ノイズ編集をON（曲詳細に編集画面を表示）</label>
         <label class="switch"><input type="checkbox" id="setAuto"> オート演奏（記録・解禁はされません）</label>
         <label class="switch"><input type="checkbox" id="setUnlock"> 重譜面をすべて解禁して表示（譜面作者向け）</label>
         <div class="row"><button class="btn ghost small" id="resetRec">記録と解禁状況をリセット</button></div>
@@ -698,7 +699,7 @@ function diffRange(d,min,mid,max){return d>5?mid+(max-mid)*(d-5)/5:d<5?mid-(mid-
 function segAt(segs,t){if(!segs.length)return null;if(t<segs[0].time)return segs[0];let lo=0,hi=segs.length-1,a=0;while(lo<=hi){const m=(lo+hi)>>1;if(segs[m].time<=t+1){a=m;lo=m+1;}else hi=m-1;}return segs[a];}
 
 /* ================= 設定・記録 ================= */
-const S=Object.assign({keys:['KeyD','KeyF','KeyJ','KeyK'],speed:1,offset:0,music:.8,se:.7,auto:false,unlockAll:false},store.get('kt.settings',{}));
+const S=Object.assign({keys:['KeyD','KeyF','KeyJ','KeyK'],speed:1,offset:0,music:.8,se:.7,auto:false,noiseEdit:false,unlockAll:false},store.get('kt.settings',{}));
 S.opt=Object.assign({mirror:false,rand:0,hidden:false},S.opt||{});if(!S.fx)S.fx='high';
 const LOWFX=()=>S.fx==='low';
 function saveS(){store.set('kt.settings',S);}
@@ -1197,7 +1198,7 @@ function noiseEditor(c){loadNoise(c);const box=el('details',{style:'margin:16px;
 [2000,4000,8000].forEach(v=>zoom.append(el('option',{value:v},`${v/1000}秒表示`)));zoom.value='4000';
 function paint(pn){const x=canvas.getContext('2d'),from=Number(seek.value),span=Number(zoom.value);x.clearRect(0,0,1000,280);hits=[];label.textContent=`${(from/1000).toFixed(2)}秒`;x.font='14px sans-serif';for(let i=0;i<4;i++){x.strokeStyle='#303650';x.beginPath();x.moveTo(0,70+i*48);x.lineTo(1000,70+i*48);x.stroke();}for(let t=Math.ceil(from/500)*500;t<from+span;t+=500){let xx=40+(t-from)/span*920;x.fillStyle='#a2a8ca';x.fillText((t/1000).toFixed(1)+'s',xx,24);x.strokeStyle='#252a40';x.beginPath();x.moveTo(xx,35);x.lineTo(xx,260);x.stroke();}
 for(const t of c.targets){if(t.t<from||t.t>from+span)continue;const xx=40+(t.t-from)/span*920;(t.type==='single'?[t]:t.notes).forEach((n,i)=>{const yy=70+i*48,r=n.big?22:18;drawNote(x,xx,yy,r,n.color,1);drawNoise(x,xx,yy,r,n.noise,1,pn);if(!noiseEligible(t)){x.fillStyle='#aaa';x.fillText('×',xx-4,yy+5);}else hits.push({n,x:xx,y:yy,r});});}}
-canvas.addEventListener('pointerdown',e=>{const b=canvas.getBoundingClientRect(),xx=(e.clientX-b.left)*1000/b.width,yy=(e.clientY-b.top)*280/b.height;const h=hits.slice().reverse().find(h=>Math.hypot(h.x-xx,h.y-yy)<=h.r);if(h){const side=xx<h.x?'left':'right';h.n.noise=h.n.noise===side?null:side;saveNoise(c);paint(performance.now());}});
+canvas.addEventListener('pointerdown',e=>{if(S.noiseEdit!==true)return;const b=canvas.getBoundingClientRect(),xx=(e.clientX-b.left)*1000/b.width,yy=(e.clientY-b.top)*280/b.height;const h=hits.slice().reverse().find(h=>Math.hypot(h.x-xx,h.y-yy)<=h.r);if(h){const side=xx<h.x?'left':'right';h.n.noise=h.n.noise===side?null:side;saveNoise(c);paint(performance.now());}});
 function loop(pn){if(!box.isConnected||!box.open){frame=0;return;}paint(pn);frame=requestAnimationFrame(loop);}box.addEventListener('toggle',()=>{if(box.open&&!frame)frame=requestAnimationFrame(loop);});seek.oninput=()=>paint(performance.now());zoom.onchange=seek.oninput;
 box.append(el('summary',{style:'cursor:pointer;font-weight:bold;color:#ff6979'},'赤ノイズを視覚的に編集'),el('p',null,'ノーツの左／右半分をクリックすると赤ノイズを配置。同じ側をもう一度クリックすると解除します。左＝D/F禁止、右＝J/K禁止。×の列は配置不可（同時押しは小ドン1＋小カツ1のみ）。変更は自動保存。'),el('div',{class:'row'},zoom,label),canvas,seek,el('button',{class:'btn',onclick:()=>{const data={};for(const set of Lib.sets)for(const chart of set.charts)data[chart.uid]=store.get(noiseKey(chart),{});const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));a.download='noise.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}},'ノイズ設定を書き出す'));return box;}
 function drawNoise(c,x,y,r,side,alpha,pn){if(!side)return;c.save();c.globalAlpha=alpha;c.beginPath();c.arc(x,y,r,0,Math.PI*2);c.clip();c.beginPath();c.rect(side==='left'?x-r:x,y-r,r,r*2);c.clip();c.fillStyle='rgba(20,0,5,.86)';c.fillRect(x-r,y-r,r*2,r*2);
@@ -1229,7 +1230,7 @@ function renderDetail(){const d=$('#detail');d.innerHTML='';const s=Lib.sets.fin
     el('span',{class:'legend'},el('i',{style:'background:rgba(162,168,202,.8)'}),'ノーツ',c.stats.chords?el('i',{style:'background:var(--gold)'}):null,c.stats.chords?'同時押し':null,
       el('i',{style:'background:var(--roll)'}),'連打',el('i',{style:'background:rgba(238,74,43,.45)'}),'ゴーゴー')),dc));
   requestAnimationFrame(()=>drawDensity(dc,c));
-  if(!isLocked(c)){d.append(noiseEditor(c));d.append(optRow());d.append(pracBlock(c,dc));}
+  if(!isLocked(c)){if(S.noiseEdit===true)d.append(noiseEditor(c));d.append(optRow());d.append(pracBlock(c,dc));}
   const best=Lib.best[c.uid];
   if(isLocked(c)){const dan=danForChart(c);
     d.append(el('div',{class:'notice'},`この重譜面は「${dan?dan.name:'重段位'}」に合格すると通常プレイで遊べます。`));
@@ -1306,6 +1307,7 @@ function renderSettings(){
   $('#setOffset').value=S.offset;$('#outOffset').textContent=(S.offset>0?'+':'')+S.offset+'ms';
   $('#setMusic').value=S.music;$('#outMusic').textContent=Math.round(S.music*100)+'%';
   $('#setSe').value=S.se;$('#outSe').textContent=Math.round(S.se*100)+'%';
+  $('#setNoiseEdit').checked=S.noiseEdit===true;
   $('#setAuto').checked=S.auto;$('#setUnlock').checked=S.unlockAll;$('#setLowFx').checked=S.fx==='low';
   if(!CAL.on&&CAL.result==null)$('#calSub').textContent=`いまのオフセット: ${S.offset>0?'+':''}${S.offset}ms`;}
 
@@ -2016,6 +2018,7 @@ const bindRange=(id,key,fn)=>$(id).addEventListener('input',e=>{S[key]=parseFloa
 bindRange('#setSpeed','speed');bindRange('#setOffset','offset');
 bindRange('#setMusic','music',()=>{if(musicGain)musicGain.gain.value=S.music;});bindRange('#setSe','se',()=>{if(seGain)seGain.gain.value=S.se;});
 $('#setLowFx').addEventListener('change',e=>{S.fx=e.target.checked?'low':'high';saveS();});
+$('#setNoiseEdit').addEventListener('change',e=>{S.noiseEdit=e.target.checked;saveS();renderDetail();});
 $('#setAuto').addEventListener('change',e=>{S.auto=e.target.checked;saveS();renderDetail();});
 $('#setUnlock').addEventListener('change',e=>{S.unlockAll=e.target.checked;saveS();refreshAll();});
 $('#resetRec').addEventListener('click',()=>{$('#resetConfirm').hidden=false;});
