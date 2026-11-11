@@ -1210,7 +1210,20 @@ for(const t of c.targets){if(t.t<from||t.t>from+span)continue;const xx=40+(t.t-f
 canvas.addEventListener('pointerdown',e=>{if(S.noiseEdit!==true)return;const b=canvas.getBoundingClientRect(),xx=(e.clientX-b.left)*1000/b.width,yy=(e.clientY-b.top)*280/b.height;const h=hits.slice().reverse().find(h=>Math.hypot(h.x-xx,h.y-yy)<=h.r);if(h){const side=xx<h.x?'left':'right';h.n.noise=h.n.noise===side?null:side;saveNoise(c);paint(performance.now());}});
 function loop(pn){if(!box.isConnected||!box.open){frame=0;return;}paint(pn);frame=requestAnimationFrame(loop);}box.addEventListener('toggle',()=>{if(box.open&&!frame)frame=requestAnimationFrame(loop);});seek.oninput=()=>paint(performance.now());zoom.onchange=seek.oninput;
 box.append(el('summary',{style:'cursor:pointer;font-weight:bold;color:#ff6979'},'封印ノーツを視覚的に編集'),el('p',null,'ノーツの左／右半分をクリックすると封印を配置。同じ側をもう一度クリックすると解除します。左＝D/F禁止、右＝J/K禁止。×の列は配置不可（同時押しは小ドン1＋小カツ1のみ）。変更は自動保存。'),el('div',{class:'row'},zoom,label),canvas,seek,el('button',{class:'btn',onclick:()=>{const data={};for(const set of Lib.sets)for(const chart of set.charts)data[chart.uid]=store.get(noiseKey(chart),{});const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));a.download='noise.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}},'封印設定を書き出す'));return box;}
-function drawNoise(c,x,y,r,side,alpha,pn){if(!side)return;
+// 発光・粒・枠は小さなキャンバスで共有し、各ノーツには画像を1回転送する。
+const sealSpriteCache=new Map();
+function drawNoise(c,x,y,r,side,alpha,pn){if(!side||alpha<=0)return;
+  const radius=Math.round(r*4)/4,dpr=Math.min(2,window.devicePixelRatio||1),low=LOWFX();
+  const key=radius+'|'+dpr+'|'+low,stamp=REDUCED?0:Math.floor(pn/50),time=stamp*50;
+  let sprite=sealSpriteCache.get(key);
+  if(!sprite){if(sealSpriteCache.size>=24)sealSpriteCache.delete(sealSpriteCache.keys().next().value);
+    const pad=radius*1.6,canvas=document.createElement('canvas');canvas.width=canvas.height=Math.ceil(pad*2*dpr);
+    sprite={canvas,pad,stamp:-1,ctx:canvas.getContext('2d')};sealSpriteCache.set(key,sprite);}
+  if(sprite.stamp!==stamp){const sc=sprite.ctx;sc.setTransform(1,0,0,1,0,0);sc.clearRect(0,0,sprite.canvas.width,sprite.canvas.height);sc.setTransform(dpr,0,0,dpr,0,0);
+    paintSealSprite(sc,sprite.pad,sprite.pad,radius,'right',1,time);sprite.stamp=stamp;}
+  c.save();c.globalAlpha=alpha;c.translate(x,y);if(side==='left')c.scale(-1,1);
+  c.drawImage(sprite.canvas,-sprite.pad,-sprite.pad,sprite.pad*2,sprite.pad*2);c.restore();}
+function paintSealSprite(c,x,y,r,side,alpha,pn){if(!side)return;
   const time=REDUCED?0:pn*.0025,sign=side==='left'?-1:1,R=r*1.06,points=[];
   // 白い縁まで黒く覆い、封印側だけを歪ませる。
   for(let i=0;i<=40;i++){const u=i/40,a=-Math.PI/2+u*Math.PI;
@@ -1570,7 +1583,7 @@ const NOTE_COL={d:['#ff8a62','#e8401f','#a3230d'],k:['#8adcf4','#36acd6','#1a6c9
 const spriteCache=new Map();let bgPat=null;
 
 function layoutStage(){const r=cv.getBoundingClientRect();view.W=r.width;view.H=r.height;view.dpr=Math.min(2,window.devicePixelRatio||1);
-  cv.width=Math.max(1,Math.round(view.W*view.dpr));cv.height=Math.max(1,Math.round(view.H*view.dpr));ctx.setTransform(view.dpr,0,0,view.dpr,0,0);spriteCache.clear();computeLayout();}
+  cv.width=Math.max(1,Math.round(view.W*view.dpr));cv.height=Math.max(1,Math.round(view.H*view.dpr));ctx.setTransform(view.dpr,0,0,view.dpr,0,0);spriteCache.clear();sealSpriteCache.clear();computeLayout();}
 function computeLayout(){const W=view.W,H=view.H;const gw=clamp(W*.4,130,440);view.gauge={x:W-16-30-gw,y:18,w:gw,h:18};if(!G)return;
   // PCでは段位の条件を本家のように大きなバーで下に並べる
   view.bigDan=!!D&&W>=900&&H>=620;
