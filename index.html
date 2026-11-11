@@ -1233,7 +1233,16 @@ function drawNoise(c,x,y,r,side,alpha,pn){if(!side)return;
     const px=x+sign*Math.max(w*.55,Math.cos(a)*(R+drift)),py=y+Math.sin(a)*(R+drift);
     c.globalAlpha=alpha;c.fillStyle='#24000c';c.fillRect(px-w/2,py-h/2,w,h);
     c.strokeStyle=i%4===0?'#ff5376':'#ff234f';c.lineWidth=Math.max(1.2,r*.035);c.strokeRect(px-w/2,py-h/2,w,h);}
-  c.globalAlpha=alpha;c.shadowBlur=LOWFX()?0:r*.06;c.strokeStyle='#ff3155';c.lineWidth=Math.max(1.2,r*.028);c.beginPath();c.moveTo(x,y-R);c.lineTo(x,y+R);c.stroke();c.restore();}
+  c.globalAlpha=alpha;c.shadowBlur=LOWFX()?0:r*.06;c.strokeStyle='#ff3155';c.lineWidth=Math.max(1.2,r*.028);c.beginPath();c.moveTo(x,y-R);c.lineTo(x,y+R);c.stroke();
+  // 通常側との境界にも、外周と同じ周期で変わる矩形を重ねる。
+  c.shadowBlur=LOWFX()?0:r*.11;
+  for(let i=0;i<8;i++){const u=(i+.5+(frameRandom()-.5)*.6)/8;
+    const size=r*(.10+frameRandom()*.055),kind=Math.floor(frameRandom()*3);
+    const w=kind===0?size*1.8:size,h=kind===1?size*1.8:size;
+    const px=x+(frameRandom()-.5)*r*.07,py=y-R+u*R*2;
+    c.fillStyle='#24000c';c.fillRect(px-w/2,py-h/2,w,h);
+    c.strokeStyle=i%4===0?'#ff5376':'#ff234f';c.lineWidth=Math.max(1.2,r*.035);c.strokeRect(px-w/2,py-h/2,w,h);}
+  c.restore();}
 
 function renderDetail(){const d=$('#detail');d.innerHTML='';const s=Lib.sets.find(x=>x.key===UI.selSet);
   if(!s){d.append(el('div',{class:'empty',style:'margin:16px'},'左の一覧から曲を選んでください'));return;}
