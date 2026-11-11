@@ -599,7 +599,7 @@ kbd.gk{font-size:14px;padding:1px 7px}kbd.gk.d{color:#ff8a72;border-color:var(--
       <div class="card">
         <h3>確認用</h3>
         <label class="switch"><input type="checkbox" id="setLowFx"> 演出を少なくする（動作が重いとき用。花火・観客・飛ぶ音符などを省きます）</label>
-        <label class="switch"><input type="checkbox" id="setNoiseEdit"> 赤ノイズ編集をON（曲詳細に編集画面を表示）</label>
+        <label class="switch"><input type="checkbox" id="setNoiseEdit"> 封印ノーツ編集をON（曲詳細に編集画面を表示）</label>
         <label class="switch"><input type="checkbox" id="setAuto"> オート演奏（記録・解禁はされません）</label>
         <label class="switch"><input type="checkbox" id="setUnlock"> 重譜面をすべて解禁して表示（譜面作者向け）</label>
         <div class="row"><button class="btn ghost small" id="resetRec">記録と解禁状況をリセット</button></div>
@@ -1187,7 +1187,7 @@ function drawDensity(cvd,c,sel){if(!cvd.isConnected)return;const r=cvd.getBoundi
     if(ch[i]){const hc=ch[i]/mx*(h-12);x.fillStyle='#f2bc3d';x.fillRect(i*bw+.5,h-5-hc,Math.max(1,bw-1),hc);}}
   if(sel){const a=sel.from/len*w,b=Math.min(w,sel.to/len*w);x.fillStyle='rgba(7,9,21,.7)';x.fillRect(0,0,a,h);x.fillRect(b,0,w-b,h);x.fillStyle='#f2bc3d';x.fillRect(a-1,0,2,h);x.fillRect(b-1,0,2,h);}}
 
-/* HTML専用の赤ノイズ設定。osuファイルには書き込まない。 */
+/* HTML専用の封印ノーツ設定。osuファイルには書き込まない。 */
 function noiseEligible(t){return t.type==='single'||(t.type==='chord'&&t.notes.length===2&&t.reqD===1&&t.reqK===1&&!t.notes.some(n=>n.big));}
 function noiseKey(c){return 'kasane-red-noise-v1:'+c.uid;}
 function noiseId(t,i){return i+':'+t.t+':'+(t.type==='single'?t.color+(t.big?'B':''):t.notes.map(n=>n.color+(n.big?'B':'')).join(''));}
@@ -1195,13 +1195,13 @@ function loadNoise(c){const data=store.get(noiseKey(c),c.repoNoise||{});c.target
 function saveNoise(c){const data={};c.targets.forEach((t,i)=>{const ns=t.type==='single'?[t]:t.notes;if(noiseEligible(t)&&ns.some(n=>n.noise))data[noiseId(t,i)]=ns.map(n=>n.noise||null);});try{localStorage.setItem(noiseKey(c),JSON.stringify(data));return true;}catch(e){toast('保存できません。ブラウザの保存容量・設定を確認してください','err');return false;}}
 function noiseBlocked(t,role){const color=ROLE_COLOR[role],n=t.type==='single'?t:t.notes.find(n=>n.color===color);return !!n&&((n.noise==='left'&&role.endsWith('L'))||(n.noise==='right'&&role.endsWith('R')));}
 function noiseRole(n){return(n.color==='d'?'don':'ka')+(n.noise==='left'?'R':'L');}
-function noiseEditor(c){loadNoise(c);const box=el('details',{style:'margin:16px;padding:14px;border:1px solid #a32d46;border-radius:12px;background:#190f20'}),canvas=el('canvas',{width:1000,height:280,style:'width:100%;background:#090c18;border-radius:10px;cursor:crosshair;touch-action:none','aria-label':'ノーツの左半分か右半分をクリックしてノイズを切り替え'}),seek=el('input',{type:'range',min:0,max:Math.max(1,c.length),value:0,step:1,style:'width:100%','aria-label':'編集する時刻'}),zoom=el('select',{'aria-label':'表示範囲'}),label=el('span');let hits=[],frame=0;
+function noiseEditor(c){loadNoise(c);const box=el('details',{style:'margin:16px;padding:14px;border:1px solid #a32d46;border-radius:12px;background:#190f20'}),canvas=el('canvas',{width:1000,height:280,style:'width:100%;background:#090c18;border-radius:10px;cursor:crosshair;touch-action:none','aria-label':'ノーツの左半分か右半分をクリックして封印を切り替え'}),seek=el('input',{type:'range',min:0,max:Math.max(1,c.length),value:0,step:1,style:'width:100%','aria-label':'編集する時刻'}),zoom=el('select',{'aria-label':'表示範囲'}),label=el('span');let hits=[],frame=0;
 [1000,2000,4000,8000].forEach(v=>zoom.append(el('option',{value:v},`${v/1000}秒表示`)));zoom.value='4000';
 function paint(pn){const x=canvas.getContext('2d'),from=Number(seek.value),span=Number(zoom.value);x.clearRect(0,0,1000,280);hits=[];label.textContent=`${(from/1000).toFixed(2)}秒`;x.font='14px sans-serif';for(let i=0;i<4;i++){x.strokeStyle='#303650';x.beginPath();x.moveTo(0,70+i*48);x.lineTo(1000,70+i*48);x.stroke();}for(let t=Math.ceil(from/500)*500;t<from+span;t+=500){let xx=40+(t-from)/span*920;x.fillStyle='#a2a8ca';x.fillText((t/1000).toFixed(1)+'s',xx,24);x.strokeStyle='#252a40';x.beginPath();x.moveTo(xx,35);x.lineTo(xx,260);x.stroke();}
 for(const t of c.targets){if(t.t<from||t.t>from+span)continue;const xx=40+(t.t-from)/span*920;(t.type==='single'?[t]:t.notes).forEach((n,i)=>{const yy=70+i*48,r=n.big?22:18;drawNote(x,xx,yy,r,n.color,1);drawNoise(x,xx,yy,r,n.noise,1,pn);if(!noiseEligible(t)){x.fillStyle='#aaa';x.fillText('×',xx-4,yy+5);}else hits.push({n,x:xx,y:yy,r});});}}
 canvas.addEventListener('pointerdown',e=>{if(S.noiseEdit!==true)return;const b=canvas.getBoundingClientRect(),xx=(e.clientX-b.left)*1000/b.width,yy=(e.clientY-b.top)*280/b.height;const h=hits.slice().reverse().find(h=>Math.hypot(h.x-xx,h.y-yy)<=h.r);if(h){const side=xx<h.x?'left':'right';h.n.noise=h.n.noise===side?null:side;saveNoise(c);paint(performance.now());}});
 function loop(pn){if(!box.isConnected||!box.open){frame=0;return;}paint(pn);frame=requestAnimationFrame(loop);}box.addEventListener('toggle',()=>{if(box.open&&!frame)frame=requestAnimationFrame(loop);});seek.oninput=()=>paint(performance.now());zoom.onchange=seek.oninput;
-box.append(el('summary',{style:'cursor:pointer;font-weight:bold;color:#ff6979'},'赤ノイズを視覚的に編集'),el('p',null,'ノーツの左／右半分をクリックすると赤ノイズを配置。同じ側をもう一度クリックすると解除します。左＝D/F禁止、右＝J/K禁止。×の列は配置不可（同時押しは小ドン1＋小カツ1のみ）。変更は自動保存。'),el('div',{class:'row'},zoom,label),canvas,seek,el('button',{class:'btn',onclick:()=>{const data={};for(const set of Lib.sets)for(const chart of set.charts)data[chart.uid]=store.get(noiseKey(chart),{});const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));a.download='noise.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}},'ノイズ設定を書き出す'));return box;}
+box.append(el('summary',{style:'cursor:pointer;font-weight:bold;color:#ff6979'},'封印ノーツを視覚的に編集'),el('p',null,'ノーツの左／右半分をクリックすると封印を配置。同じ側をもう一度クリックすると解除します。左＝D/F禁止、右＝J/K禁止。×の列は配置不可（同時押しは小ドン1＋小カツ1のみ）。変更は自動保存。'),el('div',{class:'row'},zoom,label),canvas,seek,el('button',{class:'btn',onclick:()=>{const data={};for(const set of Lib.sets)for(const chart of set.charts)data[chart.uid]=store.get(noiseKey(chart),{});const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));a.download='noise.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}},'封印設定を書き出す'));return box;}
 function drawNoise(c,x,y,r,side,alpha,pn){if(!side)return;
   const time=REDUCED?0:pn*.006,phase=y*.031,start=side==='left'?Math.PI/2:-Math.PI/2,points=[];
   // 半円の外周を変形。端点は固定し、中央ほど大きく歪ませる。
@@ -1214,7 +1214,7 @@ function drawNoise(c,x,y,r,side,alpha,pn){if(!side)return;
   const rnd=()=>{seed=(Math.imul(seed,1664525)+1013904223)|0;return(seed>>>0)/4294967296;};
   c.shadowColor='#ff1034';c.shadowBlur=LOWFX()?0:5;
   for(let i=0;i<70;i++){c.fillStyle=i%4?'#e51029':'#ff8790';const sz=1+rnd()*r*.065;c.fillRect((side==='left'?x-r*1.2:x)+rnd()*r*1.2,y-r*1.2+rnd()*r*2.4,sz,sz);}c.restore();
-  // 円形クリップの外側にも輪郭を描き、赤ノイズ側のシルエットを揺らす。
+  // 円形クリップの外側にも輪郭を描き、封印側のシルエットを揺らす。
   c.shadowColor='#ff1034';c.shadowBlur=LOWFX()?0:7;c.strokeStyle='#ff2345';c.lineWidth=Math.max(1.5,r*.055);
   c.beginPath();points.forEach(([px,py],i)=>i?c.lineTo(px,py):c.moveTo(px,py));c.stroke();
   c.shadowBlur=0;c.strokeStyle='#ff8790';c.lineWidth=.7;c.stroke();c.fillStyle='#ff3853';c.fillRect(x-1,y-r,2,r*2);c.restore();}
@@ -1970,7 +1970,7 @@ function openGuide(){renderGuide();$('#guide').hidden=false;$('#guideClose').foc
 function closeGuide(){$('#guide').hidden=true;}
 function guideNoisePreview(){
   const box=el('div',{style:'display:flex;flex-wrap:wrap;gap:16px;margin:16px 0'}),previews=[];
-  for(const [color,side,title,help] of [['d','right','ドン：右半分に赤ノイズ','左手のドンで叩く'],['k','left','カツ：左半分に赤ノイズ','右手のカツで叩く']]){
+  for(const [color,side,title,help] of [['d','right','ドン：右半分を封印','左手のドンで叩く'],['k','left','カツ：左半分を封印','右手のカツで叩く']]){
     const canvas=el('canvas',{width:320,height:180,role:'img','aria-label':title,style:'width:100%;max-width:320px;height:auto;display:block;background:#090c18;border-radius:12px'});
     box.append(el('figure',{style:'margin:0;flex:1 1 200px;max-width:320px'},canvas,el('figcaption',{style:'text-align:center;margin-top:8px'},el('b',null,title),el('br'),help)));
     previews.push({canvas,color,side});
@@ -1995,13 +1995,13 @@ function renderGuide(){const b=$('#howtoBody');b.innerHTML='';const K=S.keys.map
       el('p',null,'大きい音符は、ふつうの曲ではどちらか1つのキーで叩けます。黄色い帯は連打、オレンジの風船はドンで割ります。キーは「設定」で変えられます。')),
     sec('重（かさね）ノーツ',el('p',null,'同じ時刻に音符が重なっていると、縦に並んで流れてきます。並んだドンの数とカッの数のとおりに、同時に叩きます。'),
       el('div',{class:'gexs'},ex(['d','d']),ex(['d','k']),ex(['k','k']),ex(['d','d','k']),ex(['d','k','k']),ex(['d','d','k','k'],'4つ全部'),ex(['D','k'],'大きい音符は2つ分'))),
-    sec('赤ノイズ',guideNoisePreview(),
-      el('p',null,'音符の片側に赤い粒が現れ、輪郭が歪んでいるのが赤ノイズです。赤ノイズのある側の手で叩くと「不可」になります。音符の色に合ったキーを、ノイズのない側の手で叩いてください。'),
+    sec('封印ノーツ',guideNoisePreview(),
+      el('p',null,'音符の片側に赤い粒が現れ、輪郭が歪んでいるのが封印ノーツです。封印された側の手で叩くと「不可」になります。音符の色に合ったキーを、封印されていない側の手で叩いてください。'),
       el('ul',{class:'glist'},
-        el('li',null,el('b',null,'左半分にノイズ'),'：左手の ',kc(0),'・',kc(1),' は不可。ドンは ',kc(2),'、カッは ',kc(3),' で叩きます。'),
-        el('li',null,el('b',null,'右半分にノイズ'),'：右手の ',kc(2),'・',kc(3),' は不可。ドンは ',kc(1),'、カッは ',kc(0),' で叩きます。')),
-      el('p',null,'同時押しに置けるのは、小さいドン1個＋小さいカッ1個の列だけです。それぞれの音符のノイズを確認して同時に叩きます。禁止された手で叩くと、その列はすべて不可です。大きい単音符にノイズがある場合は、ノイズのない側の片手で叩きます。'),
-      el('p',{class:'gnote'},'編集するには「設定」で「赤ノイズ編集をON」にし、曲詳細の「赤ノイズを視覚的に編集」を開きます。スライダーで時刻を移動し、音符の左／右半分をクリックして配置。同じ側を再クリックすると解除できます。変更は自動保存されます。編集をOFFにしても、配置済みの赤ノイズは演奏に反映されます。')),
+        el('li',null,el('b',null,'左半分を封印'),'：左手の ',kc(0),'・',kc(1),' は不可。ドンは ',kc(2),'、カッは ',kc(3),' で叩きます。'),
+        el('li',null,el('b',null,'右半分を封印'),'：右手の ',kc(2),'・',kc(3),' は不可。ドンは ',kc(1),'、カッは ',kc(0),' で叩きます。')),
+      el('p',null,'同時押しに置けるのは、小さいドン1個＋小さいカッ1個の列だけです。それぞれの音符の封印を確認して同時に叩きます。禁止された手で叩くと、その列はすべて不可です。大きい単音符に封印がある場合は、封印されていない側の片手で叩きます。'),
+      el('p',{class:'gnote'},'編集するには「設定」で「封印ノーツ編集をON」にし、曲詳細の「封印ノーツを視覚的に編集」を開きます。スライダーで時刻を移動し、音符の左／右半分をクリックして配置。同じ側を再クリックすると解除できます。変更は自動保存されます。編集をOFFにしても、配置済みの封印ノーツは演奏に反映されます。')),
     sec('ミスになる押し方',el('p',null,'次のどれかになると、その列の音符はすべて「不可」です。'),
       el('ul',{class:'glist'},el('li',null,el('b',null,'多すぎる'),'：ドン1つの列で ',kc(1),' と ',kc(2),' を両方叩く'),el('li',null,el('b',null,'足りない'),'：ドン2つの列で ',kc(1),' だけ叩く'),
         el('li',null,el('b',null,'色が違う'),'：ドンとカッの列で ',kc(1),' と ',kc(2),' を叩く'),el('li',null,el('b',null,'同じキーを2回'),'：同じ列の中で同じキーをもう一度叩く')),
@@ -2087,7 +2087,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden&&G&&!G.fini
 async function loadRepositorySongs(){if(location.protocol==='file:')return;try{const response=await fetch('content/manifest.json',{cache:'no-cache'});if(response.status===404)return;if(!response.ok)throw new Error('曲一覧 HTTP '+response.status);const manifest=await response.json();
 for(const path of manifest.songs||[]){try{const r=await fetch(path);if(!r.ok)throw new Error('HTTP '+r.status);await loadOsz(decodeURIComponent(path.split('/').pop()),await r.arrayBuffer());}catch(e){Lib.loadWarn.push(path+': '+e.message);}}
 for(const kind of ['charts','dan']){if(!manifest[kind])continue;const r=await fetch(manifest[kind],{cache:'no-cache'});if(!r.ok)throw new Error(kind+' CSV HTTP '+r.status);Lib[kind+'Csv']=decodeText(new Uint8Array(await r.arrayBuffer()));Lib[kind+'CsvName']=kind+'.csv';}
-if(manifest.noise){const r=await fetch(manifest.noise,{cache:'no-cache'});if(!r.ok)throw new Error('ノイズ設定 HTTP '+r.status);const data=await r.json();for(const set of Lib.sets)for(const c of set.charts)c.repoNoise=data[c.uid]||{};}
+if(manifest.noise){const r=await fetch(manifest.noise,{cache:'no-cache'});if(!r.ok)throw new Error('封印設定 HTTP '+r.status);const data=await r.json();for(const set of Lib.sets)for(const c of set.charts)c.repoNoise=data[c.uid]||{};}
 resolveAll();}catch(e){Lib.loadWarn.push('リポジトリ読込: '+e.message);}}
 
 /* ================= 起動 ================= */
