@@ -1968,6 +1968,19 @@ $('#bkYes').addEventListener('click',()=>{const d=bkPending;if(!d)return;bkPendi
 function guideOpen(){return!$('#guide').hidden;}
 function openGuide(){renderGuide();$('#guide').hidden=false;$('#guideClose').focus();}
 function closeGuide(){$('#guide').hidden=true;}
+function guideNoisePreview(){
+  const box=el('div',{style:'display:flex;flex-wrap:wrap;gap:16px;margin:16px 0'}),previews=[];
+  for(const [color,side,title,help] of [['d','right','ドン：右半分に赤ノイズ','左手のドンで叩く'],['k','left','カツ：左半分に赤ノイズ','右手のカツで叩く']]){
+    const canvas=el('canvas',{width:320,height:180,role:'img','aria-label':title,style:'width:100%;max-width:320px;height:auto;display:block;background:#090c18;border-radius:12px'});
+    box.append(el('figure',{style:'margin:0;flex:1 1 200px;max-width:320px'},canvas,el('figcaption',{style:'text-align:center;margin-top:8px'},el('b',null,title),el('br'),help)));
+    previews.push({canvas,color,side});
+  }
+  function paint(pn){if(!box.isConnected||!guideOpen())return;
+    for(const {canvas,color,side} of previews){const c=canvas.getContext('2d');c.clearRect(0,0,320,180);c.strokeStyle='#303650';c.lineWidth=2;c.beginPath();c.moveTo(20,90);c.lineTo(300,90);c.stroke();drawNote(c,160,90,52,color,1);drawNoise(c,160,90,52,side,1,pn);}
+    if(!REDUCED)requestAnimationFrame(paint);
+  }
+  requestAnimationFrame(paint);return box;
+}
 function renderGuide(){const b=$('#howtoBody');b.innerHTML='';const K=S.keys.map(keyLabel);
   const kc=(i)=>el('kbd',{class:'gk '+(ROLE_COLOR[ROLES[i]]==='d'?'d':'k')},K[i]);
   const stack=(cols)=>el('span',{class:'gstack'},cols.map(cl=>el('i',{class:cl.replace('D','d big').replace('K','k big')})));
@@ -1982,7 +1995,7 @@ function renderGuide(){const b=$('#howtoBody');b.innerHTML='';const K=S.keys.map
       el('p',null,'大きい音符は、ふつうの曲ではどちらか1つのキーで叩けます。黄色い帯は連打、オレンジの風船はドンで割ります。キーは「設定」で変えられます。')),
     sec('重（かさね）ノーツ',el('p',null,'同じ時刻に音符が重なっていると、縦に並んで流れてきます。並んだドンの数とカッの数のとおりに、同時に叩きます。'),
       el('div',{class:'gexs'},ex(['d','d']),ex(['d','k']),ex(['k','k']),ex(['d','d','k']),ex(['d','k','k']),ex(['d','d','k','k'],'4つ全部'),ex(['D','k'],'大きい音符は2つ分'))),
-    sec('赤ノイズ',
+    sec('赤ノイズ',guideNoisePreview(),
       el('p',null,'音符の片側に赤い粒が現れ、輪郭が歪んでいるのが赤ノイズです。赤ノイズのある側の手で叩くと「不可」になります。音符の色に合ったキーを、ノイズのない側の手で叩いてください。'),
       el('ul',{class:'glist'},
         el('li',null,el('b',null,'左半分にノイズ'),'：左手の ',kc(0),'・',kc(1),' は不可。ドンは ',kc(2),'、カッは ',kc(3),' で叩きます。'),
