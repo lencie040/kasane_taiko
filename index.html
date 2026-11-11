@@ -1201,10 +1201,22 @@ for(const t of c.targets){if(t.t<from||t.t>from+span)continue;const xx=40+(t.t-f
 canvas.addEventListener('pointerdown',e=>{if(S.noiseEdit!==true)return;const b=canvas.getBoundingClientRect(),xx=(e.clientX-b.left)*1000/b.width,yy=(e.clientY-b.top)*280/b.height;const h=hits.slice().reverse().find(h=>Math.hypot(h.x-xx,h.y-yy)<=h.r);if(h){const side=xx<h.x?'left':'right';h.n.noise=h.n.noise===side?null:side;saveNoise(c);paint(performance.now());}});
 function loop(pn){if(!box.isConnected||!box.open){frame=0;return;}paint(pn);frame=requestAnimationFrame(loop);}box.addEventListener('toggle',()=>{if(box.open&&!frame)frame=requestAnimationFrame(loop);});seek.oninput=()=>paint(performance.now());zoom.onchange=seek.oninput;
 box.append(el('summary',{style:'cursor:pointer;font-weight:bold;color:#ff6979'},'赤ノイズを視覚的に編集'),el('p',null,'ノーツの左／右半分をクリックすると赤ノイズを配置。同じ側をもう一度クリックすると解除します。左＝D/F禁止、右＝J/K禁止。×の列は配置不可（同時押しは小ドン1＋小カツ1のみ）。変更は自動保存。'),el('div',{class:'row'},zoom,label),canvas,seek,el('button',{class:'btn',onclick:()=>{const data={};for(const set of Lib.sets)for(const chart of set.charts)data[chart.uid]=store.get(noiseKey(chart),{});const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));a.download='noise.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}},'ノイズ設定を書き出す'));return box;}
-function drawNoise(c,x,y,r,side,alpha,pn){if(!side)return;c.save();c.globalAlpha=alpha;c.beginPath();c.arc(x,y,r,0,Math.PI*2);c.clip();c.beginPath();c.rect(side==='left'?x-r:x,y-r,r,r*2);c.clip();c.fillStyle='rgba(20,0,5,.86)';c.fillRect(x-r,y-r,r*2,r*2);
-  const tick=REDUCED?0:Math.floor(pn/85);let seed=(tick+17)*97+Math.floor(y)*13;const rnd=()=>{seed=(Math.imul(seed,1664525)+1013904223)|0;return(seed>>>0)/4294967296;};const edge=side==='left'?x-r:x;
-  c.shadowColor='#ff1034';c.shadowBlur=LOWFX()?0:5;for(let i=0;i<70;i++){c.fillStyle=i%4?'#e51029':'#ff8790';const sz=1+rnd()*r*.065;c.fillRect(edge+rnd()*r,y-r+rnd()*r*2,sz,sz);}
-  c.strokeStyle='#ff2345';c.lineWidth=1.5;c.beginPath();for(let i=0;i<=20;i++){const a=(side==='left'?Math.PI/2:-Math.PI/2)+i*Math.PI/20,rr=r*(.90+rnd()*.08),xx=x+Math.cos(a)*rr,yy=y+Math.sin(a)*rr;i?c.lineTo(xx,yy):c.moveTo(xx,yy);}c.stroke();c.shadowBlur=0;c.fillStyle='#ff3853';c.fillRect(x-1,y-r,2,r*2);c.restore();}
+function drawNoise(c,x,y,r,side,alpha,pn){if(!side)return;
+  const time=REDUCED?0:pn*.006,phase=y*.031,start=side==='left'?Math.PI/2:-Math.PI/2,points=[];
+  // 半円の外周を変形。端点は固定し、中央ほど大きく歪ませる。
+  for(let i=0;i<=40;i++){const u=i/40,a=start+u*Math.PI,envelope=Math.sin(u*Math.PI);
+    const wave=Math.sin(i*1.73+time*2.1+phase)*.065+Math.sin(i*.69-time*1.4)*.055+Math.sin(i*3.13+time*3.7)*.035;
+    const radius=r*(1+envelope*wave);points.push([x+Math.cos(a)*radius,y+Math.sin(a)*radius]);}
+  const shape=()=>{c.beginPath();points.forEach(([px,py],i)=>i?c.lineTo(px,py):c.moveTo(px,py));c.closePath();};
+  c.save();c.globalAlpha=alpha;shape();c.fillStyle='rgba(20,0,5,.96)';c.fill();
+  c.save();shape();c.clip();const tick=REDUCED?0:Math.floor(pn/85);let seed=(tick+17)*97+Math.floor(y)*13;
+  const rnd=()=>{seed=(Math.imul(seed,1664525)+1013904223)|0;return(seed>>>0)/4294967296;};
+  c.shadowColor='#ff1034';c.shadowBlur=LOWFX()?0:5;
+  for(let i=0;i<70;i++){c.fillStyle=i%4?'#e51029':'#ff8790';const sz=1+rnd()*r*.065;c.fillRect((side==='left'?x-r*1.2:x)+rnd()*r*1.2,y-r*1.2+rnd()*r*2.4,sz,sz);}c.restore();
+  // 円形クリップの外側にも輪郭を描き、赤ノイズ側のシルエットを揺らす。
+  c.shadowColor='#ff1034';c.shadowBlur=LOWFX()?0:7;c.strokeStyle='#ff2345';c.lineWidth=Math.max(1.5,r*.055);
+  c.beginPath();points.forEach(([px,py],i)=>i?c.lineTo(px,py):c.moveTo(px,py));c.stroke();
+  c.shadowBlur=0;c.strokeStyle='#ff8790';c.lineWidth=.7;c.stroke();c.fillStyle='#ff3853';c.fillRect(x-1,y-r,2,r*2);c.restore();}
 
 function renderDetail(){const d=$('#detail');d.innerHTML='';const s=Lib.sets.find(x=>x.key===UI.selSet);
   if(!s){d.append(el('div',{class:'empty',style:'margin:16px'},'左の一覧から曲を選んでください'));return;}
