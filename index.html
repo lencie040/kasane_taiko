@@ -1,4 +1,5 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}.seal-badge{display:inline-block;vertical-align:middle;padding:2px 6px;border:1px solid #ff526b;border-radius:4px;background:#3b1021;color:#ffb4c0;font-size:11px;font-weight:800;line-height:1.3;white-space:nowrap;letter-spacing:.04em}.seal-badge[hidden]{display:none}
+</style></head><body>
 <title>重ね太鼓</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1109,7 +1110,7 @@ function renderRecords(){const box=$('#recBody');if(!box||$('#tab-records').hidd
     box.append(el('h3',{class:'rec-h'},'段位'),el('div',{class:'tbl-wrap'},el('table',null,el('thead',null,el('tr',null,el('th',null,'重'),el('th',null,'段位'),el('th',null,'解禁する曲'),el('th',null,'状況'))),dr)));}}
 function sortCharts(list){return[...list].sort((a,b)=>COURSE_ORDER.indexOf(a.course)-COURSE_ORDER.indexOf(b.course)||(a.level??0)-(b.level??0));}
 function crownOf(c){const b=Lib.best[c.uid];return b&&b.crown?CROWN[b.crown]:null;}
-function chip(c){const locked=isLocked(c);return el('span',{class:'chip'+(locked?' locked':''),style:`--cc:${COURSES[c.course].color}`},locked?'重 封印':COURSES[c.course].jp,locked?null:el('b',null,levelText(c)),crownOf(c)?el('span',{class:'cr'},crownOf(c)):null);}
+function chip(c){const locked=isLocked(c);return el('span',{class:'chip'+(locked?' locked':''),style:`--cc:${COURSES[c.course].color}`},locked?'重 封印':COURSES[c.course].jp,locked?null:el('b',null,levelText(c)),crownOf(c)?el('span',{class:'cr'},crownOf(c)):null,sealBadge(c));}
 
 /* ---- 並び順と絞り込み ---- */
 function lvKey(s){let mx=0,kas=0;for(const c of s.charts){if(c.course==='kasane'){if(!isLocked(c))kas=Math.max(kas,c.level||0);}else mx=Math.max(mx,(c.level||0)+(c.course==='ura'?.5:0));}return mx+kas*.01;}
@@ -1192,11 +1193,14 @@ function drawDensity(cvd,c,sel){if(!cvd.isConnected)return;const r=cvd.getBoundi
   if(sel){const a=sel.from/len*w,b=Math.min(w,sel.to/len*w);x.fillStyle='rgba(7,9,21,.7)';x.fillRect(0,0,a,h);x.fillRect(b,0,w-b,h);x.fillStyle='#f2bc3d';x.fillRect(a-1,0,2,h);x.fillRect(b-1,0,2,h);}}
 
 /* HTML専用の封印ノーツ設定。osuファイルには書き込まない。 */
+function hasSealedNotes(c){const data=store.get(noiseKey(c),c.repoNoise||{});return c.targets.some((t,i)=>{if(!noiseEligible(t))return false;const v=data&&data[noiseId(t,i)];return Array.isArray(v)&&(t.type==='single'?[t]:t.notes).some((n,j)=>v[j]==='left'||v[j]==='right');});}
+function sealBadge(c){return el('span',{class:'seal-badge','data-seal-chart':c.uid,hidden:!hasSealedNotes(c),title:'封印ノーツ搭載譜面','aria-label':'封印ノーツ搭載譜面'},'封印');}
+function updateSealBadges(c){const active=hasSealedNotes(c);for(const badge of document.querySelectorAll('[data-seal-chart]'))if(badge.dataset.sealChart===c.uid)badge.hidden=!active;}
 function noiseEligible(t){return t.type==='single'||(t.type==='chord'&&t.notes.length===2&&t.reqD===1&&t.reqK===1&&!t.notes.some(n=>n.big));}
 function noiseKey(c){return 'kasane-red-noise-v1:'+c.uid;}
 function noiseId(t,i){return i+':'+t.t+':'+(t.type==='single'?t.color+(t.big?'B':''):t.notes.map(n=>n.color+(n.big?'B':'')).join(''));}
 function loadNoise(c){const data=store.get(noiseKey(c),c.repoNoise||{});c.targets.forEach((t,i)=>{const v=data&&data[noiseId(t,i)];const ns=t.type==='single'?[t]:t.notes;ns.forEach((n,j)=>{n.noise=noiseEligible(t)&&Array.isArray(v)&&['left','right'].includes(v[j])?v[j]:null;});});}
-function saveNoise(c){const data={};c.targets.forEach((t,i)=>{const ns=t.type==='single'?[t]:t.notes;if(noiseEligible(t)&&ns.some(n=>n.noise))data[noiseId(t,i)]=ns.map(n=>n.noise||null);});try{localStorage.setItem(noiseKey(c),JSON.stringify(data));return true;}catch(e){toast('保存できません。ブラウザの保存容量・設定を確認してください','err');return false;}}
+function saveNoise(c){const data={};c.targets.forEach((t,i)=>{const ns=t.type==='single'?[t]:t.notes;if(noiseEligible(t)&&ns.some(n=>n.noise))data[noiseId(t,i)]=ns.map(n=>n.noise||null);});try{localStorage.setItem(noiseKey(c),JSON.stringify(data));updateSealBadges(c);return true;}catch(e){toast('保存できません。ブラウザの保存容量・設定を確認してください','err');return false;}}
 function noiseBlocked(t,role){const color=ROLE_COLOR[role],n=t.type==='single'?t:t.notes.find(n=>n.color===color);return !!n&&((n.noise==='left'&&role.endsWith('L'))||(n.noise==='right'&&role.endsWith('R')));}
 function noiseRole(n){return(n.color==='d'?'don':'ka')+(n.noise==='left'?'R':'L');}
 function noiseEditor(c){loadNoise(c);const box=el('details',{style:'margin:16px;padding:14px;border:1px solid #a32d46;border-radius:12px;background:#190f20'}),canvas=el('canvas',{width:1000,height:280,style:'width:100%;background:#090c18;border-radius:10px;cursor:crosshair;touch-action:none','aria-label':'ノーツの左半分か右半分をクリックして封印を切り替え'}),seek=el('input',{type:'range',min:0,max:Math.max(1,c.length),value:0,step:1,style:'width:100%','aria-label':'編集する時刻'}),zoom=el('select',{'aria-label':'表示範囲'}),label=el('span');let hits=[],frame=0;
@@ -1230,7 +1234,7 @@ function renderDetail(){const d=$('#detail');d.innerHTML='';const s=Lib.sets.fin
   const list=el('div',{class:'crs-list',role:'listbox','aria-label':'コース'});
   for(const c of sortCharts(s.charts)){const C=COURSES[c.course],locked=isLocked(c);
     const b=el('button',{class:'crs'+(c.uid===UI.selChart?' is-on':'')+(locked?' locked':''),style:`--cc:${C.color}`,role:'option','aria-selected':String(c.uid===UI.selChart)},
-      el('span',{class:'k'},C.k),el('span',{class:'nm'},el('strong',null,C.jp+(locked?'（封印中）':'')),el('small',null,c.meta.version+(c.stats.chords?` ・ 最大${c.stats.maxLanes}レーン`:'')),
+      el('span',{class:'k'},C.k),el('span',{class:'nm'},el('strong',null,C.jp+(locked?'（封印中）':''),' ',sealBadge(c)),el('small',null,c.meta.version+(c.stats.chords?` ・ 最大${c.stats.maxLanes}レーン`:'')),
         el('span',{class:'pips','aria-hidden':'true'},Array.from({length:Math.max(10,c.level||0)},(_,i)=>el('i',{class:i<(c.level||0)?'on':''})))),
       el('span',{class:'lv'},levelText(c),el('small',null,crownOf(c)||(Lib.best[c.uid]?fmtNum(Lib.best[c.uid].score):''))));
     b.addEventListener('click',()=>{if(UI.selChart!==c.uid){UI.gesture=true;ensureAudio();playSE('ka');}UI.selChart=c.uid;renderDetail();});list.append(b);}
@@ -1281,7 +1285,7 @@ function renderDans(){const box=$('#danlist');if(!box)return;box.innerHTML='';
     card.append(el('div',{class:'dan-foot'},el('span',{class:'src'},d.src==='auto'?'自動で組んだ段位（dan.csv で上書きできます）':`dan.csv の「${d.id}」`),
       el('button',{class:'btn primary',disabled:!d.ready||null,onclick:()=>{UI.gesture=true;startDan(d);}},'挑戦する')));
     box.append(card);}}
-function chipFor(c){const C=COURSES[c.course];return el('span',{class:'chip',style:`--cc:${C.color}`},C.jp,el('b',null,levelText(c)));}
+function chipFor(c){const C=COURSES[c.course];return el('span',{class:'chip',style:`--cc:${C.color}`},C.jp,el('b',null,levelText(c)),sealBadge(c));}
 
 function renderLoad(){
   const ul=$('#libList');ul.innerHTML='';
