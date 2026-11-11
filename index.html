@@ -1224,8 +1224,8 @@ function drawNoise(c,x,y,r,side,alpha,pn){if(!side)return;
   for(let i=0;i<70;i++){c.fillStyle=i%4?'#e51029':'#ff8790';const sz=1+rnd()*r*.065;c.fillRect((side==='left'?x-r*1.2:x)+rnd()*r*1.2,y-r*1.2+rnd()*r*2.4,sz,sz);}
   c.restore();c.globalAlpha=alpha;c.shadowColor='#ff1744';c.shadowBlur=LOWFX()?0:r*.11;
   c.strokeStyle='#ee1741';c.lineWidth=Math.max(1,r*.022);shape();c.stroke();
-  // フレームごとに形と位置を再抽選。等間隔の区画内で位置を揺らす。
-  let frameSeed=REDUCED?12345:Math.floor(pn*1000)+Math.floor(y)*131;
+  // 200msごと（毎秒5回）に形と位置を再抽選。等間隔の区画内で位置を揺らす。
+  let frameSeed=REDUCED?12345:Math.floor(pn/200)*997+Math.floor(y)*131;
   const frameRandom=()=>{frameSeed=(Math.imul(frameSeed,1664525)+1013904223)|0;return(frameSeed>>>0)/4294967296;};
   for(let i=0;i<12;i++){const u=(i+.5+(frameRandom()-.5)*.65)/12,a=-Math.PI/2+u*Math.PI;
     const drift=(frameRandom()-.5)*r*.12,size=r*(.10+frameRandom()*.055),kind=Math.floor(frameRandom()*3);
