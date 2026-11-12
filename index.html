@@ -604,6 +604,7 @@ kbd.gk{font-size:14px;padding:1px 7px}kbd.gk.d{color:#ff8a72;border-color:var(--
       <div class="card">
         <h3>確認用</h3>
         <label>演奏画面 <select id="setFalling"><option value="taiko">太鼓</option><option value="flat">4レーン落下（2D）</option><option value="perspective">4レーン落下（3D）</option></select></label>
+        <div class="setting"><label for="setSudden">サドプラ（4レーンの上側を隠す）</label><div class="inline"><input id="setSudden" type="range" min="0" max="80" step="1" value="0"><output id="outSudden" for="setSudden"></output></div></div>
         <label class="switch"><input type="checkbox" id="setLowFx"> 演出を少なくする（動作が重いとき用。花火・観客を省き、封印ノーツの粒や光を簡略化します）</label>
         <label class="switch"><input type="checkbox" id="setNoiseEdit"> 封印ノーツ編集をON（曲詳細に編集画面を表示）</label>
         <label class="switch"><input type="checkbox" id="setAuto"> オート演奏（記録・解禁はされません）</label>
@@ -705,7 +706,7 @@ function diffRange(d,min,mid,max){return d>5?mid+(max-mid)*(d-5)/5:d<5?mid-(mid-
 function segAt(segs,t){if(!segs.length)return null;if(t<segs[0].time)return segs[0];let lo=0,hi=segs.length-1,a=0;while(lo<=hi){const m=(lo+hi)>>1;if(segs[m].time<=t+1){a=m;lo=m+1;}else hi=m-1;}return segs[a];}
 
 /* ================= 設定・記録 ================= */
-const S=Object.assign({keys:['KeyD','KeyF','KeyJ','KeyK'],speed:1,offset:0,music:.8,se:.7,auto:false,noiseEdit:false,falling:false,unlockAll:false},store.get('kt.settings',{}));
+const S=Object.assign({keys:['KeyD','KeyF','KeyJ','KeyK'],speed:1,offset:0,music:.8,se:.7,auto:false,noiseEdit:false,falling:false,sudden:0,unlockAll:false},store.get('kt.settings',{}));
 S.opt=Object.assign({mirror:false,rand:0,hidden:false},S.opt||{});if(!S.fx)S.fx='high';
 const LOWFX=()=>S.fx==='low';
 function saveS(){store.set('kt.settings',S);}
@@ -1366,6 +1367,8 @@ function renderSettings(){
   $('#setOffset').value=S.offset;$('#outOffset').textContent=(S.offset>0?'+':'')+S.offset+'ms';
   $('#setMusic').value=S.music;$('#outMusic').textContent=Math.round(S.music*100)+'%';
   $('#setSe').value=S.se;$('#outSe').textContent=Math.round(S.se*100)+'%';
+  $('#setSudden').value=clamp(Number(S.sudden)||0,0,80);
+  $('#outSudden').textContent=$('#setSudden').value+'%';
   $('#setFalling').value=S.falling!==true?'taiko':S.perspective===true?'perspective':'flat';
   $('#setNoiseEdit').checked=S.noiseEdit===true;
   $('#setAuto').checked=S.auto;$('#setUnlock').checked=S.unlockAll;$('#setLowFx').checked=S.fx==='low';
@@ -1740,7 +1743,8 @@ function fallingLayout(){
   const depth=y=>perspective?clamp(.23+.77*(y-top)/Math.max(1,bottom-top),.23,1):1;
   const xAt=(column,y)=>center+(column-2)*width/4*depth(y);
   const project=progress=>top+(bottom-top)*(perspective?progress/(3.4-2.4*clamp(progress,0,1)):progress);
-  return {top,bottom,depth,xAt,project};
+  const coverTop=top+Math.max(0,bottom-top)*clamp(Number(S.sudden)||0,0,80)/100;
+  return {top,bottom,coverTop,depth,xAt,project};
 }
 
 function fallingRoles(target,index){
@@ -1758,7 +1762,7 @@ function fallingRoles(target,index){
 }
 
 function drawFalling(now,pn){
-  const c=ctx,g=G,{top,bottom,depth,xAt,project}=fallingLayout();
+  const c=ctx,g=G,{top,bottom,coverTop,depth,xAt,project}=fallingLayout();
   c.fillStyle='#10142a';c.fillRect(0,0,view.W,view.H);
   if(bottom<=top)return;
   const distance=bottom-top,speed=S.speed;
@@ -1776,7 +1780,7 @@ function drawFalling(now,pn){
     c.globalAlpha=1;
   };
   c.save();c.beginPath();
-  c.moveTo(xAt(0,top),top);c.lineTo(xAt(4,top),top);
+  c.moveTo(xAt(0,coverTop),coverTop);c.lineTo(xAt(4,coverTop),coverTop);
   c.lineTo(xAt(4,bottom+12),bottom+12);c.lineTo(xAt(0,bottom+12),bottom+12);
   c.closePath();c.clip();
   for(let i=0;i<4;i++){
@@ -1793,7 +1797,7 @@ function drawFalling(now,pn){
   const targets=g.targets;
   for(let i=targets.length-1;i>=g.cursor;i--){
     const target=targets[i],y=position(target.t,target.speed);
-    if(target.judged||y<top-12||y>bottom+12)continue;
+    if(target.judged||y<coverTop-12||y>bottom+12)continue;
     const opacity=g.hidden?clamp((bottom-y-distance*.32)/(distance*.16),0,1):1;
     const roles=fallingRoles(target,i);
     if(roles.length>1){
@@ -1811,6 +1815,7 @@ function drawFalling(now,pn){
       }
     }
   }
+  if(coverTop>top)band(0,4,coverTop,coverTop+2,'#7885b2');
   c.fillStyle='#fff';c.fillRect(xAt(0,bottom),bottom-2,xAt(4,bottom)-xAt(0,bottom),3);c.restore();
   c.textAlign='center';c.font='600 13px sans-serif';
   for(let i=0;i<4;i++){
@@ -1827,9 +1832,9 @@ function drawFalling(now,pn){
 cv.style.touchAction='none';
 cv.addEventListener('pointerdown',e=>{
   if(S.falling!==true||!G||G.paused||G.auto)return;
-  const box=cv.getBoundingClientRect(),{xAt,top,bottom}=fallingLayout();
+  const box=cv.getBoundingClientRect(),{xAt,top,bottom,coverTop}=fallingLayout();
   const y=e.clientY-box.top,x=e.clientX-box.left;
-  if(y<top||bottom<=top)return;
+  if(y<coverTop||bottom<=top)return;
   const left=xAt(0,y),width=xAt(4,y)-left;
   const col=Math.floor((x-left)/width*4);
   if(col<0||col>=4)return;
@@ -2162,7 +2167,7 @@ function renderGuide(){const b=$('#howtoBody');b.innerHTML='';const K=S.keys.map
         el('tr',null,el('td',null,el('b',null,'可')),el('td',{class:'num'},`±${WIN_HARD.ok}ms`),el('td',{class:'num'},`±${WIN_SOFT.ok}ms`)),
         el('tr',null,el('td',null,el('b',{style:'color:#8ea0e0'},'不可')),el('td',{colspan:'2'},'それより外れたとき、叩かなかったとき、上のミスになる押し方をしたとき')))))),
     sec('重譜面の解禁',el('p',null,'重の譜面は最初は封印されています。「段位道場」で3曲を続けて叩き、合格すると3曲目の重譜面が通常プレイで遊べるようになります。条件は「不可 2%以下」「特良 70%以上」のような割合で決まり、演奏中は下のバーで残りの許容数が分かります。')),
-    sec('4レーン落下モード',el('p',null,'設定の「演奏画面」で4レーン落下（2D／3D）を選ぶと音符が上から落ちてきます。3Dでは奥から手前に向かってレーンが広がります。下の判定線に重なったときに、表示されたレーンのキーを押すか画面をタップしてください。横線でつながった音符は同時押しです。封印ノーツは使える手のレーンに表示されます。')),
+    sec('4レーン落下モード',el('p',null,'設定の「演奏画面」で4レーン落下（2D／3D）を選ぶと音符が上から落ちてきます。3Dでは奥から手前に向かってレーンが広がります。サドプラで上側を隠す量を調整できます。下の判定線に重なったときに、表示されたレーンのキーを押すか画面をタップしてください。横線でつながった音符は同時押しです。封印ノーツは使える手のレーンに表示されます。')),
     sec('練習とオプション',el('p',null,'曲の詳細にある「練習モード」で、区間をしぼってスローで何度でも練習できます。あべこべ・きまぐれ・でたらめ・ドロンなどのオプションもあります（段位道場では使われません）。音と叩くタイミングがずれるときは「設定」のタイミング調整を使ってください。')));}
 $('#guideBtn').addEventListener('click',openGuide);
 $('#guideClose').addEventListener('click',closeGuide);
@@ -2199,7 +2204,7 @@ $('#clearLib').addEventListener('click',()=>{$('#clearLibConfirm').hidden=false;
 $('#clearLibNo').addEventListener('click',()=>{$('#clearLibConfirm').hidden=true;});
 $('#clearLibYes').addEventListener('click',async()=>{for(const s of Lib.sets.filter(s=>!s.demo))removeSet(s,false);await IDB.clear();$('#clearLibConfirm').hidden=true;UI.selSet=null;resolveAll();refreshAll();toast('保存した .osz を削除しました');});
 const bindRange=(id,key,fn)=>$(id).addEventListener('input',e=>{S[key]=parseFloat(e.target.value);if(fn)fn();saveS();renderSettings();});
-bindRange('#setSpeed','speed');bindRange('#setOffset','offset');
+bindRange('#setSudden','sudden');bindRange('#setSpeed','speed');bindRange('#setOffset','offset');
 bindRange('#setMusic','music',()=>{if(musicGain)musicGain.gain.value=S.music;});bindRange('#setSe','se',()=>{if(seGain)seGain.gain.value=S.se;});
 $('#setFalling').addEventListener('change',e=>{S.falling=e.target.value!=='taiko';S.perspective=e.target.value==='perspective';saveS();});
 $('#setLowFx').addEventListener('change',e=>{S.fx=e.target.checked?'low':'high';saveS();});
