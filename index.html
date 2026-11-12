@@ -603,7 +603,7 @@ kbd.gk{font-size:14px;padding:1px 7px}kbd.gk.d{color:#ff8a72;border-color:var(--
       </div>
       <div class="card">
         <h3>確認用</h3>
-        <label class="switch"><input type="checkbox" id="setFalling"> 4レーン落下モード（プロセカ風）</label>
+        <label>演奏画面 <select id="setFalling"><option value="taiko">太鼓</option><option value="flat">4レーン落下（2D）</option><option value="perspective">4レーン落下（3D）</option></select></label>
         <label class="switch"><input type="checkbox" id="setLowFx"> 演出を少なくする（動作が重いとき用。花火・観客を省き、封印ノーツの粒や光を簡略化します）</label>
         <label class="switch"><input type="checkbox" id="setNoiseEdit"> 封印ノーツ編集をON（曲詳細に編集画面を表示）</label>
         <label class="switch"><input type="checkbox" id="setAuto"> オート演奏（記録・解禁はされません）</label>
@@ -1366,7 +1366,7 @@ function renderSettings(){
   $('#setOffset').value=S.offset;$('#outOffset').textContent=(S.offset>0?'+':'')+S.offset+'ms';
   $('#setMusic').value=S.music;$('#outMusic').textContent=Math.round(S.music*100)+'%';
   $('#setSe').value=S.se;$('#outSe').textContent=Math.round(S.se*100)+'%';
-  $('#setFalling').checked=S.falling===true;
+  $('#setFalling').value=S.falling!==true?'taiko':S.perspective===true?'perspective':'flat';
   $('#setNoiseEdit').checked=S.noiseEdit===true;
   $('#setAuto').checked=S.auto;$('#setUnlock').checked=S.unlockAll;$('#setLowFx').checked=S.fx==='low';
   if(!CAL.on&&CAL.result==null)$('#calSub').textContent=`いまのオフセット: ${S.offset>0?'+':''}${S.offset}ms`;}
@@ -1735,8 +1735,12 @@ function drawInterlude(){const c=ctx,W=view.W,H=view.H,pn=performance.now(),it=D
   c.restore();}
 
 function fallingLayout(){
-  const width=Math.min(view.W-16,520), bottom=view.H-48;
-  return {left:(view.W-width)/2, lane:width/4, top:62, bottom};
+  const width=Math.min(view.W-16,520), bottom=view.H-48, top=62;
+  const perspective=S.perspective===true, center=view.W/2;
+  const depth=y=>perspective?clamp(.23+.77*(y-top)/Math.max(1,bottom-top),.23,1):1;
+  const xAt=(column,y)=>center+(column-2)*width/4*depth(y);
+  const project=progress=>top+(bottom-top)*(perspective?progress/(3.4-2.4*clamp(progress,0,1)):progress);
+  return {top,bottom,depth,xAt,project};
 }
 
 function fallingRoles(target,index){
@@ -1754,27 +1758,37 @@ function fallingRoles(target,index){
 }
 
 function drawFalling(now,pn){
-  const c=ctx,g=G,{left,lane,top,bottom}=fallingLayout();
+  const c=ctx,g=G,{top,bottom,depth,xAt,project}=fallingLayout();
   c.fillStyle='#10142a';c.fillRect(0,0,view.W,view.H);
   if(bottom<=top)return;
-  const distance=bottom-top,speed=S.speed*distance;
-  const position=(t,sv)=>bottom-(t-now)*sv*speed;
-  const drawBar=(col,y,color,alpha=1)=>{
-    c.globalAlpha=alpha;c.fillStyle=color;
-    rr(c,left+col*lane+3,y-7,Math.max(2,lane-6),14,4);c.fill();
+  const distance=bottom-top,speed=S.speed;
+  const position=(t,sv)=>project(1-(t-now)*sv*speed);
+  const band=(first,last,y1,y2,color)=>{
+    c.fillStyle=color;c.beginPath();
+    c.moveTo(xAt(first,y1),y1);c.lineTo(xAt(last,y1),y1);
+    c.lineTo(xAt(last,y2),y2);c.lineTo(xAt(first,y2),y2);
+    c.closePath();c.fill();
+  };
+  const drawBar=(col,y,color,alpha)=>{
+    c.globalAlpha=alpha;
+    const halfHeight=7*depth(y);
+    band(col+.04,col+.96,y-halfHeight,y+halfHeight,color);
     c.globalAlpha=1;
   };
-  c.save();c.beginPath();c.rect(left,top,lane*4,distance+12);c.clip();
+  c.save();c.beginPath();
+  c.moveTo(xAt(0,top),top);c.lineTo(xAt(4,top),top);
+  c.lineTo(xAt(4,bottom+12),bottom+12);c.lineTo(xAt(0,bottom+12),bottom+12);
+  c.closePath();c.clip();
   for(let i=0;i<4;i++){
-    const x=left+i*lane,lit=pn-(g.flash[ROLES[i]]??-Infinity)<130;
-    c.fillStyle=lit?'#405482':i%2?'#232b4a':'#1c2340';c.fillRect(x,top,lane-1,distance+12);
+    const lit=pn-(g.flash[ROLES[i]]??-Infinity)<130;
+    band(i,i+.985,top,bottom+12,lit?'#405482':i%2?'#232b4a':'#1c2340');
   }
   for(const roll of g.rolls){
     if(roll.done||roll.end<now)continue;
     const y=Math.max(top,position(roll.end,roll.speed)),end=Math.min(bottom,position(roll.t,roll.speed));
     if(end<=y)continue;
-    c.fillStyle=roll.type==='balloon'?'#774577':'#635434';
-    c.fillRect(left+(roll.type==='balloon'?lane:0)+3,y,lane*(roll.type==='balloon'?2:4)-6,end-y);
+    const balloon=roll.type==='balloon';
+    band(balloon?1.04:.04,balloon?2.96:3.96,y,end,balloon?'#774577':'#635434');
   }
   const targets=g.targets;
   for(let i=targets.length-1;i>=g.cursor;i--){
@@ -1785,23 +1799,23 @@ function drawFalling(now,pn){
     if(roles.length>1){
       const cols=roles.map(role=>ROLES.indexOf(role));
       const first=Math.min(...cols),last=Math.max(...cols);
-      c.globalAlpha=opacity;c.fillStyle='#a9a1e0';c.fillRect(left+(first+.5)*lane,y-1,(last-first)*lane,2);c.globalAlpha=1;
+      c.globalAlpha=opacity;c.fillStyle='#a9a1e0';c.fillRect(xAt(first+.5,y),y-1,xAt(last+.5,y)-xAt(first+.5,y),2);c.globalAlpha=1;
     }
     for(const role of roles){
       const col=ROLES.indexOf(role),color=ROLE_COLOR[role];
       const note=target.type==='single'?target:target.notes.find(n=>n.color===color&&n.noise);
       drawBar(col,y,color==='d'?'#ff746f':'#53d9e8',opacity);
       if(note?.noise&&opacity>0){
-        const x=left+(col+.5)*lane;
-        drawNoise(c,x,y,7,note.noise,opacity,pn);
+        const x=xAt(col+.5,y);
+        drawNoise(c,x,y,7*depth(y),note.noise,opacity,pn);
       }
     }
   }
-  c.fillStyle='#fff';c.fillRect(left,bottom-2,lane*4,3);c.restore();
+  c.fillStyle='#fff';c.fillRect(xAt(0,bottom),bottom-2,xAt(4,bottom)-xAt(0,bottom),3);c.restore();
   c.textAlign='center';c.font='600 13px sans-serif';
   for(let i=0;i<4;i++){
     c.fillStyle=ROLE_COLOR[ROLES[i]]==='d'?'#ff9f99':'#89e9f2';
-    c.fillText(keyLabel(S.keys[i]),left+(i+.5)*lane,bottom+28);
+    c.fillText(keyLabel(S.keys[i]),xAt(i+.5,bottom),bottom+28);
   }
   if(g.pop&&pn-g.pop.t<480){
     c.font='700 22px sans-serif';c.fillStyle='#fff';
@@ -1813,9 +1827,12 @@ function drawFalling(now,pn){
 cv.style.touchAction='none';
 cv.addEventListener('pointerdown',e=>{
   if(S.falling!==true||!G||G.paused||G.auto)return;
-  const box=cv.getBoundingClientRect(),{left,lane,top}=fallingLayout();
-  const col=Math.floor((e.clientX-box.left-left)/lane);
-  if(col<0||col>=4||e.clientY-box.top<top)return;
+  const box=cv.getBoundingClientRect(),{xAt,top,bottom}=fallingLayout();
+  const y=e.clientY-box.top,x=e.clientX-box.left;
+  if(y<top||bottom<=top)return;
+  const left=xAt(0,y),width=xAt(4,y)-left;
+  const col=Math.floor((x-left)/width*4);
+  if(col<0||col>=4)return;
   e.preventDefault();press(ROLES[col],songTime(e.timeStamp>1e12?performance.now():e.timeStamp));
 });
 
@@ -2145,7 +2162,7 @@ function renderGuide(){const b=$('#howtoBody');b.innerHTML='';const K=S.keys.map
         el('tr',null,el('td',null,el('b',null,'可')),el('td',{class:'num'},`±${WIN_HARD.ok}ms`),el('td',{class:'num'},`±${WIN_SOFT.ok}ms`)),
         el('tr',null,el('td',null,el('b',{style:'color:#8ea0e0'},'不可')),el('td',{colspan:'2'},'それより外れたとき、叩かなかったとき、上のミスになる押し方をしたとき')))))),
     sec('重譜面の解禁',el('p',null,'重の譜面は最初は封印されています。「段位道場」で3曲を続けて叩き、合格すると3曲目の重譜面が通常プレイで遊べるようになります。条件は「不可 2%以下」「特良 70%以上」のような割合で決まり、演奏中は下のバーで残りの許容数が分かります。')),
-    sec('4レーン落下モード',el('p',null,'設定でONにすると音符が上から落ちてきます。下の判定線に重なったときに、表示されたレーンのキーを押すか画面をタップしてください。横線でつながった音符は同時押しです。封印ノーツは使える手のレーンに表示されます。')),
+    sec('4レーン落下モード',el('p',null,'設定の「演奏画面」で4レーン落下（2D／3D）を選ぶと音符が上から落ちてきます。3Dでは奥から手前に向かってレーンが広がります。下の判定線に重なったときに、表示されたレーンのキーを押すか画面をタップしてください。横線でつながった音符は同時押しです。封印ノーツは使える手のレーンに表示されます。')),
     sec('練習とオプション',el('p',null,'曲の詳細にある「練習モード」で、区間をしぼってスローで何度でも練習できます。あべこべ・きまぐれ・でたらめ・ドロンなどのオプションもあります（段位道場では使われません）。音と叩くタイミングがずれるときは「設定」のタイミング調整を使ってください。')));}
 $('#guideBtn').addEventListener('click',openGuide);
 $('#guideClose').addEventListener('click',closeGuide);
@@ -2184,7 +2201,7 @@ $('#clearLibYes').addEventListener('click',async()=>{for(const s of Lib.sets.fil
 const bindRange=(id,key,fn)=>$(id).addEventListener('input',e=>{S[key]=parseFloat(e.target.value);if(fn)fn();saveS();renderSettings();});
 bindRange('#setSpeed','speed');bindRange('#setOffset','offset');
 bindRange('#setMusic','music',()=>{if(musicGain)musicGain.gain.value=S.music;});bindRange('#setSe','se',()=>{if(seGain)seGain.gain.value=S.se;});
-$('#setFalling').addEventListener('change',e=>{S.falling=e.target.checked;saveS();});
+$('#setFalling').addEventListener('change',e=>{S.falling=e.target.value!=='taiko';S.perspective=e.target.value==='perspective';saveS();});
 $('#setLowFx').addEventListener('change',e=>{S.fx=e.target.checked?'low':'high';saveS();});
 $('#setNoiseEdit').addEventListener('change',e=>{S.noiseEdit=e.target.checked;saveS();renderDetail();});
 $('#setAuto').addEventListener('change',e=>{S.auto=e.target.checked;saveS();renderDetail();});
