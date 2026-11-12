@@ -603,7 +603,8 @@ kbd.gk{font-size:14px;padding:1px 7px}kbd.gk.d{color:#ff8a72;border-color:var(--
       </div>
       <div class="card">
         <h3>確認用</h3>
-        <label class="switch"><input type="checkbox" id="setLowFx"> 演出を少なくする（動作が重いとき用。花火・観客・飛ぶ音符などを省きます）</label>
+        <label class="switch"><input type="checkbox" id="setFalling"> 4レーン落下モード（プロセカ風）</label>
+        <label class="switch"><input type="checkbox" id="setLowFx"> 演出を少なくする（動作が重いとき用。花火・観客を省き、封印ノーツの粒や光を簡略化します）</label>
         <label class="switch"><input type="checkbox" id="setNoiseEdit"> 封印ノーツ編集をON（曲詳細に編集画面を表示）</label>
         <label class="switch"><input type="checkbox" id="setAuto"> オート演奏（記録・解禁はされません）</label>
         <label class="switch"><input type="checkbox" id="setUnlock"> 重譜面をすべて解禁して表示（譜面作者向け）</label>
@@ -704,7 +705,7 @@ function diffRange(d,min,mid,max){return d>5?mid+(max-mid)*(d-5)/5:d<5?mid-(mid-
 function segAt(segs,t){if(!segs.length)return null;if(t<segs[0].time)return segs[0];let lo=0,hi=segs.length-1,a=0;while(lo<=hi){const m=(lo+hi)>>1;if(segs[m].time<=t+1){a=m;lo=m+1;}else hi=m-1;}return segs[a];}
 
 /* ================= 設定・記録 ================= */
-const S=Object.assign({keys:['KeyD','KeyF','KeyJ','KeyK'],speed:1,offset:0,music:.8,se:.7,auto:false,noiseEdit:false,unlockAll:false},store.get('kt.settings',{}));
+const S=Object.assign({keys:['KeyD','KeyF','KeyJ','KeyK'],speed:1,offset:0,music:.8,se:.7,auto:false,noiseEdit:false,falling:false,unlockAll:false},store.get('kt.settings',{}));
 S.opt=Object.assign({mirror:false,rand:0,hidden:false},S.opt||{});if(!S.fx)S.fx='high';
 const LOWFX=()=>S.fx==='low';
 function saveS(){store.set('kt.settings',S);}
@@ -1213,14 +1214,21 @@ box.append(el('summary',{style:'cursor:pointer;font-weight:bold;color:#ff6979'},
 // 発光・粒・枠は小さなキャンバスで共有し、各ノーツには画像を1回転送する。
 const sealSpriteCache=new Map();
 function drawNoise(c,x,y,r,side,alpha,pn){if(!side||alpha<=0)return;
-  const radius=Math.round(r*4)/4,dpr=Math.min(2,window.devicePixelRatio||1),low=LOWFX();
-  const key=radius+'|'+dpr+'|'+low,stamp=REDUCED?0:Math.floor(pn/50),time=stamp*50;
+  const radius=Math.round(r*4)/4,low=LOWFX(),dpr=low?1:Math.min(2,window.devicePixelRatio||1);
+  const key=radius+'|'+dpr+'|'+low,stamp=REDUCED||low?0:Math.floor(pn/50),time=stamp*50;
   let sprite=sealSpriteCache.get(key);
   if(!sprite){if(sealSpriteCache.size>=24)sealSpriteCache.delete(sealSpriteCache.keys().next().value);
     const pad=radius*1.6,canvas=document.createElement('canvas');canvas.width=canvas.height=Math.ceil(pad*2*dpr);
     sprite={canvas,pad,stamp:-1,ctx:canvas.getContext('2d')};sealSpriteCache.set(key,sprite);}
   if(sprite.stamp!==stamp){const sc=sprite.ctx;sc.setTransform(1,0,0,1,0,0);sc.clearRect(0,0,sprite.canvas.width,sprite.canvas.height);sc.setTransform(dpr,0,0,dpr,0,0);
-    paintSealSprite(sc,sprite.pad,sprite.pad,radius,'right',1,time);sprite.stamp=stamp;}
+    if(low){
+      const center=sprite.pad,R=radius*1.06;
+      sc.beginPath();sc.arc(center,center,R,-Math.PI/2,Math.PI/2);sc.closePath();
+      sc.fillStyle='#190612';sc.fill();sc.strokeStyle='#ff3155';sc.lineWidth=2;sc.stroke();
+      sc.fillStyle='#ff5578';
+      for(let i=0;i<5;i++)sc.fillRect(center+R*(.22+i%2*.24),center+R*(i-2)*.27,2,2);
+    }else paintSealSprite(sc,sprite.pad,sprite.pad,radius,'right',1,time);
+    sprite.stamp=stamp;}
   c.save();c.globalAlpha=alpha;c.translate(x,y);if(side==='left')c.scale(-1,1);
   c.drawImage(sprite.canvas,-sprite.pad,-sprite.pad,sprite.pad*2,sprite.pad*2);c.restore();}
 function paintSealSprite(c,x,y,r,side,alpha,pn){if(!side)return;
@@ -1358,6 +1366,7 @@ function renderSettings(){
   $('#setOffset').value=S.offset;$('#outOffset').textContent=(S.offset>0?'+':'')+S.offset+'ms';
   $('#setMusic').value=S.music;$('#outMusic').textContent=Math.round(S.music*100)+'%';
   $('#setSe').value=S.se;$('#outSe').textContent=Math.round(S.se*100)+'%';
+  $('#setFalling').checked=S.falling===true;
   $('#setNoiseEdit').checked=S.noiseEdit===true;
   $('#setAuto').checked=S.auto;$('#setUnlock').checked=S.unlockAll;$('#setLowFx').checked=S.fx==='low';
   if(!CAL.on&&CAL.result==null)$('#calSub').textContent=`いまのオフセット: ${S.offset>0?'+':''}${S.offset}ms`;}
@@ -1455,7 +1464,7 @@ function checkDanFail(){if(!D||!G||G.failed)return;
   for(const c of D.conds){const r=evalTier(c,'red',D.st,D.tot);if(r&&r.fail){G.failed=true;G.failAt=performance.now();D.failCond=c;fadeMusic(1.8);fxStamp('danfail');break;}}}
 
 /* ---------- 進行 ---------- */
-function openStage(){stopPreview();$('#stage').hidden=false;$('#stage').classList.toggle('touch',UI.touch);document.body.classList.add('playing');$('#result').hidden=true;$('#pause').hidden=true;$('#pads').hidden=!UI.touch;layoutStage();startLoop();}
+function openStage(){stopPreview();$('#stage').hidden=false;$('#stage').classList.toggle('touch',UI.touch);document.body.classList.add('playing');$('#result').hidden=true;$('#pause').hidden=true;$('#pads').hidden=!UI.touch||S.falling===true;layoutStage();startLoop();}
 function closeStage(){cancelAnimationFrame(rafId);rafId=0;stopSong();G=null;D=null;$('#stage').hidden=true;document.body.classList.remove('playing');refreshAll();}
 function startLoop(){if(!rafId)rafId=requestAnimationFrame(frame);}
 function stopSong(){if(G&&G.src){try{G.src.stop();}catch(e){}G.src=null;}}
@@ -1676,7 +1685,7 @@ function drawFlames(y,x0,W,pn,k,beat){const c=ctx;c.save();c.globalAlpha=Math.mi
   c.lineTo(W,y);c.closePath();c.fill();c.restore();}
 
 /* ---- 演出の発生 ---- */
-function fxJudge(tg,kind,why){if(!G)return;const pn=performance.now();G.pop={kind,t:pn,why};const L=view.L;if(!L)return;const fx=G.fx,chord=tg.type==='chord';
+function fxJudge(tg,kind,why){if(!G)return;const pn=performance.now();G.pop={kind,t:pn,why};if(S.falling===true)return;const L=view.L;if(!L)return;const fx=G.fx,chord=tg.type==='chord';
   const lanes=chord?tg.notes.map(n=>n.lane):[0];
   if(kind==='bad'){if(why==='mismatch'||why==='color')for(const l of lanes)fx.rings.push({lane:l,t:pn,kind:'x'});return;}
   lanes.forEach((l,i)=>{const big=chord?tg.notes[i].big:tg.big,col=chord?tg.notes[i].color:tg.color,y=L.top+L.laneH*(l+.5);
@@ -1688,7 +1697,7 @@ function fxJudge(tg,kind,why){if(!G)return;const pn=performance.now();G.pop={kin
   const gain=G.st.score-G.prevScore;G.prevScore=G.st.score;if(gain>0)fx.scorePops.push({v:gain,t:pn});
   const st=D?D.st:G.st,prev=st.combo-lanes.length;if(st.combo>=50&&Math.floor(prev/50)<Math.floor(st.combo/50)){fx.banner={n:Math.floor(st.combo/50)*50,t:pn};spawnFirework(true);setTimeout(()=>spawnFirework(false),180);}
   if(fx.parts.length>360)fx.parts.splice(0,fx.parts.length-360);if(fx.flyers.length>40)fx.flyers.splice(0,fx.flyers.length-40);}
-function fxRoll(r,popped){if(!G)return;const pn=performance.now();G.fx.rollPop=pn;G.prevScore=G.st.score;const L=view.L;if(!L||REDUCED)return;const y=L.top+L.laneH*.5;
+function fxRoll(r,popped){if(!G)return;const pn=performance.now();G.fx.rollPop=pn;G.prevScore=G.st.score;if(S.falling===true)return;const L=view.L;if(!L||REDUCED)return;const y=L.top+L.laneH*.5;
   const n=popped?24:2;for(let k=0;k<n;k++){const a=popped?Math.random()*TAU:-Math.PI/2+(Math.random()-.5)*1.6,v=popped?.2+Math.random()*.35:.15+Math.random()*.15;
     G.fx.parts.push({x:L.judgeX,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,t:pn,life:popped?600:300,col:popped?(k%2?'#f08a3c':'#ffd46b'):'#ffe58a',sz:popped?2+Math.random()*3:1.6});}}
 function fxBig(){if(!G||!view.L)return;const pn=performance.now();G.fx.rings.push({lane:0,t:pn,kind:'good',big:true});G.fx.bigPop=pn;G.prevScore=G.st.score;}
@@ -1725,7 +1734,93 @@ function drawInterlude(){const c=ctx,W=view.W,H=view.H,pn=performance.now(),it=D
     c.fillStyle='#a2a8ca';c.fillText(line,cx,y);y+=20;}
   c.restore();}
 
+function fallingLayout(){
+  const width=Math.min(view.W-16,520), bottom=view.H-48;
+  return {left:(view.W-width)/2, lane:width/4, top:62, bottom};
+}
+
+function fallingRoles(target,index){
+  const notes=target.type==='chord'?target.notes:[target];
+  const roles=[];
+  for(const note of notes){
+    const prefix=note.color==='d'?'don':'ka';
+    if(note.noise){roles.push(noiseRole(note));continue;}
+    const left=prefix+'L',right=prefix+'R';
+    if(note.big&&target.type==='chord'){roles.push(left,right);continue;}
+    const preferred=index%2?right:left;
+    roles.push(roles.includes(preferred)?(preferred===left?right:left):preferred);
+  }
+  return roles;
+}
+
+function drawFalling(now,pn){
+  const c=ctx,g=G,{left,lane,top,bottom}=fallingLayout();
+  c.fillStyle='#10142a';c.fillRect(0,0,view.W,view.H);
+  if(bottom<=top)return;
+  const distance=bottom-top,speed=S.speed*distance;
+  const position=(t,sv)=>bottom-(t-now)*sv*speed;
+  const drawBar=(col,y,color,alpha=1)=>{
+    c.globalAlpha=alpha;c.fillStyle=color;
+    rr(c,left+col*lane+3,y-7,Math.max(2,lane-6),14,4);c.fill();
+    c.globalAlpha=1;
+  };
+  c.save();c.beginPath();c.rect(left,top,lane*4,distance+12);c.clip();
+  for(let i=0;i<4;i++){
+    const x=left+i*lane,lit=pn-(g.flash[ROLES[i]]??-Infinity)<130;
+    c.fillStyle=lit?'#405482':i%2?'#232b4a':'#1c2340';c.fillRect(x,top,lane-1,distance+12);
+  }
+  for(const roll of g.rolls){
+    if(roll.done||roll.end<now)continue;
+    const y=Math.max(top,position(roll.end,roll.speed)),end=Math.min(bottom,position(roll.t,roll.speed));
+    if(end<=y)continue;
+    c.fillStyle=roll.type==='balloon'?'#774577':'#635434';
+    c.fillRect(left+(roll.type==='balloon'?lane:0)+3,y,lane*(roll.type==='balloon'?2:4)-6,end-y);
+  }
+  const targets=g.targets;
+  for(let i=targets.length-1;i>=g.cursor;i--){
+    const target=targets[i],y=position(target.t,target.speed);
+    if(target.judged||y<top-12||y>bottom+12)continue;
+    const opacity=g.hidden?clamp((bottom-y-distance*.32)/(distance*.16),0,1):1;
+    const roles=fallingRoles(target,i);
+    if(roles.length>1){
+      const cols=roles.map(role=>ROLES.indexOf(role));
+      const first=Math.min(...cols),last=Math.max(...cols);
+      c.globalAlpha=opacity;c.fillStyle='#a9a1e0';c.fillRect(left+(first+.5)*lane,y-1,(last-first)*lane,2);c.globalAlpha=1;
+    }
+    for(const role of roles){
+      const col=ROLES.indexOf(role),color=ROLE_COLOR[role];
+      const note=target.type==='single'?target:target.notes.find(n=>n.color===color&&n.noise);
+      drawBar(col,y,color==='d'?'#ff746f':'#53d9e8',opacity);
+      if(note?.noise&&opacity>0){
+        const x=left+(col+.5)*lane;
+        drawNoise(c,x,y,7,note.noise,opacity,pn);
+      }
+    }
+  }
+  c.fillStyle='#fff';c.fillRect(left,bottom-2,lane*4,3);c.restore();
+  c.textAlign='center';c.font='600 13px sans-serif';
+  for(let i=0;i<4;i++){
+    c.fillStyle=ROLE_COLOR[ROLES[i]]==='d'?'#ff9f99':'#89e9f2';
+    c.fillText(keyLabel(S.keys[i]),left+(i+.5)*lane,bottom+28);
+  }
+  if(g.pop&&pn-g.pop.t<480){
+    c.font='700 22px sans-serif';c.fillStyle='#fff';
+    c.fillText(({tokuryo:'特良',good:'良',ok:'可',bad:'不可'})[g.pop.kind],view.W/2,bottom-distance*.28);
+  }
+  c.textAlign='left';drawHud(now,pn);
+}
+
+cv.style.touchAction='none';
+cv.addEventListener('pointerdown',e=>{
+  if(S.falling!==true||!G||G.paused||G.auto)return;
+  const box=cv.getBoundingClientRect(),{left,lane,top}=fallingLayout();
+  const col=Math.floor((e.clientX-box.left-left)/lane);
+  if(col<0||col>=4||e.clientY-box.top<top)return;
+  e.preventDefault();press(ROLES[col],songTime(e.timeStamp>1e12?performance.now():e.timeStamp));
+});
+
 function draw(now){const c=ctx,W=view.W,H=view.H,L=view.L,g=G;if(!L)return;const pn=performance.now();
+  if(S.falling===true){drawFalling(now,pn);return;}
   const seg=segAt(g.chart.segs,now);const kiaiOn=!!(seg&&seg.kiai&&now>=0&&!g.failed&&!g.finished);
   if(kiaiOn&&!g.wasKiai)g.fx.gogo=pn;g.wasKiai=kiaiOn;
   g.kiaiAmt+=((kiaiOn?1:0)-g.kiaiAmt)*.08;const k=g.kiaiAmt;
@@ -2050,6 +2145,7 @@ function renderGuide(){const b=$('#howtoBody');b.innerHTML='';const K=S.keys.map
         el('tr',null,el('td',null,el('b',null,'可')),el('td',{class:'num'},`±${WIN_HARD.ok}ms`),el('td',{class:'num'},`±${WIN_SOFT.ok}ms`)),
         el('tr',null,el('td',null,el('b',{style:'color:#8ea0e0'},'不可')),el('td',{colspan:'2'},'それより外れたとき、叩かなかったとき、上のミスになる押し方をしたとき')))))),
     sec('重譜面の解禁',el('p',null,'重の譜面は最初は封印されています。「段位道場」で3曲を続けて叩き、合格すると3曲目の重譜面が通常プレイで遊べるようになります。条件は「不可 2%以下」「特良 70%以上」のような割合で決まり、演奏中は下のバーで残りの許容数が分かります。')),
+    sec('4レーン落下モード',el('p',null,'設定でONにすると音符が上から落ちてきます。下の判定線に重なったときに、表示されたレーンのキーを押すか画面をタップしてください。横線でつながった音符は同時押しです。封印ノーツは使える手のレーンに表示されます。')),
     sec('練習とオプション',el('p',null,'曲の詳細にある「練習モード」で、区間をしぼってスローで何度でも練習できます。あべこべ・きまぐれ・でたらめ・ドロンなどのオプションもあります（段位道場では使われません）。音と叩くタイミングがずれるときは「設定」のタイミング調整を使ってください。')));}
 $('#guideBtn').addEventListener('click',openGuide);
 $('#guideClose').addEventListener('click',closeGuide);
@@ -2088,6 +2184,7 @@ $('#clearLibYes').addEventListener('click',async()=>{for(const s of Lib.sets.fil
 const bindRange=(id,key,fn)=>$(id).addEventListener('input',e=>{S[key]=parseFloat(e.target.value);if(fn)fn();saveS();renderSettings();});
 bindRange('#setSpeed','speed');bindRange('#setOffset','offset');
 bindRange('#setMusic','music',()=>{if(musicGain)musicGain.gain.value=S.music;});bindRange('#setSe','se',()=>{if(seGain)seGain.gain.value=S.se;});
+$('#setFalling').addEventListener('change',e=>{S.falling=e.target.checked;saveS();});
 $('#setLowFx').addEventListener('change',e=>{S.fx=e.target.checked?'low':'high';saveS();});
 $('#setNoiseEdit').addEventListener('change',e=>{S.noiseEdit=e.target.checked;saveS();renderDetail();});
 $('#setAuto').addEventListener('change',e=>{S.auto=e.target.checked;saveS();renderDetail();});
