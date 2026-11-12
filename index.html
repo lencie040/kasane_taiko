@@ -541,7 +541,7 @@ kbd.gk{font-size:14px;padding:1px 7px}kbd.gk.d{color:#ff8a72;border-color:var(--
           <tr><td><code>file</code></td><td>.osz のファイル名（拡張子なし可）、曲名（Title / TitleUnicode）、または BeatmapSetID のどれか</td><td><code>123456 Artist - Song</code></td></tr>
           <tr><td><code>version</code></td><td>.osu の難易度名（[Metadata] Version）。<code>*</code> でその曲の全譜面</td><td><code>Inner Oni</code></td></tr>
           <tr><td><code>course</code></td><td><code>easy</code> <code>normal</code> <code>hard</code> <code>oni</code> <code>ura</code> <code>kasane</code>（かんたん／ふつう／むずかしい／おに／裏／重 でも可）</td><td><code>ura</code></td></tr>
-          <tr><td><code>level</code></td><td>通常コースは 1〜11（★）。重は I〜X（数字でも可）</td><td><code>9</code> / <code>VII</code></td></tr>
+          <tr><td><code>level</code></td><td>通常コースは ★1〜12.9。★10以上は小数第1位まで指定可。重は I〜X（数字でも可）</td><td><code>10.2</code> / <code>VII</code></td></tr>
           <tr><td><code>memo</code></td><td>自由記入（読み飛ばします）。<code>#</code> で始まる行はコメント</td><td></td></tr>
         </tbody>
       </table></div>
@@ -700,7 +700,8 @@ function fmtTime(ms){const s=Math.max(0,Math.round(ms/1000));return Math.floor(s
 function fmtNum(n){return Math.round(n).toLocaleString('ja-JP');}
 function keyLabel(code){if(!code)return'—';return code.replace(/^Key/,'').replace(/^Digit/,'').replace(/^Numpad/,'Num').replace(/^Arrow/,'');}
 function levelText(c){if(c.level==null)return c.course==='kasane'?'?':'★?';return c.course==='kasane'?ROMAN[c.level]:'★'+c.level;}
-function parseLevel(s){s=String(s??'').normalize('NFKC').trim().toUpperCase().replace(/[★☆]/g,'');if(!s)return null;const r=ROMAN.indexOf(s);if(r>0)return r;const n=Number(s);return Number.isInteger(n)&&n>=1&&n<=11?n:undefined;}
+function parseLevel(s){s=String(s??'').normalize('NFKC').trim().toUpperCase().replace(/[★☆]/g,'');if(!s)return null;const r=ROMAN.indexOf(s);if(r>0)return r;const n=Number(s);if(Number.isInteger(n)&&n>=1&&n<=12)return n;
+  return /^(10|11|12)\.\d$/.test(s)&&n<=12.9?n:undefined;}
 function csvCell(v){v=String(v??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}
 function diffRange(d,min,mid,max){return d>5?mid+(max-mid)*(d-5)/5:d<5?mid-(mid-min)*(5-d)/5:mid;}
 function segAt(segs,t){if(!segs.length)return null;if(t<segs[0].time)return segs[0];let lo=0,hi=segs.length-1,a=0;while(lo<=hi){const m=(lo+hi)>>1;if(segs[m].time<=t+1){a=m;lo=m+1;}else hi=m-1;}return segs[a];}
@@ -757,7 +758,7 @@ function parseChartsCsv(text){
   for(const r of rows.slice(1)){const g=k=>ci[k]>=0?(r[ci[k]]||'').trim():'';
     const file=g('file');if(!file)continue;
     let course=null;const cr=norm(g('course'));if(cr){course=COURSE_ALIAS[cr]||null;if(!course)warns.push(`charts.csv ${r.line}行目: コース「${g('course')}」を読めません（easy/normal/hard/oni/ura/kasane）`);}
-    let level=null;const lv=g('level');if(lv){level=parseLevel(lv);if(level===undefined){warns.push(`charts.csv ${r.line}行目: レベル「${lv}」は 1〜11（重は I〜X または 1〜10）で書いてください`);level=null;}}
+    let level=null;const lv=g('level');if(lv){level=parseLevel(lv);if(level===undefined){warns.push(`charts.csv ${r.line}行目: レベル「${lv}」は 1〜12.9（小数は10以上で小数第1位まで、重は I〜X または 1〜10）で書いてください`);level=null;}}
     rules.push({file,version:g('version')||'*',course,level,line:r.line,used:false});}
   return{rules,warns};
 }
@@ -909,7 +910,7 @@ function resolveAll(){
     const rule=rules.find(r=>r.version!=='*'&&matchSet(r.file,c.set)&&sameVersion(r.version,c.meta.version))||rules.find(r=>r.version==='*'&&matchSet(r.file,c.set));
     if(rule){rule.used=true;if(rule.course)course=rule.course;if(rule.level!=null)level=rule.level;}
     if(c.stats.chords>0&&course!=='kasane'){if(rule&&rule.course)warns.push(`charts.csv ${rule.line}行目: 「${c.set.title} / ${c.meta.version}」は同時押しがあるため 重 として扱います`);course='kasane';}
-    if(course==='kasane'&&level>10){warns.push(`「${c.set.title} / ${c.meta.version}」: 重のレベルは I〜X（1〜10）です。★11は通常コースで指定してください`);level=null;}
+    if(course==='kasane'&&level>10){warns.push(`「${c.set.title} / ${c.meta.version}」: 重のレベルは I〜X（1〜10）です。★10を超える値は通常コースで指定してください`);level=null;}
     c.course=course;c.level=level;}
   for(const r of rules)if(!r.used)warns.push(`charts.csv ${r.line}行目: 一致する譜面が読み込まれていません（${r.file} / ${r.version}）`);
   Lib.csvWarn=warns;buildDans();
@@ -1115,7 +1116,7 @@ function crownOf(c){const b=Lib.best[c.uid];return b&&b.crown?CROWN[b.crown]:nul
 function chip(c){const locked=isLocked(c);return el('span',{class:'chip'+(locked?' locked':''),style:`--cc:${COURSES[c.course].color}`},locked?'重 封印':COURSES[c.course].jp,locked?null:el('b',null,levelText(c)),crownOf(c)?el('span',{class:'cr'},crownOf(c)):null,sealBadge(c));}
 
 /* ---- 並び順と絞り込み ---- */
-function lvKey(s){let mx=0,kas=0;for(const c of s.charts){if(c.course==='kasane'){if(!isLocked(c))kas=Math.max(kas,c.level||0);}else mx=Math.max(mx,(c.level||0)+(c.course==='ura'?.5:0));}return mx+kas*.01;}
+function lvKey(s){let mx=0,kas=0;for(const c of s.charts){if(c.course==='kasane'){if(!isLocked(c))kas=Math.max(kas,c.level||0);}else mx=Math.max(mx,c.level||0);}return mx+kas*.001;}
 function hasUnclear(s){return s.charts.some(c=>!isLocked(c)&&!(Lib.best[c.uid]&&Lib.best[c.uid].crown));}
 function visibleSets(){const q=norm($('#filter').value),f=UI.filt||'all',srt=UI.sort||'added';
   let list=Lib.sets.filter(s=>!q||norm(s.title+' '+s.artist+' '+s.file+' '+(s.titleAscii||'')).includes(q));
@@ -1274,7 +1275,7 @@ function renderDetail(){const d=$('#detail');d.innerHTML='';const s=Lib.sets.fin
   for(const c of sortCharts(s.charts)){const C=COURSES[c.course],locked=isLocked(c);
     const b=el('button',{class:'crs'+(c.uid===UI.selChart?' is-on':'')+(locked?' locked':''),style:`--cc:${C.color}`,role:'option','aria-selected':String(c.uid===UI.selChart)},
       el('span',{class:'k'},C.k),el('span',{class:'nm'},el('strong',null,C.jp+(locked?'（封印中）':''),' ',sealBadge(c)),el('small',null,c.meta.version+(c.stats.chords?` ・ 最大${c.stats.maxLanes}レーン`:'')),
-        el('span',{class:'pips','aria-hidden':'true'},Array.from({length:Math.max(10,c.level||0)},(_,i)=>el('i',{class:i<(c.level||0)?'on':''})))),
+        el('span',{class:'pips','aria-hidden':'true'},Array.from({length:Math.max(10,Math.floor(c.level||0))},(_,i)=>el('i',{class:i<(c.level||0)?'on':''})))),
       el('span',{class:'lv'},levelText(c),el('small',null,crownOf(c)||(Lib.best[c.uid]?fmtNum(Lib.best[c.uid].score):''))));
     b.addEventListener('click',()=>{if(UI.selChart!==c.uid){UI.gesture=true;ensureAudio();playSE('ka');}UI.selChart=c.uid;renderDetail();});list.append(b);}
   d.append(list);
