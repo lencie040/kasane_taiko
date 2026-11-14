@@ -716,7 +716,7 @@ const Lib={sets:[],charts:[],dans:[],loadWarn:[],csvWarn:[],
   chartsCsvName:store.get('kt.chartsCsvName',''),danCsvName:store.get('kt.danCsvName',''),
   unlocks:store.get('kt.unlocks',{}),best:store.get('kt.best',{}),danBest:store.get('kt.danBest',{}),
   fav:store.get('kt.fav',{}),played:store.get('kt.played',{})};
-const UI=Object.assign({tab:'select',selSet:null,selChart:null,binding:null,touch:matchMedia('(pointer: coarse)').matches,gesture:false,sort:'added',filt:'all'},store.get('kt.ui',{}));
+const UI=Object.assign({tab:'select',selSet:null,selChart:null,binding:null,touch:matchMedia('(pointer: coarse)').matches||matchMedia('(any-pointer: coarse)').matches,gesture:false,sort:'added',filt:'all'},store.get('kt.ui',{}));
 function isLocked(c){return c.course==='kasane'&&!S.unlockAll&&!Lib.unlocks[c.uid];}
 
 /* ================= CSV ================= */
@@ -1050,7 +1050,7 @@ async function renderDemo(sp){
 /* ================= 音 ================= */
 let AC=null,musicGain=null,seGain=null;const SE={};
 function ensureAudio(){
-  if(AC){if(AC.state==='suspended')AC.resume();return AC;}
+  if(AC){if(AC.state!=='running'){try{const r=AC.resume();if(r&&r.catch)r.catch(()=>{});}catch(e){}}return AC;}
   AC=new(window.AudioContext||window.webkitAudioContext)({latencyHint:'interactive'});
   musicGain=AC.createGain();musicGain.gain.value=S.music;musicGain.connect(AC.destination);
   seGain=AC.createGain();seGain.gain.value=S.se;seGain.connect(AC.destination);
@@ -1502,8 +1502,10 @@ function pauseGame(){if(!G||G.paused||G.finished||!AC)return;G.paused=true;G.pau
   if(!D)pb.append(el('button',{class:'btn',onclick:()=>{const c=G.chart,pr=G.prac;$('#pause').hidden=true;AC.resume();stopSong();runSong(c,pr);}},G.prac?'区間のはじめから':'はじめから'));
   pb.append(el('button',{class:'btn ghost',onclick:()=>{AC.resume();closeStage();}},D?'段位をやめる':'曲選択へ戻る'));
   $('#pause').hidden=false;}
-function resumeGame(){if(!G||!G.paused)return;$('#pause').hidden=true;const pausedFor=performance.now()-G.pauseAt;
-  AC.resume().then(()=>{G.perfZero+=performance.now()-G.pauseAt;G.paused=false;});void pausedFor;}
+function resumeGame(){if(!G||!G.paused)return;$('#pause').hidden=true;const run=G;let done=false;
+  const go=()=>{if(done||!run.paused)return;done=true;run.perfZero+=performance.now()-run.pauseAt;run.paused=false;};
+  try{const r=AC.resume();if(r&&r.then)r.then(go,go);else go();}catch(e){go();}
+  setTimeout(go,1200);}
 
 /* ---------- 結果 ---------- */
 const RANKS=[[1000000,'極','虹','#ffffff'],[950000,'雅','紫','#b48cf2'],[900000,'雅','桃','#f29cc2'],[800000,'雅','金','#f2bc3d'],[700000,'粋','銀','#c8cdd8'],[600000,'粋','銅','#d08a52'],[500000,'粋','白','#f2ecdc']];
@@ -2101,7 +2103,7 @@ function dismissTitle(){if(!titleOpen())return;const t=$('#title');t.classList.a
   UI.gesture=true;ensureAudio();playSE('don');const s=Lib.sets.find(x=>x.key===UI.selSet);if(s)playPreview(s.charts[0]);}
 function renderTitleStat(){const kas=Lib.charts.filter(c=>c.course==='kasane').length,passed=Lib.dans.filter(d=>Lib.danBest[d.key]).length;
   $('#tsStat').textContent=`${Lib.sets.length}曲 ・ 重譜面 ${kas} ・ 段位 合格 ${passed} / ${Lib.dans.length}`;
-  $('#tsHint').textContent=`${keyLabel(S.keys[1])} か ${keyLabel(S.keys[2])}（ドン）、Enter、またはクリック`;}
+  $('#tsHint').textContent=UI.touch?'画面をタップ':`${keyLabel(S.keys[1])} か ${keyLabel(S.keys[2])}（ドン）、Enter、またはクリック`;}
 $('#title').addEventListener('click',dismissTitle);
 
 /* ================= バックアップ ================= */
@@ -2239,6 +2241,8 @@ window.addEventListener('keydown',e=>{
   else if(ki===1||ki===2||(e.key==='Enter'&&tag!=='BUTTON')){if(e.repeat)return;e.preventDefault();menuDecide();}});
 let resizeT=0;
 window.addEventListener('resize',()=>{if(!$('#stage').hidden){layoutStage();return;}clearTimeout(resizeT);resizeT=setTimeout(()=>{if(UI.tab==='select')renderDetail();},200);});
+window.addEventListener('pointerdown',e=>{if(e.pointerType!=='touch'||UI.touch)return;UI.touch=true;renderTitleStat();
+  const st=$('#stage');if(st.hidden)return;st.classList.add('touch');$('#pads').hidden=S.falling===true;layoutStage();},true);
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&G&&!G.finished&&!G.paused&&!D)pauseGame();});
 
 
