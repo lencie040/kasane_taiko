@@ -423,6 +423,81 @@ kbd.gk{font-size:14px;padding:1px 7px}kbd.gk.d{color:#ff8a72;border-color:var(--
 .dan-mini{font-family:var(--f-display);color:var(--gold);border:2px solid var(--gold);border-radius:6px;padding:0 8px;flex:none}
 .unlock{width:100%;animation:popIn .4s cubic-bezier(.2,1.4,.4,1) 1.2s both}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ニジイロVer.を参考にした、色で見分けられる選曲・道場メニュー */
+:root{
+  --ink:#fff3dc;--panel:#fffaf0;--panel-2:#fff0d9;--panel-3:#ffe3b8;
+  --washi:#25152c;--mute:#654658;--dim:#735563;--line:#e7c3a6;--line-2:#b58271;
+  --don:#d92c42;--ka:#0080af;--gold:#ffd03e;--pass:#167d54;--danger:#b41e35;
+  color-scheme:light;
+}
+body{background-color:var(--ink);background-image:repeating-linear-gradient(135deg,#ffefd0 0 14px,#fff5e3 14px 28px)}
+.top{background:#ae2039;color:#fff;border:0;border-bottom:5px solid #ffc743;box-shadow:0 3px 0 #75213b}
+.brand-name{font-size:clamp(18px,3vw,26px);color:white;text-shadow:0 2px #72132a}
+.mark i{border-color:white}.mark i:last-child{background:#20bce6}
+.top .tab,.top .btn.ghost{color:#fff4db}
+.top .tab:hover{background:#86203d}
+.top .tab.is-on{background:#ffd447;color:#32202b;box-shadow:inset 0 -3px #e39715}
+.top .btn.ghost{border-color:#ffd6bf}
+.btn{border:2px solid #805568;background:#fff9ef;box-shadow:0 2px 0 #805568;min-height:38px}
+.btn.primary{border-color:#9a1838;background:#d52747;box-shadow:0 2px 0 #9a1838}
+.btn.gold{border-color:#a66b23;box-shadow:0 2px 0 #a66b23}
+.btn:active{transform:translateY(1px)}
+.h-sec{font-size:clamp(22px,3vw,34px);color:#9c2341}
+.songlist,.detail,.card,.dan,.rule,.rtile,.records-board{background:#fff9ee;border:2px solid #bb827a;border-radius:16px;box-shadow:0 3px 0 #e0bda1}
+.songlist{padding:8px;gap:7px}
+.song{border:2px solid #dec1ae;border-left:6px solid var(--sc);border-radius:12px;background:#fffdf7}
+.song:hover,.song.is-on{background:#fff1ce}
+.song.is-on{border-color:#bb5e2f;box-shadow:inset 0 0 0 2px #fcb743}
+.song-t{font-weight:900}.song-a,.nav-hint{color:#654658}
+.chip{color:#38203a;border:1px solid color-mix(in srgb,var(--cc) 70%,#835461)}
+.crs{background:#fff3dd;border:2px solid #e6c2a5}.crs.is-on{background:#fff7e2}
+.crs .lv{color:#38203a}.crs .k{outline:1px solid #582841}
+.detail{overflow:hidden}.play-row .primary{font-size:17px;padding-inline:24px}
+.detail .hero{color:#fff8eb;background-color:#512936}.detail .hero.gen{--panel:#421f35;--panel-2:#582c43}.detail .hero :is(.art,.file,.eyebrow){color:#fff5e0}
+.rtiles{gap:8px}.rtile{min-width:0}
+.records-board{overflow:hidden}
+.record-toolbar,.record-status{padding:10px 14px}
+.record-list{display:grid;gap:0}.record-list button{width:100%;text-align:left}
+.record-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:10px 14px;background:#fffdf7;border:0;border-top:1px solid #ead6c2;color:inherit}
+.record-row:nth-child(even){background:#fff3df}
+.record-row:hover{background:#ffe9ab}.record-title{min-width:0;overflow-wrap:anywhere}
+.record-title small{display:block;color:var(--mute)}.record-score{text-align:right}
+.dan-switch{display:flex;gap:8px;flex-wrap:wrap}
+.dan-switch [aria-pressed=true]{background:#ffd447;color:#392137}
+.dan-rank,.dan-mini{color:#663046;border-color:#9e6273}
+.folder-tools,.folder-tools form{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.folder-tools:not(:empty){margin:8px 0}.folder-tools :is(input,select){max-width:100%;min-width:0}.folder-tools form{min-width:0;max-width:100%}.folder-tools select{width:min(24rem,70vw)}
+.folder-path{flex:1;min-width:7rem;overflow-wrap:anywhere}
+.folder-entry{width:100%;display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:12px;text-align:left;padding:12px 16px;background:#ffe39c;border:2px solid #aa6735;border-radius:10px;color:#422039;font-size:16px;min-height:48px}
+.folder-entry.is-on,.folder-entry:hover{background:#ffd04d;outline:2px solid #a03a43;outline-offset:-3px}
+.folder-icon{width:24px;height:16px;background:#d56e23;border:2px solid #9a492c;border-radius:3px;position:relative}
+.folder-icon::before{content:'';position:absolute;left:-2px;top:-7px;width:11px;height:6px;background:#d56e23;border:2px solid #9a492c;border-bottom:0;border-radius:3px 3px 0 0}
+.folder-move{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin:12px 16px}
+.folder-move select{max-width:100%}
+.title-screen{background:radial-gradient(ellipse at 50% 45%,#ac2b50 5%,#65173b 66%),#65173b;border-top:8px solid #ffc643}
+.title-screen .ts-logo,.title-screen .ts-sub,.title-screen .ts-hint,.title-screen .ts-stat,.title-screen .ts-guide{color:#fff5db}
+.title-screen .ts-lane{border-color:#ffe4a3}
+#stage{background:#121526;color:#fff3df;--washi:#fff3df;--mute:#d1c4d3;--panel:#1d2039;--panel-2:#2f3150;--ink:#101224;--line:#494668;--line-2:#615778;color-scheme:dark}
+#stage .btn:not(.primary):not(.gold){background:#302c4b;color:#fff3df}
+#stage button.stage-quit{background:#24162d;color:white}
+#stage .ov-card{color:#fff3df}
+#stage .dan-mini{color:#ffe0a0}
+.noise-editor{background:#2b1429;color:#fff2e9}
+@media(max-width:650px){
+  main{padding:12px max(10px,env(safe-area-inset-right,0px)) 44px max(10px,env(safe-area-inset-left,0px))}
+  .top-in{gap:6px 8px;padding-block:7px}
+  .tabs{order:3;flex-basis:100%;flex-wrap:nowrap;overflow-x:auto}
+  .tab{min-height:42px;white-space:nowrap;padding-inline:10px}
+  .top .btn{font-size:12px;padding:4px 8px;min-height:34px}
+  .songlist{max-height:min(48dvh,520px)}.song{min-height:55px}
+  .select-grid{gap:12px}.pane{gap:14px}
+  .rtiles{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .record-row{grid-template-columns:minmax(0,1fr) auto;gap:4px 8px;padding:10px}
+  .record-score{grid-column:2;grid-row:1/span 2}.record-title small{font-size:12px}
+  .folder-tools input{font-size:16px}.folder-entry{min-height:48px}
+  .setting input[type=range]{width:100%;min-width:0}
+}
 </style>
 
 <header class="top">
@@ -456,6 +531,7 @@ kbd.gk{font-size:14px;padding:1px 7px}kbd.gk.d{color:#ff8a72;border-color:var(--
           </div>
           <span class="list-count num" id="listCount"></span>
         </div>
+        <div id="folderTools" class="folder-tools"></div>
         <ul class="songlist" id="songlist"></ul>
         <p class="nav-hint" id="navHint"></p>
       </div>
@@ -465,16 +541,16 @@ kbd.gk{font-size:14px;padding:1px 7px}kbd.gk.d{color:#ff8a72;border-color:var(--
 
   <section class="pane" id="tab-dan" hidden>
     <div>
-      <div class="eyebrow">KASANE DAN-I DŌJŌ</div>
-      <h2 class="h-sec">重段位道場</h2>
-      <p class="lead">1曲目と2曲目は通常の譜面、3曲目に重譜面が来ます。合格すると、その重譜面が通常プレイでも遊べるようになります。段位の重さは3曲目の重レベル（I〜X）で決まり、I でも本家の六段相当です。</p>
+      <h2 class="h-sec">段位道場</h2>
+      <p class="lead" id="kasaneIntro">1曲目と2曲目は通常の譜面、3曲目に重譜面が来ます。合格すると、その重譜面が通常プレイでも遊べるようになります。段位の重さは3曲目の重レベル（I〜X）で決まり、I でも本家の六段相当です。</p>
     </div>
-    <div class="dan-rule">
+    <div class="dan-rule" id="kasaneRules">
       <div class="rule"><h4>重なったノーツ</h4><p>同じ時刻に置かれたノーツは縦に並んで流れてきます。2個なら2レーン、4個なら4レーンです。</p></div>
       <div class="rule"><h4>数と色を揃える</h4><p>並んだドンの数・カッの数と同じだけキーを押します。多くても少なくても、その列はすべて不可です。</p></div>
       <div class="rule"><h4>特良</h4><p>同時押しの全キーが ±18ms 以内に揃うと特良。良より厳しい判定で、段位の合格条件に使われます。</p></div>
       <div class="rule"><h4>許容の割合</h4><p>条件は「不可 1%以下」「特良 85%以上」のように割合でも書けます。何個まで落とせるかを常に表示します。</p></div>
     </div>
+    <div class="dan-switch" aria-label="段位の種類"><button class="btn" id="danMonthly">月替わり段位</button><button class="btn" id="danKasane">重段位</button></div>
     <div class="danlist" id="danlist"></div>
   </section>
 
@@ -606,7 +682,7 @@ kbd.gk{font-size:14px;padding:1px 7px}kbd.gk.d{color:#ff8a72;border-color:var(--
         <label>演奏画面 <select id="setFalling"><option value="taiko">太鼓</option><option value="flat">4レーン落下（2D）</option><option value="perspective">4レーン落下（3D）</option></select></label>
         <div class="setting"><label for="setSudden">サドプラ（4レーンの上側を隠す）</label><div class="inline"><input id="setSudden" type="range" min="0" max="80" step="1" value="0"><output id="outSudden" for="setSudden"></output></div></div>
         <label class="switch"><input type="checkbox" id="setLowFx"> 演出を少なくする（動作が重いとき用。花火・観客を省き、封印ノーツの粒や光を簡略化します）</label>
-        <label class="switch"><input type="checkbox" id="setNoiseEdit"> 封印ノーツ編集をON（曲詳細に編集画面を表示）</label>
+        <label class="switch"><input type="checkbox" id="setNoiseEdit"> 編集モード（封印ノーツ・曲フォルダ）</label>
         <label class="switch"><input type="checkbox" id="setAuto"> オート演奏（記録・解禁はされません）</label>
         <label class="switch"><input type="checkbox" id="setUnlock"> 重譜面をすべて解禁して表示（譜面作者向け）</label>
         <div class="row"><button class="btn ghost small" id="resetRec">記録と解禁状況をリセット</button></div>
@@ -699,7 +775,8 @@ function toast(msg,kind){const d=el('div',{class:kind||''},msg);$('#toast').appe
 function fmtTime(ms){const s=Math.max(0,Math.round(ms/1000));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
 function fmtNum(n){return Math.round(n).toLocaleString('ja-JP');}
 function keyLabel(code){if(!code)return'—';return code.replace(/^Key/,'').replace(/^Digit/,'').replace(/^Numpad/,'Num').replace(/^Arrow/,'');}
-function levelText(c){if(c.level==null)return c.course==='kasane'?'?':'★?';return c.course==='kasane'?ROMAN[c.level]:'★'+c.level;}
+function starValue(level){return level>=10?level.toFixed(1):String(level);}
+function levelText(c){if(c.level==null)return c.course==='kasane'?'?':'★?';return c.course==='kasane'?ROMAN[c.level]:'★'+starValue(c.level);}
 function parseLevel(s){s=String(s??'').normalize('NFKC').trim().toUpperCase().replace(/[★☆]/g,'');if(!s)return null;const r=ROMAN.indexOf(s);if(r>0)return r;const n=Number(s);if(Number.isInteger(n)&&n>=1&&n<=12)return n;
   return /^(10|11|12)\.\d$/.test(s)&&n<=12.9?n:undefined;}
 function csvCell(v){v=String(v??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}
@@ -863,11 +940,11 @@ function findFile(set,name,dir,kind){const files=set.files,keys=Object.keys(file
   if(kind==='audio'){const au=keys.filter(k=>AUDIO_EXT.test(k));if(au.length===1)return files[au[0]];}
   return null;}
 
-async function loadOsz(name,buf){
+async function loadOsz(name,buf,repoPath=null){
   const zip=await JSZip.loadAsync(buf,{decodeFileName:decodeZipName});
   const files={},osuPaths=[];zip.forEach((p,f)=>{if(f.dir)return;const k=nk(p);files[k]=f;if(k.endsWith('.osu'))osuPaths.push(p);});
   if(!osuPaths.length)throw new Error('.osu ファイルが入っていません（.osz の中身を確認してください）');
-  const set={key:null,file:name.replace(/\.(osz|zip)$/i,'').normalize('NFC'),storeName:name,files,charts:[],demo:null};
+  const set={key:null,file:name.replace(/\.(osz|zip)$/i,'').normalize('NFC'),storeName:repoPath?null:name,repoPath,files,charts:[],demo:null};
   const seen=new Set();
   for(const p of osuPaths){let c;const k=nk(p);
     try{c=parseOsu(decodeText(await files[k].async('uint8array')));}catch(e){Lib.loadWarn.push(`${name} / ${p}: ${e.message}`);continue;}
@@ -884,22 +961,23 @@ async function loadOsz(name,buf){
   const title=pick('title'),titleU=pick('titleU'),artist=pick('artist'),artistU=pick('artistU');
   set.title=titleU||title||set.file;set.titleAscii=title;set.titleU=titleU;set.artist=artistU||artist;set.artistAscii=artist;set.setId=set.charts[0].meta.setId;
   // ローマ字タイトルがあれば従来どおりのキー（記録を引き継ぐ）、なければ日本語タイトルでキーを作る
-  let key=set.setId>0?'id'+set.setId:title?'n:'+norm(artist+' - '+title):'u:'+norm((artistU||artist)+' - '+(titleU||set.file));
+  const previous=repoPath&&Lib.sets.find(s=>s.repoPath===repoPath);
+  let key=previous?.key||(set.setId>0?'id'+set.setId:title?'n:'+norm(artist+' - '+title):'u:'+norm((artistU||artist)+' - '+(titleU||set.file)));
   const clash=Lib.sets.find(s=>s.key===key);
-  if(clash&&set.setId<=0&&clash.storeName&&clash.storeName!==name)key+='|'+norm(set.file);
+  if(!previous&&clash&&set.setId<=0&&(clash.storeName||clash.repoPath)&&clash.storeName!==name&&(!repoPath||clash.repoPath!==repoPath))key+='|'+norm(set.file);
   set.key=key;set.preview=set.charts[0].preview;
   const bgF=set.charts.map(c=>c.bg&&findFile(set,c.bg,c.dir)).find(Boolean);
   if(bgF&&typeof URL!=='undefined'&&URL.createObjectURL){try{const blob=await bgF.async('blob');set.bgUrl=URL.createObjectURL(blob);}catch(e){}}
   for(const c of set.charts)c.uid=set.key+'::'+c.meta.version;
-  const old=Lib.sets.find(s=>s.key===set.key);if(old)removeSet(old,!!old.storeName&&old.storeName!==name);
+  const old=Lib.sets.find(s=>s.key===set.key);if(old){if(repoPath&&!old.repoPath){if(set.bgUrl)URL.revokeObjectURL(set.bgUrl);return old;}removeSet(old,!repoPath&&!!old.storeName&&old.storeName!==name);}
   Lib.sets.push(set);Lib.charts.push(...set.charts);return set;
 }
 function removeSet(set,persist=true){Lib.sets=Lib.sets.filter(s=>s!==set);Lib.charts=Lib.charts.filter(c=>c.set!==set);if(set.bgUrl)URL.revokeObjectURL(set.bgUrl);if(persist&&set.storeName)IDB.del(set.storeName);}
 
 /* ================= IndexedDB ================= */
 const IDB={db:null,
-  open(){return new Promise(res=>{try{const r=indexedDB.open('kasane-taiko',1);r.onupgradeneeded=()=>r.result.createObjectStore('osz');r.onsuccess=()=>{IDB.db=r.result;res(true);};r.onerror=()=>res(false);r.onblocked=()=>res(false);}catch(e){res(false);}});},
-  tx(mode,fn){return new Promise(res=>{if(!IDB.db)return res(null);try{const t=IDB.db.transaction('osz',mode);const st=t.objectStore('osz');const r=fn(st);t.oncomplete=()=>res(r&&r.result);t.onerror=()=>res(null);}catch(e){res(null);}});},
+  open(){return new Promise(res=>{try{const r=indexedDB.open('kasane-taiko',2);r.onupgradeneeded=()=>{for(const key of ['osz','repository'])if(!r.result.objectStoreNames.contains(key))r.result.createObjectStore(key);};r.onsuccess=()=>{IDB.db=r.result;res(true);};r.onerror=()=>res(false);r.onblocked=()=>res(false);}catch(e){res(false);}});},
+  tx(mode,fn,name='osz'){return new Promise(res=>{if(!IDB.db)return res(null);try{const t=IDB.db.transaction(name,mode);const st=t.objectStore(name);const r=fn(st);t.oncomplete=()=>res(r&&r.result);t.onerror=()=>res(null);}catch(e){res(null);}});},
   put(k,v){return IDB.tx('readwrite',s=>s.put(v,k));},del(k){return IDB.tx('readwrite',s=>s.delete(k));},clear(){return IDB.tx('readwrite',s=>s.clear());},
   async all(){if(!IDB.db)return[];const keys=await IDB.tx('readonly',s=>s.getAllKeys())||[];const out=[];for(const k of keys){const v=await IDB.tx('readonly',s=>s.get(k));if(v)out.push({name:k,data:v});}return out;}};
 
@@ -910,17 +988,17 @@ function resolveAll(){
     const rule=rules.find(r=>r.version!=='*'&&matchSet(r.file,c.set)&&sameVersion(r.version,c.meta.version))||rules.find(r=>r.version==='*'&&matchSet(r.file,c.set));
     if(rule){rule.used=true;if(rule.course)course=rule.course;if(rule.level!=null)level=rule.level;}
     if(c.stats.chords>0&&course!=='kasane'){if(rule&&rule.course)warns.push(`charts.csv ${rule.line}行目: 「${c.set.title} / ${c.meta.version}」は同時押しがあるため 重 として扱います`);course='kasane';}
-    if(course==='kasane'&&level>10){warns.push(`「${c.set.title} / ${c.meta.version}」: 重のレベルは I〜X（1〜10）です。★10を超える値は通常コースで指定してください`);level=null;}
+    if(course==='kasane'&&level!=null&&(!Number.isInteger(level)||level>10)){warns.push(`「${c.set.title} / ${c.meta.version}」: 重のレベルは I〜X（1〜10）です。小数や★10を超える値は通常コースで指定してください`);level=null;}
     c.course=course;c.level=level;}
   for(const r of rules)if(!r.used)warns.push(`charts.csv ${r.line}行目: 一致する譜面が読み込まれていません（${r.file} / ${r.version}）`);
   Lib.csvWarn=warns;buildDans();
   if(Lib.csvWarn.some(w=>w.includes('読み込まれていません')))Lib.csvWarn.push(loadedHint());
 }
 function finishDan(d){
-  d.ready=d.songs.length===3&&d.songs.every(Boolean);d.level=d.songs[2]?.level??null;
+  d.ready=d.songs.length===3&&d.songs.every(Boolean);d.level=d.songs[2]?.course==='kasane'?d.songs[2].level:null;
   if(!d.name)d.name=d.level?`重段位 ${ROMAN[d.level]}`:'重段位';
   d.tot={notes:0,chordNotes:0,rollMs:0};if(d.ready)for(const s of d.songs){d.tot.notes+=s.stats.notes;d.tot.chordNotes+=s.stats.chordNotes;d.tot.rollMs+=rollMsOf(s);}
-  d.key=d.src==='auto'?'auto:'+d.songs[2].uid:'csv:'+d.id;return d;}
+  d.key=d.src==='auto'?'auto:'+d.songs[2].uid:d.src+':'+d.id;return d;}
 function autoConds(L,songs){const r1=v=>Math.round(v*10)/10;
   const c=[{key:'gauge',op:'>=',red:{v:L<=3?95:98,pct:true},gold:{v:100,pct:true}},
     {key:'ok',op:'<=',red:{v:Math.max(2,12-L),pct:true},gold:{v:r1(Math.max(1,(12-L)/2)),pct:true}},
@@ -932,20 +1010,71 @@ function autoConds(L,songs){const r1=v=>Math.round(v*10)/10;
 function rollMsOf(chart){return chart.rolls.reduce((b,r)=>b+(r.type==='roll'?r.end-r.t:0),0);}
 /* 自動段位の1・2曲目の★（重レベルごと）。範囲外しかないときは一番近い譜面で代用して、その旨を表示する */
 // [1曲目の★範囲, 2曲目の★範囲]（範囲内で[0]寄りを優先）
-const AUTO_LV={1:[[8,9],[8,9]],2:[[8,9],[9,8]],3:[[9,9],[9,9]],4:[[9,9],[9,9]],5:[[9,9],[10,10]],6:[[10,10],[10,10]],7:[[10,10],[10,10]],8:[[10,10],[10,10]],9:[[10,10],[10,10]],10:[[10,10],[10,10]]};
-const lvRangeText=r=>{const a=Math.min(...r),b=Math.max(...r);return a===b?`★${a}`:`★${a}〜${b}`;};
+const AUTO_LV={
+  1:[[8,9],[8,9]],2:[[8,9],[8.5,9]],3:[[9,9],[9,9]],4:[[9,9],[9,10.5]],
+  5:[[10.1,11.3],[10.1,11.3]],6:[[10.5,11.2],[10.7,11.3]],
+  7:[[10.8,11.3],[11,11.4]],8:[[11.1,11.4],[11.2,11.5]],
+  9:[[11.3,11.5],[11.3,11.5]],10:[[11.5,12.3],[11.6,12.9]]
+};
+const lvRangeText=r=>{const a=Math.min(...r),b=Math.max(...r);return a===b?`★${starValue(a)}`:`★${starValue(a)}〜${starValue(b)}`;};
+function inLevelRange(level,range){return level!=null&&level>=Math.min(...range)&&level<=Math.max(...range);}
+function monthlyPeriod(date=new Date()){
+  const parts=new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit'}).formatToParts(date);
+  return parts.find(p=>p.type==='year').value+'-'+parts.find(p=>p.type==='month').value;
+}
+const MONTHLY_LEVELS=[
+  ['五級',1,2],['四級',2,3],['三級',3,4],['二級',4,5],['一級',5,6],
+  ['初段',6,7],['二段',6.5,7.5],['三段',7,8],['四段',7.5,8.5],['五段',8,9],
+  ['六段',8,9],['七段',8.5,9],['八段',9,10.2],['九段',9,10.7],['十段',10.1,11.3],
+  ['玄人',10.5,11.3],['名人',10.9,11.4],['超人',11.1,11.5],['達人',11.3,11.5]
+];
+function monthlyDans(charts,period){
+  const random=mulberry32(Number(period.replace('-','')));
+  const pool=[...new Map(charts.filter(c=>!c.demo&&!c.set.demo&&c.course!=='kasane'&&c.level!=null).map(c=>[c.uid,c])).values()]
+    .sort((a,b)=>a.uid<b.uid?-1:a.uid>b.uid?1:0);
+  for(let i=pool.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
+  // 先に上位段位の枠を確保し、同じ譜面を月内で使い回さない。
+  let owners=new Map();
+  const ranks=[];
+  for(let rank=MONTHLY_LEVELS.length-1;rank>=0;rank--){
+    const [name,min,max]=MONTHLY_LEVELS[rank];
+    const candidates=pool.filter(c=>inLevelRange(c.level,[min,max])&&(rank<5||['oni','ura'].includes(c.course)));
+    const slots=Array.from({length:3},()=>({candidates}));
+    const trial=new Map(owners);
+    function assign(slot,seen){
+      for(const c of slot.candidates){
+        if(seen.has(c))continue;
+        seen.add(c);
+        const previous=trial.get(c);
+        if(!previous||assign(previous,seen)){trial.set(c,slot);return true;}
+      }
+      return false;
+    }
+    if(!slots.every(slot=>assign(slot,new Set())))continue;
+    owners=trial;ranks.unshift({rank,name,slots});
+  }
+  const bySlot=new Map([...owners].map(([c,slot])=>[slot,c]));
+  return ranks.map(({rank,name,slots})=>{
+    const songs=slots.map(slot=>bySlot.get(slot)).sort((a,b)=>a.level-b.level);
+    const tier=(key,op,red,gold)=>({key,op,red:{v:red,pct:true},gold:{v:gold,pct:true}});
+    const conds=[tier('gauge','>=',rank<5?80:rank<12?95:100,100),
+      tier('ok','<=',Math.max(.25,+(24-rank*1.35).toFixed(2)),Math.max(.1,+(12-rank*.67).toFixed(2))),
+      tier('bad','<=',Math.max(.1,+(12-rank*.67).toFixed(2)),Math.max(0,+(6-rank*.34).toFixed(2)))];
+    return finishDan({id:period+'-'+rank+'-'+songs.map(c=>c.uid).join('|'),src:'monthly',period,name,songs,refs:[],conds});
+  });
+}
 function autoDan(c){
   const L=c.level||5,[r1,r2]=AUTO_LV[clamp(L,1,10)];
   const all=Lib.charts.filter(x=>x!==c&&x.course!=='kasane');
   if(all.length<2)return finishDan({id:c.uid,src:'auto',songs:[null,null,c],refs:[],conds:[],note:'1・2曲目に使える通常譜面が足りません'});
   const oni=x=>x.course==='oni'||x.course==='ura';
   const h=s=>{let v=0;for(const ch of s)v=(v*31+ch.codePointAt(0))>>>0;return(v%1000)/1e5;};
-  const inR=(lv,r)=>lv!=null&&lv>=Math.min(...r)&&lv<=Math.max(...r);
+  const inR=(lv,r)=>inLevelRange(lv,r);
   const sc=(x,r,avoid)=>{const lv=x.level;let s=lv==null?50:Math.abs(lv-r[0])*10+(inR(lv,r)?0:100);if(!oni(x))s+=30;if(x.set===c.set)s+=3;if(avoid&&x.set===avoid)s+=5;return s+h(x.uid+c.uid);};
   const s2=[...all].sort((a,b)=>sc(a,r2)-sc(b,r2))[0];
   const s1=all.filter(x=>x!==s2).sort((a,b)=>sc(a,r1,s2.set)-sc(b,r1,s2.set))[0];
   const off=[[s1,r1,1],[s2,r2,2]].filter(([x,r])=>!inR(x.level,r)||!oni(x));
-  const warn=off.length?`${off.map(([x,r,i])=>`${i}曲目は${lvRangeText(r)}のおに譜面が見つからないため「${x.set.title}」${COURSES[x.course].jp}${x.level!=null?'★'+x.level:'（★未設定）'}`).join('、')}で代用しています`:null;
+  const warn=off.length?`${off.map(([x,r,i])=>`${i}曲目は${lvRangeText(r)}のおに譜面が見つからないため「${x.set.title}」${COURSES[x.course].jp}${x.level!=null?levelText(x):'（★未設定）'}`).join('、')}で代用しています`:null;
   return finishDan({id:c.uid,src:'auto',songs:[s1,s2,c],refs:[s1,s2,c].map(x=>({file:x.set.file,version:x.meta.version})),conds:autoConds(L,[s1,s2,c]),warn});}
 function buildDans(){
   const{dans:rows,warns}=parseDanCsv(Lib.danCsv);Lib.csvWarn.push(...warns);const out=[];
@@ -955,9 +1084,9 @@ function buildDans(){
     out.push(finishDan({id:r.id,src:'csv',name:r.name,songs,refs:r.refs,conds:r.conds}));}
   const covered=new Set(out.map(d=>d.songs[2]).filter(Boolean));
   for(const c of Lib.charts)if(c.course==='kasane'&&!covered.has(c))out.push(autoDan(c));
-  out.sort((a,b)=>(a.level??99)-(b.level??99));Lib.dans=out;
+  out.sort((a,b)=>(a.level??99)-(b.level??99));Lib.monthlyPeriod=monthlyPeriod();Lib.dans=out.concat(monthlyDans(Lib.charts,Lib.monthlyPeriod));
 }
-function danForChart(c){return Lib.dans.find(d=>d.songs[2]===c);}
+function danForChart(c){return Lib.dans.find(d=>d.src!=='monthly'&&d.songs[2]===c);}
 
 /* ---------- 条件の計算 ---------- */
 function condTarget(c,tier,tot){const sp=c[tier];if(!sp)return null;const K=COND[c.key];
@@ -1069,7 +1198,7 @@ function playJingle(kind){if(!AC)return;const t0=AC.currentTime+.05,g=AC.createG
   if(kind==='zenryo'||kind==='fc'){for(let i=0;i<5;i++)N(hz(96+(i%3)*4),.6+i*.07,.15,'sine',.08);}}
 function playSE(n){if(!AC||!SE[n])return;const s=AC.createBufferSource();s.buffer=SE[n];s.connect(seGain);s.start();}
 const audioCache=new Map();
-function getAudio(chart){const set=chart.set,key=set.key+'|'+(chart.audio||'');
+function getAudio(chart){const set=chart.set,key=set.key+'|'+(set.repoHash||'')+'|'+(chart.audio||'');
   if(audioCache.has(key))return audioCache.get(key);
   const p=(async()=>{ensureAudio();if(set.demo)return await renderDemo(set.demo);
     const f=findFile(set,chart.audio,chart.dir,'audio');if(!f)throw new Error(`音源「${chart.audio}」が .osz の中に見つかりません`);
@@ -1090,27 +1219,66 @@ function setTab(t){UI.tab=t;for(const b of document.querySelectorAll('.tab'))b.c
   for(const id of['select','dan','records','load','settings'])$('#tab-'+id).hidden=id!==t;refreshAll();}
 function refreshAll(){renderSongList();renderDetail();renderDans();renderRecords();renderLoad();renderSettings();}
 function crownBadge(k){return k?el('span',{class:'crown '+k},CROWN[k]):el('span',{class:'crown none'},'—');}
-function renderRecords(){const box=$('#recBody');if(!box||$('#tab-records').hidden)return;box.innerHTML='';
-  const cnt={zentoku:0,zenryo:0,fc:0,clear:0};let plays=0;for(const c of Lib.charts){const b=Lib.best[c.uid];if(b&&b.crown)cnt[b.crown]++;}
-  for(const k in Lib.played)plays+=Lib.played[k].n;const passed=Lib.dans.filter(d=>Lib.danBest[d.key]).length,golds=Lib.dans.filter(d=>Lib.danBest[d.key]==='gold').length;
-  const tile=(lb,v,cls,sub)=>el('div',{class:'rtile '+(cls||'')},el('small',null,lb),el('b',{class:'num'},v),sub?el('span',null,sub):null);
-  box.append(el('div',{class:'rtiles'},tile('全特良',cnt.zentoku,'zentoku'),tile('全良',cnt.zenryo,'zenryo'),tile('フルコンボ',cnt.fc,'fc'),tile('クリア',cnt.clear,'clear'),
-    tile('段位合格',`${passed}/${Lib.dans.length}`,'dan',golds?`うち金 ${golds}`:null),tile('遊んだ回数',plays,'')));
-  const col=new Intl.Collator('ja'),rows=el('tbody');
-  for(const s of[...Lib.sets].sort((a,b)=>(!!a.demo-!!b.demo)||col.compare(a.title,b.title))){const cs=sortCharts(s.charts);
-    cs.forEach((c,i)=>{const b=Lib.best[c.uid],C=COURSES[c.course],locked=isLocked(c),rk=b&&b.score?rankOf(b.score):null;
-      const tr=el('tr',{class:'rrow'+(locked?' locked':''),tabindex:locked?null:'0'},
-        el('td',{class:'rt'},i===0?el('span',null,s.title):null),
-        el('td',null,el('span',{class:'chip',style:`--cc:${C.color}`},C.jp,el('b',null,locked?'封印':levelText(c)))),
-        el('td',null,crownBadge(b&&b.crown)),el('td',{class:'num'},b&&b.score?fmtNum(b.score):'—'),
-        el('td',null,rk?el('span',{class:'rk',style:`--rk:${rk[3]}`},rk[2]+rk[1]):'—'));
-      if(!locked){const go=()=>{setTab('select');UI.selChart=c.uid;selectSet(s.key,false);};tr.addEventListener('click',go);tr.addEventListener('keydown',e=>{if(e.key==='Enter')go();});}
-      rows.append(tr);});}
-  box.append(el('div',{class:'tbl-wrap'},el('table',null,el('thead',null,el('tr',null,el('th',null,'曲'),el('th',null,'コース'),el('th',null,'王冠'),el('th',null,'ベスト'),el('th',null,'ランク'))),rows)));
-  if(Lib.dans.length){const dr=el('tbody');for(const d of Lib.dans){const r=Lib.danBest[d.key];
-      dr.append(el('tr',null,el('td',null,el('span',{class:'dan-mini',style:d.level?`--dl:${DAN_COL[d.level-1]};color:var(--dl);border-color:var(--dl)`:null},d.level?ROMAN[d.level]:'?')),el('td',null,d.name),
-        el('td',null,d.songs[2]?d.songs[2].set.title:'—'),el('td',null,r==='gold'?el('span',{class:'state gold'},'金合格'):r==='red'?el('span',{class:'state red'},'合格'):el('span',{class:'state'},'未合格'))));}
-    box.append(el('h3',{class:'rec-h'},'段位'),el('div',{class:'tbl-wrap'},el('table',null,el('thead',null,el('tr',null,el('th',null,'重'),el('th',null,'段位'),el('th',null,'解禁する曲'),el('th',null,'状況'))),dr)));}}
+let recordQuery='',recordFilter='played',recordOrder='score',recordPage=0;
+function renderRecords(){
+  const box=$('#recBody');
+  if(!box||$('#tab-records').hidden)return;
+  box.replaceChildren();
+  const counts={zentoku:0,zenryo:0,fc:0,clear:0};
+  for(const c of Lib.charts){const crown=Lib.best[c.uid]?.crown;if(crown in counts)counts[crown]++;}
+  const plays=Object.values(Lib.played).reduce((sum,r)=>sum+r.n,0);
+  const passed=Lib.dans.filter(d=>Lib.danBest[d.key]).length;
+  const tile=(label,value,cls)=>el('div',{class:'rtile '+cls},el('small',null,label),el('b',{class:'num'},value));
+  box.append(el('div',{class:'rtiles'},tile('全特良',counts.zentoku,'zentoku'),tile('全良',counts.zenryo,'zenryo'),
+    tile('フルコンボ',counts.fc,'fc'),tile('クリア',counts.clear,'clear'),tile('段位合格',passed,'dan'),tile('演奏回数',plays,'')));
+
+  const search=el('input',{type:'search',value:recordQuery,placeholder:'曲名・譜面名で検索','aria-label':'記録を検索'});
+  const select=(label,items,value)=>{
+    const field=el('select',{'aria-label':label},items.map(([key,name])=>el('option',{value:key},name)));
+    field.value=value;return field;
+  };
+  const filter=select('表示する記録',[['played','記録あり'],['clear','クリア済み'],['all','全譜面']],recordFilter);
+  const order=select('記録の並び順',[['score','スコア順'],['title','曲名順'],['level','難しい順']],recordOrder);
+  const list=el('div',{class:'record-list'}),footer=el('div',{class:'row record-status','aria-live':'polite'});
+  const redraw=()=>{
+    const query=norm(recordQuery);
+    const charts=Lib.charts.filter(c=>{
+      const best=Lib.best[c.uid];
+      return (recordFilter==='all'||(recordFilter==='clear'?best?.crown:best))&&norm(c.set.title+' '+c.meta.version).includes(query);
+    });
+    const titleOrder=(a,b)=>a.set.title.localeCompare(b.set.title,'ja')||a.meta.version.localeCompare(b.meta.version,'ja');
+    charts.sort((a,b)=>(recordOrder==='score'?(Lib.best[b.uid]?.score||0)-(Lib.best[a.uid]?.score||0):recordOrder==='level'?(b.level||0)-(a.level||0):0)||titleOrder(a,b));
+    const size=24,pages=Math.max(1,Math.ceil(charts.length/size));
+    recordPage=clamp(recordPage,0,pages-1);
+    list.replaceChildren();
+    for(const c of charts.slice(recordPage*size,(recordPage+1)*size)){
+      const best=Lib.best[c.uid],rank=rankOf(best?.score||0);
+      list.append(el('button',{class:'record-row',onclick:()=>{
+        UI.folder=songFolder(c.set,effectiveFolders());UI.filt='all';$('#filter').value='';
+        setTab('select');UI.selChart=c.uid;selectSet(c.set.key,false);
+      }},el('span',{class:'record-title'},el('strong',null,c.set.title),el('small',null,c.meta.version)),
+        el('span',null,chipFor(c),' ',crownBadge(best?.crown)),
+        el('span',{class:'record-score num'},best?.score!=null?fmtNum(best.score):'—',rank?el('small',null,' '+rank[2]+rank[1]):null)));
+    }
+    if(!charts.length)list.append(el('div',{class:'empty'},'条件に合う譜面がありません'));
+    footer.replaceChildren(el('span',null,`${charts.length}譜面 · ${recordPage+1}/${pages}`),
+      el('button',{class:'btn small',disabled:recordPage===0,onclick:()=>{recordPage--;redraw();}},'前へ'),
+      el('button',{class:'btn small',disabled:recordPage+1>=pages,onclick:()=>{recordPage++;redraw();}},'次へ'));
+  };
+  search.addEventListener('input',()=>{recordQuery=search.value;recordPage=0;redraw();});
+  filter.addEventListener('change',()=>{recordFilter=filter.value;recordPage=0;redraw();});
+  order.addEventListener('change',()=>{recordOrder=order.value;recordPage=0;redraw();});
+  box.append(el('div',{class:'records-board'},el('div',{class:'row record-toolbar'},search,filter,order),list,footer));redraw();
+
+  const danList=el('div',{class:'record-list'});
+  for(const d of [...Lib.dans].sort((a,b)=>Number(!!Lib.danBest[b.key])-Number(!!Lib.danBest[a.key]))){
+    const record=Lib.danBest[d.key];
+    danList.append(el('div',{class:'record-row'},el('span',{class:'record-title'},el('strong',null,d.name),
+      el('small',null,d.src==='monthly'?d.period+' 月替わり':d.songs[2]?.set.title||'重段位')),
+      el('span',{class:'state '+(record||'')},record==='gold'?'金合格':record==='red'?'合格':'未合格')));
+  }
+  if(Lib.dans.length)box.append(el('h3',{class:'rec-h'},'段位'),el('div',{class:'records-board'},danList));
+}
 function sortCharts(list){return[...list].sort((a,b)=>COURSE_ORDER.indexOf(a.course)-COURSE_ORDER.indexOf(b.course)||(a.level??0)-(b.level??0));}
 function crownOf(c){const b=Lib.best[c.uid];return b&&b.crown?CROWN[b.crown]:null;}
 function chip(c){const locked=isLocked(c);return el('span',{class:'chip'+(locked?' locked':''),style:`--cc:${COURSES[c.course].color}`},locked?'重 封印':COURSES[c.course].jp,locked?null:el('b',null,levelText(c)),crownOf(c)?el('span',{class:'cr'},crownOf(c)):null,sealBadge(c));}
@@ -1118,11 +1286,116 @@ function chip(c){const locked=isLocked(c);return el('span',{class:'chip'+(locked
 /* ---- 並び順と絞り込み ---- */
 function lvKey(s){let mx=0,kas=0;for(const c of s.charts){if(c.course==='kasane'){if(!isLocked(c))kas=Math.max(kas,c.level||0);}else mx=Math.max(mx,c.level||0);}return mx+kas*.001;}
 function hasUnclear(s){return s.charts.some(c=>!isLocked(c)&&!(Lib.best[c.uid]&&Lib.best[c.uid].crown));}
+const emptyFolders=()=>({version:1,folders:[],assignments:Object.create(null)});
+const UNASSIGNED='@unassigned';
+let repoFolders=emptyFolders();
+function parseFolders(source){
+  if(!source||source.version!==1||!Array.isArray(source.folders))throw new Error('フォルダ設定の形式が違います');
+  const result=emptyFolders(),ids=new Set();
+  for(const f of source.folders){
+    if(!f||typeof f.id!=='string'||!f.id||f.id===UNASSIGNED||ids.has(f.id)||typeof f.name!=='string'||!f.name.trim())continue;
+    ids.add(f.id);result.folders.push({id:f.id,name:f.name.trim().slice(0,50),parent:typeof f.parent==='string'?f.parent:''});
+  }
+  const byId=new Map(result.folders.map(f=>[f.id,f]));
+  for(const folder of result.folders){
+    const visited=new Set([folder.id]);
+    let parent=folder.parent;
+    while(parent&&byId.has(parent)&&!visited.has(parent)){visited.add(parent);parent=byId.get(parent).parent;}
+    if(parent)folder.parent='';
+  }
+  for(const [key,id] of Object.entries(source.assignments||{}))if(ids.has(id))result.assignments[key]=id;
+  return result;
+}
+function effectiveFolders(){
+  const local=store.get('kt.folders',null);
+  try{return local?parseFolders(local):repoFolders;}catch{return repoFolders;}
+}
+function songFolder(set,folders){return folders.assignments[set.key]||UNASSIGNED;}
+function changeFolder(id){
+  UI.folder=id;UI.selSet=null;UI.selChart=null;UI.folderCursor=0;
+  stopPreview();renderSongList();renderDetail();
+  $('#songlist').scrollTop=0;
+}
+function folderTrail(data,id){
+  const names=[];
+  for(let f=data.folders.find(f=>f.id===id);f;f=data.folders.find(p=>p.id===f.parent))names.unshift(f.name);
+  return id===UNASSIGNED?'未設定':names.join(' / ');
+}
+function folderToolbar(data){
+  const folder=data.folders.find(f=>f.id===UI.folder);
+  if(UI.folder&&!folder&&UI.folder!==UNASSIGNED)UI.folder='';
+  const bar=$('#folderTools');bar.replaceChildren();
+  if(data.folders.length){
+    bar.append(el('b',{class:'folder-path'},folderTrail(data,UI.folder)||'曲フォルダ'));
+    if(UI.folder)bar.append(el('button',{class:'btn small',onclick:()=>changeFolder(folder?.parent||'')},'↶ もどる'));
+  }
+  if(!S.noiseEdit)return;
+  if(folder){
+    const candidates=Lib.sets.filter(set=>songFolder(set,data)!==folder.id)
+      .sort((a,b)=>a.title.localeCompare(b.title,'ja'));
+    if(candidates.length){
+      const pick=el('select',{'aria-label':'フォルダに入れる曲'},el('option',{value:''},'曲を選ぶ'),
+        candidates.map(set=>el('option',{value:set.key},set.title+' · '+set.file)));
+      bar.append(el('form',{class:'row',onsubmit:e=>{
+        e.preventDefault();if(!pick.value)return;
+        data.assignments[pick.value]=folder.id;
+        if(saveFolders(data)){const key=pick.value;selectSet(key,false);}
+      }},pick,el('button',{class:'btn small',type:'submit'},'このフォルダに入れる')));
+    }
+  }
+  const add=el('input',{type:'text',maxlength:50,placeholder:'新しいフォルダ名','aria-label':'新しいフォルダ名'});
+  const form=el('form',{class:'row',onsubmit:e=>{
+    e.preventDefault();
+    const name=add.value.trim(),parent=folder?.id||'';
+    if(!name||name==='未設定'||data.folders.some(f=>f.parent===parent&&f.name===name)){
+      toast('別のフォルダ名を入力してください','err');return;
+    }
+    const id=globalThis.crypto?.randomUUID?.()||Date.now().toString(36)+Math.random().toString(36).slice(2);
+    data.folders.push({id,name,parent});if(saveFolders(data))changeFolder(id);
+  }},add,el('button',{class:'btn small',type:'submit'},'フォルダ作成'));
+  bar.append(form);
+  if(data.folders.length){
+    bar.append(el('button',{class:'btn small',onclick:()=>{
+      const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
+      const link=el('a',{href:url,download:'folders.json'});link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    }},'共有用 folders.json'));
+  }
+  if(store.get('kt.folders',null))bar.append(el('button',{class:'btn small ghost',onclick:()=>{
+    if(confirm('このブラウザのフォルダ編集を消して、GitHubの設定に戻しますか？')){localStorage.removeItem('kt.folders');changeFolder('');}
+  }},'共有設定に戻す'));
+}
+function saveFolders(data){
+  try{localStorage.setItem('kt.folders',JSON.stringify(data));return true;}
+  catch{toast('フォルダ設定を保存できませんでした','err');return false;}
+}
+function renderFolderRows(ul,data){
+  const folders=data.folders.filter(f=>f.parent===(UI.folder||''));
+  if(!UI.folder)folders.push({id:UNASSIGNED,name:'未設定'});
+  folders.forEach((folder,i)=>ul.append(el('li',null,
+    el('button',{class:'folder-entry'+((UI.folderCursor??(!UI.selSet?0:-1))===i?' is-on':''),onclick:()=>changeFolder(folder.id)},
+      el('span',{class:'folder-icon','aria-hidden':'true'}),el('strong',null,folder.name),el('span',{'aria-hidden':'true'},'›')))));
+}
+function folderMoveControl(set){
+  if(!S.noiseEdit)return null;
+  const data=effectiveFolders();
+  if(!data.folders.length)return null;
+  const select=el('select',{'aria-label':'曲のフォルダ'},el('option',{value:UNASSIGNED},'未設定'),
+    data.folders.map(f=>el('option',{value:f.id},folderTrail(data,f.id))));
+  select.value=songFolder(set,data);
+  select.addEventListener('change',()=>{
+    if(select.value===UNASSIGNED)delete data.assignments[set.key];else data.assignments[set.key]=select.value;
+    if(saveFolders(data)){UI.folder=select.value;renderSongList();renderDetail();}
+  });
+  return el('label',{class:'folder-move'},'曲のフォルダ ',select);
+}
+
 function visibleSets(){const q=norm($('#filter').value),f=UI.filt||'all',srt=UI.sort||'added';
   let list=Lib.sets.filter(s=>!q||norm(s.title+' '+s.artist+' '+s.file+' '+(s.titleAscii||'')).includes(q));
   if(f==='kasane')list=list.filter(s=>s.charts.some(c=>c.course==='kasane'));
   else if(f==='unclear')list=list.filter(hasUnclear);
   else if(f==='fav')list=list.filter(s=>Lib.fav[s.key]);
+  const folders=effectiveFolders();
+  if(folders.folders.length&&!q)list=list.filter(s=>UI.folder&&songFolder(s,folders)===UI.folder);
   const order=new Map(Lib.sets.map((s,i)=>[s,i])),pl=s=>Lib.played[s.key]||{t:0,n:0},col=new Intl.Collator('ja');
   const cmp={added:(a,b)=>(!!a.demo-!!b.demo)||order.get(a)-order.get(b),title:(a,b)=>col.compare(a.title,b.title),artist:(a,b)=>col.compare(a.artist||'',b.artist||'')||col.compare(a.title,b.title),
     lvDesc:(a,b)=>lvKey(b)-lvKey(a),lvAsc:(a,b)=>lvKey(a)-lvKey(b),bpm:(a,b)=>b.charts[0].bpm[1]-a.charts[0].bpm[1],len:(a,b)=>b.charts[0].length-a.charts[0].length,
@@ -1137,12 +1410,13 @@ function pickRandom(){const sets=visibleSets();if(!sets.length){toast('表示中
   const same=cur&&cs.find(c=>c.course===cur.course);UI.selChart=(same||cs[cs.length-1]||s.charts[0]).uid;playSE('don');selectSet(s.key,true);
   const li=$('#songlist .song.is-on');if(li){li.scrollIntoView({block:'nearest'});li.classList.add('picked');}}
 function hashHue(s){let h=0;for(const ch of String(s))h=(h*31+ch.codePointAt(0))>>>0;return h%360;}
-function renderSongList(){const ul=$('#songlist');ul.innerHTML='';const sets=visibleSets();
+function renderSongList(){const ul=$('#songlist');ul.innerHTML='';const folders=effectiveFolders();folderToolbar(folders);const sets=visibleSets();
+  if(folders.folders.length&&!$('#filter').value.trim())renderFolderRows(ul,folders);
   const hint=$('#navHint');if(hint)hint.textContent=`↑↓ か カ（${keyLabel(S.keys[0])}・${keyLabel(S.keys[3])}）で曲、←→ でコース、Enter か ドン（${keyLabel(S.keys[1])}・${keyLabel(S.keys[2])}）で演奏`;
   for(const b of document.querySelectorAll('.fchips button'))b.classList.toggle('is-on',b.dataset.f===(UI.filt||'all'));
   const ss=$('#sortSel');if(ss.value!==(UI.sort||'added'))ss.value=UI.sort||'added';
   const cnt=$('#listCount');if(cnt)cnt.textContent=`${sets.length}曲`;
-  if(!sets.length){ul.append(el('li',{class:'empty'},$('#filter').value||UI.filt!=='all'?'条件に合う曲がありません':'右上の「.osz / CSV を追加」か、ドラッグ＆ドロップで曲を追加できます'));return;}
+  if(!sets.length){if(ul.childElementCount)return;ul.append(el('li',{class:'empty'},folders.folders.length?'このフォルダに曲はありません':$('#filter').value||UI.filt!=='all'?'条件に合う曲がありません':'右上の「.osz / CSV を追加」か、ドラッグ＆ドロップで曲を追加できます'));return;}
   for(const s of sets){const topC=sortCharts(s.charts).filter(c=>!isLocked(c)).pop()||s.charts[0],pl=Lib.played[s.key],fav=!!Lib.fav[s.key];
     const li=el('li',{class:'song'+(UI.selSet===s.key?' is-on':''),tabindex:'0',role:'button',style:`--sc:${COURSES[topC.course].color}`},
       el('div',{class:'song-t'},el('span',null,s.title),s.demo?el('span',{class:'tag'},'デモ'):null),
@@ -1150,10 +1424,19 @@ function renderSongList(){const ul=$('#songlist');ul.innerHTML='';const sets=vis
       el('button',{class:'fav'+(fav?' on':''),'aria-label':fav?'お気に入りから外す':'お気に入りに追加','aria-pressed':String(fav),onclick:e=>{e.stopPropagation();toggleFav(s.key);}},fav?'★':'☆'));
     li.addEventListener('click',()=>{if(UI.selSet!==s.key){UI.gesture=true;ensureAudio();playSE('ka');}selectSet(s.key,true);});
     li.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();if(e.key==='Enter'&&UI.selSet===s.key)menuDecide();else selectSet(s.key,true);}});ul.append(li);}}
-function selectSet(key,user){const changed=UI.selSet!==key;UI.selSet=key;const s=Lib.sets.find(x=>x.key===key);if(!s)return;
+function selectSet(key,user){UI.folderCursor=null;const changed=UI.selSet!==key;UI.selSet=key;const s=Lib.sets.find(x=>x.key===key);if(!s)return;
   if(!s.charts.some(c=>c.uid===UI.selChart)){const sc=sortCharts(s.charts);UI.selChart=(sc.filter(c=>!isLocked(c)).pop()||sc[0]).uid;}
   if(user&&(changed||!preview)){UI.gesture=true;ensureAudio();playPreview(s.charts[0]);}renderSongList();renderDetail();}
-function menuMove(dSong,dCourse){const sets=visibleSets();if(!sets.length)return;UI.gesture=true;ensureAudio();
+function menuMove(dSong,dCourse){
+  const sets=visibleSets(),folders=[...document.querySelectorAll('#songlist .folder-entry')];
+  if(dSong&&folders.length&&(UI.folderCursor!=null||!sets.length)){
+    const current=UI.folderCursor??0,next=current+dSong;
+    if(next>=folders.length&&sets.length){UI.folderCursor=null;selectSet(sets[0].key,true);return;}
+    UI.folderCursor=(next+folders.length)%folders.length;renderSongList();renderDetail();
+    $('#songlist .folder-entry.is-on')?.scrollIntoView({block:'nearest'});return;
+  }
+  if(dSong<0&&folders.length&&sets[0]?.key===UI.selSet){UI.folderCursor=folders.length-1;renderSongList();renderDetail();return;}
+  if(!sets.length)return;UI.gesture=true;ensureAudio();
   if(dSong){let i=sets.findIndex(s=>s.key===UI.selSet);i=i<0?0:(i+dSong+sets.length)%sets.length;playSE('ka');selectSet(sets[i].key,true);
     const li=$('#songlist .song.is-on');if(li)li.scrollIntoView({block:'nearest'});return;}
   const s=sets.find(x=>x.key===UI.selSet);if(!s)return;const cs=sortCharts(s.charts);let i=cs.findIndex(c=>c.uid===UI.selChart);i=clamp(i+dCourse,0,cs.length-1);
@@ -1182,18 +1465,23 @@ function pracBlock(c,dc){const max=Math.ceil(c.length/500)*500;let P=UI.prac;if(
         el('button',{class:'btn gold',onclick:()=>{UI.gesture=true;ensureAudio();playSE('don');startPractice(c,{...P,n:1});}},'練習する')),
       el('p',{class:'opt-note'},'上のグラフの明るい部分が練習する区間です。練習の結果は記録されません。スローにすると音の高さも下がります。')));
   det.addEventListener('toggle',()=>{UI.pracOpen=det.open;upd();});requestAnimationFrame(upd);return det;}
-async function startPractice(c,p){ensureAudio();D=null;await runSong(c,p);}
-function menuDecide(){const s=Lib.sets.find(x=>x.key===UI.selSet);if(!s)return;const c=s.charts.find(x=>x.uid===UI.selChart);if(!c)return;
-  UI.gesture=true;ensureAudio();playSE('don');if(isLocked(c))setTab('dan');else startNormal(c);}
+async function startPractice(c,p){if(waitForLibrary())return;ensureAudio();D=null;await runSong(c,p);}
+function menuDecide(){if(waitForLibrary())return;
+  const folder=$('#songlist .folder-entry.is-on')||(!visibleSets().length&&$('#songlist .folder-entry'));if(folder){folder.click();return;}
+  const visible=visibleSets();if(!visible.some(s=>s.key===UI.selSet)){const first=visible[0];if(first)selectSet(first.key,true);return;}const s=Lib.sets.find(x=>x.key===UI.selSet);if(!s)return;const c=s.charts.find(x=>x.uid===UI.selChart);if(!c)return;
+  UI.gesture=true;ensureAudio();playSE('don');if(isLocked(c)){UI.danMode='kasane';setTab('dan');}else startNormal(c);}
 function drawDensity(cvd,c,sel){if(!cvd.isConnected)return;const r=cvd.getBoundingClientRect();const w=Math.max(10,r.width),h=Math.max(10,r.height),dpr=Math.min(2,devicePixelRatio||1);
   cvd.width=Math.round(w*dpr);cvd.height=Math.round(h*dpr);const x=cvd.getContext('2d');x.scale(dpr,dpr);
-  const len=Math.max(1000,c.length),nb=clamp(Math.floor(w/4),20,160),bw=w/nb,all=new Array(nb).fill(0),ch=new Array(nb).fill(0);
-  for(const t of c.targets){const i=clamp(Math.floor(t.t/len*nb),0,nb-1);if(t.type==='chord'){all[i]+=t.notes.length;ch[i]+=t.notes.length;}else all[i]++;}
+  const len=Math.max(1000,c.length),nb=clamp(Math.floor(w/4),20,160),bw=w/nb,all=new Array(nb).fill(0),ch=new Array(nb).fill(0),sealed=new Set();
+  loadNoise(c);
+  for(const t of c.targets){const i=clamp(Math.floor(t.t/len*nb),0,nb-1);if(t.type==='chord'){all[i]+=t.notes.length;ch[i]+=t.notes.length;if(t.notes.some(n=>n.noise))sealed.add(i);}else{all[i]++;if(t.noise)sealed.add(i);}}
   for(let i=0;i<c.segs.length;i++){if(!c.segs[i].kiai)continue;const a=c.segs[i].time,b=i+1<c.segs.length?c.segs[i+1].time:len;x.fillStyle='rgba(238,74,43,.2)';x.fillRect(a/len*w,0,(b-a)/len*w,h);}
   for(const ro of c.rolls){x.fillStyle=ro.type==='balloon'?'rgba(240,138,60,.85)':'rgba(247,201,52,.85)';x.fillRect(ro.t/len*w,h-3,Math.max(2,(ro.end-ro.t)/len*w),3);}
   const mx=Math.max(1,...all);for(let i=0;i<nb;i++){if(!all[i])continue;const hh=all[i]/mx*(h-12);x.fillStyle='rgba(162,168,202,.7)';x.fillRect(i*bw+.5,h-5-hh,Math.max(1,bw-1),hh);
     if(ch[i]){const hc=ch[i]/mx*(h-12);x.fillStyle='#f2bc3d';x.fillRect(i*bw+.5,h-5-hc,Math.max(1,bw-1),hc);}}
-  if(sel){const a=sel.from/len*w,b=Math.min(w,sel.to/len*w);x.fillStyle='rgba(7,9,21,.7)';x.fillRect(0,0,a,h);x.fillRect(b,0,w-b,h);x.fillStyle='#f2bc3d';x.fillRect(a-1,0,2,h);x.fillRect(b-1,0,2,h);}}
+  if(sel){const a=sel.from/len*w,b=Math.min(w,sel.to/len*w);x.fillStyle='rgba(7,9,21,.7)';x.fillRect(0,0,a,h);x.fillRect(b,0,w-b,h);x.fillStyle='#f2bc3d';x.fillRect(a-1,0,2,h);x.fillRect(b-1,0,2,h);}
+  const sealLegend=cvd.parentElement?.querySelector('.seal-legend');if(sealLegend)sealLegend.hidden=!sealed.size;
+  x.fillStyle='#ff426f';for(const i of sealed)x.fillRect(i*bw,0,Math.max(2,bw-1),3);}
 
 /* HTML専用の封印ノーツ設定。osuファイルには書き込まない。 */
 function hasSealedNotes(c){const data=store.get(noiseKey(c),c.repoNoise||{});return c.targets.some((t,i)=>{if(!noiseEligible(t))return false;const v=data&&data[noiseId(t,i)];return Array.isArray(v)&&(t.type==='single'?[t]:t.notes).some((n,j)=>v[j]==='left'||v[j]==='right');});}
@@ -1203,10 +1491,10 @@ function noiseEligible(t){return t.type==='single'||(t.type==='chord'&&t.notes.l
 function noiseKey(c){return 'kasane-red-noise-v1:'+c.uid;}
 function noiseId(t,i){return i+':'+t.t+':'+(t.type==='single'?t.color+(t.big?'B':''):t.notes.map(n=>n.color+(n.big?'B':'')).join(''));}
 function loadNoise(c){const data=store.get(noiseKey(c),c.repoNoise||{});c.targets.forEach((t,i)=>{const v=data&&data[noiseId(t,i)];const ns=t.type==='single'?[t]:t.notes;ns.forEach((n,j)=>{n.noise=noiseEligible(t)&&Array.isArray(v)&&['left','right'].includes(v[j])?v[j]:null;});});}
-function saveNoise(c){const data={};c.targets.forEach((t,i)=>{const ns=t.type==='single'?[t]:t.notes;if(noiseEligible(t)&&ns.some(n=>n.noise))data[noiseId(t,i)]=ns.map(n=>n.noise||null);});try{localStorage.setItem(noiseKey(c),JSON.stringify(data));updateSealBadges(c);return true;}catch(e){toast('保存できません。ブラウザの保存容量・設定を確認してください','err');return false;}}
+function saveNoise(c){const data={};c.targets.forEach((t,i)=>{const ns=t.type==='single'?[t]:t.notes;if(noiseEligible(t)&&ns.some(n=>n.noise))data[noiseId(t,i)]=ns.map(n=>n.noise||null);});try{localStorage.setItem(noiseKey(c),JSON.stringify(data));updateSealBadges(c);const density=$('#detail .dens');if(density)drawDensity(density,c,UI.pracOpen?UI.prac:null);return true;}catch(e){toast('保存できません。ブラウザの保存容量・設定を確認してください','err');return false;}}
 function noiseBlocked(t,role){const color=ROLE_COLOR[role],n=t.type==='single'?t:t.notes.find(n=>n.color===color);return !!n&&((n.noise==='left'&&role.endsWith('L'))||(n.noise==='right'&&role.endsWith('R')));}
 function noiseRole(n){return(n.color==='d'?'don':'ka')+(n.noise==='left'?'R':'L');}
-function noiseEditor(c){loadNoise(c);const box=el('details',{style:'margin:16px;padding:14px;border:1px solid #a32d46;border-radius:12px;background:#190f20'}),canvas=el('canvas',{width:1000,height:280,style:'width:100%;background:#090c18;border-radius:10px;cursor:crosshair;touch-action:none','aria-label':'ノーツの左半分か右半分をクリックして封印を切り替え'}),seek=el('input',{type:'range',min:0,max:Math.max(1,c.length),value:0,step:1,style:'width:100%','aria-label':'編集する時刻'}),zoom=el('select',{'aria-label':'表示範囲'}),label=el('span');let hits=[],frame=0;
+function noiseEditor(c){loadNoise(c);const box=el('details',{class:'noise-editor',style:'margin:16px;padding:14px;border:1px solid #a32d46;border-radius:12px'}),canvas=el('canvas',{width:1000,height:280,style:'width:100%;background:#090c18;border-radius:10px;cursor:crosshair;touch-action:none','aria-label':'ノーツの左半分か右半分をクリックして封印を切り替え'}),seek=el('input',{type:'range',min:0,max:Math.max(1,c.length),value:0,step:1,style:'width:100%','aria-label':'編集する時刻'}),zoom=el('select',{'aria-label':'表示範囲'}),label=el('span');let hits=[],frame=0;
 [1000,2000,4000,8000].forEach(v=>zoom.append(el('option',{value:v},`${v/1000}秒表示`)));zoom.value='4000';
 function paint(pn){const x=canvas.getContext('2d'),from=Number(seek.value),span=Number(zoom.value);x.clearRect(0,0,1000,280);hits=[];label.textContent=`${(from/1000).toFixed(2)}秒`;x.font='14px sans-serif';for(let i=0;i<4;i++){x.strokeStyle='#303650';x.beginPath();x.moveTo(0,70+i*48);x.lineTo(1000,70+i*48);x.stroke();}for(let t=Math.ceil(from/500)*500;t<from+span;t+=500){let xx=40+(t-from)/span*920;x.fillStyle='#a2a8ca';x.fillText((t/1000).toFixed(1)+'s',xx,24);x.strokeStyle='#252a40';x.beginPath();x.moveTo(xx,35);x.lineTo(xx,260);x.stroke();}
 for(const t of c.targets){if(t.t<from||t.t>from+span)continue;const xx=40+(t.t-from)/span*920;(t.type==='single'?[t]:t.notes).forEach((n,i)=>{const yy=70+i*48,r=n.big?22:18;drawNote(x,xx,yy,r,n.color,1);drawNoise(x,xx,yy,r,n.noise,1,pn);if(!noiseEligible(t)){x.fillStyle='#aaa';x.fillText('×',xx-4,yy+5);}else hits.push({n,x:xx,y:yy,r});});}}
@@ -1267,10 +1555,11 @@ function paintSealSprite(c,x,y,r,side,alpha,pn){if(!side)return;
     c.strokeStyle=i%4===0?'#ff5376':'#ff234f';c.lineWidth=Math.max(1.2,r*.035);c.strokeRect(px-w/2,py-h/2,w,h);}
   c.restore();}
 
-function renderDetail(){const d=$('#detail');d.innerHTML='';const s=Lib.sets.find(x=>x.key===UI.selSet);
+function renderDetail(){const d=$('#detail');d.innerHTML='';const s=UI.folderCursor==null?visibleSets().find(x=>x.key===UI.selSet):null;
   if(!s){d.append(el('div',{class:'empty',style:'margin:16px'},'左の一覧から曲を選んでください'));return;}
   const hero=el('div',{class:'hero'+(s.bgUrl?'':' gen'),style:`--hue:${hashHue(s.title)}`},el('span',{class:'eq',hidden:UI.previewKey!==s.key||null,title:'試聴中','aria-label':'試聴中'},el('i'),el('i'),el('i'),el('i')),el('div',{class:'eyebrow'},s.demo?'デモ曲':'.osz'),el('h2',null,s.title),el('div',{class:'art'},s.artist||''),s.demo?null:el('div',{class:'file'},s.file+'.osz'));
   if(s.bgUrl)hero.style.setProperty('--bgimg',`url("${s.bgUrl}")`);d.append(hero);
+  const folderControl=folderMoveControl(s);if(folderControl)d.append(folderControl);
   const list=el('div',{class:'crs-list',role:'listbox','aria-label':'コース'});
   for(const c of sortCharts(s.charts)){const C=COURSES[c.course],locked=isLocked(c);
     const b=el('button',{class:'crs'+(c.uid===UI.selChart?' is-on':'')+(locked?' locked':''),style:`--cc:${C.color}`,role:'option','aria-selected':String(c.uid===UI.selChart)},
@@ -1289,13 +1578,13 @@ function renderDetail(){const d=$('#detail');d.innerHTML='';const s=Lib.sets.fin
   const dc=el('canvas',{class:'dens','aria-label':'譜面の流れ'});
   d.append(el('div',{class:'dens-wrap'},el('div',{class:'dens-lab'},el('span',null,'譜面の流れ'),
     el('span',{class:'legend'},el('i',{style:'background:rgba(162,168,202,.8)'}),'ノーツ',c.stats.chords?el('i',{style:'background:var(--gold)'}):null,c.stats.chords?'同時押し':null,
-      el('i',{style:'background:var(--roll)'}),'連打',el('i',{style:'background:rgba(238,74,43,.45)'}),'ゴーゴー')),dc));
+      el('i',{style:'background:var(--roll)'}),'連打',el('i',{style:'background:rgba(238,74,43,.45)'}),'ゴーゴー',el('span',{class:'seal-legend',hidden:true},el('i',{style:'background:#ff426f'}),'封印'))),dc));
   requestAnimationFrame(()=>drawDensity(dc,c));
   if(!isLocked(c)){if(S.noiseEdit===true)d.append(noiseEditor(c));d.append(optRow());d.append(pracBlock(c,dc));}
   const best=Lib.best[c.uid];
   if(isLocked(c)){const dan=danForChart(c);
     d.append(el('div',{class:'notice'},`この重譜面は「${dan?dan.name:'重段位'}」に合格すると通常プレイで遊べます。`));
-    d.append(el('div',{class:'play-row'},el('button',{class:'btn gold',onclick:()=>{setTab('dan');}},'段位道場へ')));return;}
+    d.append(el('div',{class:'play-row'},el('button',{class:'btn gold',onclick:()=>{UI.danMode='kasane';setTab('dan');}},'段位道場へ')));return;}
   if(c.course==='kasane')d.append(el('div',{class:'notice'},`縦に並んだノーツは、並んだ数と色どおりにキーを同時押し。数が合わないとその列は全部不可です。±${TOKU_WIN}ms で揃うと特良。`));
   if(S.auto)d.append(el('div',{class:'notice'},'オート演奏がオンです（記録されません）。'));
   d.append(el('div',{class:'play-row'},el('button',{class:'btn primary',id:'playBtn',onclick:()=>{UI.gesture=true;startNormal(c);}},'演奏開始'),
@@ -1303,8 +1592,15 @@ function renderDetail(){const d=$('#detail');d.innerHTML='';const s=Lib.sets.fin
     best?el('span',{class:'keys-hint num'},`ベスト ${fmtNum(best.score)}`):null));}
 
 function renderDans(){const box=$('#danlist');if(!box)return;box.innerHTML='';
-  if(!Lib.dans.length){box.append(el('div',{class:'empty'},'重譜面（同時押しのある譜面）を読み込むと、ここに段位が並びます'));return;}
-  for(const d of Lib.dans){const rec=Lib.danBest[d.key];
+  const period=monthlyPeriod();
+  if(Lib.monthlyPeriod!==period)buildDans();
+  const monthly=UI.danMode!=='kasane';
+  $('#kasaneIntro').hidden=$('#kasaneRules').hidden=monthly;
+  $('#danMonthly').setAttribute('aria-pressed',String(monthly));$('#danKasane').setAttribute('aria-pressed',String(!monthly));
+  const list=Lib.dans.filter(d=>(d.src==='monthly')===monthly);
+  if(monthly)box.append(el('p',{class:'lead'},monthlyPeriod().replace('-','年')+'月の課題曲（日本時間）'));
+  if(!list.length){box.append(el('div',{class:'empty'},monthly?'条件に合う譜面が3つそろうと段位が表示されます':'重譜面を読み込むと段位が表示されます'));return;}
+  for(const d of list){const rec=Lib.danBest[d.key];
     const state=rec==='gold'?el('span',{class:'state gold'},'金合格'):rec==='red'?el('span',{class:'state red'},'合格'):el('span',{class:'state'},'未合格');
     const songs=el('ol',{class:'dan-songs'});
     for(let i=0;i<3;i++){const c=d.songs[i],ref=d.refs[i];
@@ -1312,7 +1608,7 @@ function renderDans(){const box=$('#danlist');if(!box)return;box.innerHTML='';
         c?el('span',{class:'tt'},c.set.title):el('span',{class:'tt missing'},ref?`未読込: ${ref.file} / ${ref.version}`:'未設定'),
         c?chipFor(c):null));}
     const card=el('article',{class:'dan'+(rec?' passed-'+rec:'')},
-      el('div',{class:'dan-head'},el('div',{class:'dan-rank',style:d.level?`--dl:${DAN_COL[d.level-1]}`:null},d.level?ROMAN[d.level]:'?'),
+      el('div',{class:'dan-head'},el('div',{class:'dan-rank',style:d.level?`--dl:${DAN_COL[d.level-1]}`:null},d.src==='monthly'?'月':d.level?ROMAN[d.level]:'?'),
         el('div',{class:'dan-name'},el('h3',null,d.name),el('p',null,d.ready?`全${fmtNum(d.tot.notes)}ノーツ ・ 同時押し${fmtNum(d.tot.chordNotes)}個`:(d.note||'曲がそろっていません'))),state),songs);
     if(d.conds.length&&d.ready){const tb=el('tbody');
       for(const c of d.conds){const r=condDesc(c,'red',d.tot),g=condDesc(c,'gold',d.tot);
@@ -1322,7 +1618,7 @@ function renderDans(){const box=$('#danlist');if(!box)return;box.innerHTML='';
       card.append(el('div',{class:'tbl-wrap'},el('table',null,el('thead',null,el('tr',null,el('th',null,'条件'),el('th',null,'合格'),el('th',null,'金合格'))),tb)));}
     else if(d.ready)card.append(el('p',{class:'src'},'合格条件がありません（3曲を最後まで遊べば合格）'));
     if(d.warn)card.append(el('div',{class:'notice',style:'margin:0'},d.warn));
-    card.append(el('div',{class:'dan-foot'},el('span',{class:'src'},d.src==='auto'?'自動で組んだ段位（dan.csv で上書きできます）':`dan.csv の「${d.id}」`),
+    card.append(el('div',{class:'dan-foot'},el('span',{class:'src'},d.src==='monthly'?'月替わり':d.src==='auto'?'自動で組んだ段位（dan.csv で上書きできます）':`dan.csv の「${d.id}」`),
       el('button',{class:'btn primary',disabled:!d.ready||null,onclick:()=>{UI.gesture=true;startDan(d);}},'挑戦する')));
     box.append(card);}}
 function chipFor(c){const C=COURSES[c.course];return el('span',{class:'chip',style:`--cc:${C.color}`},C.jp,el('b',null,levelText(c)),sealBadge(c));}
@@ -1331,7 +1627,7 @@ function renderLoad(){
   const ul=$('#libList');ul.innerHTML='';
   const user=Lib.sets.filter(s=>!s.demo);
   if(!user.length)ul.append(el('li',null,el('span',null,'まだ .osz はありません（デモ曲 3曲が入っています）')));
-  for(const s of user)ul.append(el('li',null,el('span',{class:'lib-t'},el('b',null,s.title),el('small',null,`${s.file}.osz ・ ${s.charts.map(c=>c.meta.version).join(' / ')}`)),el('button',{class:'btn small ghost',onclick:()=>{removeSet(s);resolveAll();if(UI.selSet===s.key)UI.selSet=null;refreshAll();toast(`${s.title} を削除しました`);}},'削除')));
+  for(const s of user)ul.append(el('li',null,el('span',{class:'lib-t'},el('b',null,s.title),el('small',null,`${s.file}.osz ・ ${s.charts.map(c=>c.meta.version).join(' / ')}`)),s.repoPath?el('small',null,'GitHub'):el('button',{class:'btn small ghost',onclick:()=>{removeSet(s);resolveAll();if(UI.selSet===s.key)UI.selSet=null;refreshAll();toast(`${s.title} を削除しました`);}},'削除')));
   const st=$('#csvState');st.innerHTML='';
   const line=(label,text,name,key)=>{const n=parseCSV(text).length;st.append(el('div',{class:'row',style:'justify-content:space-between'},
     el('span',null,`${label}: `,n?el('b',null,`${name||'貼り付け'}（${Math.max(0,n-1)}行）`):el('span',{style:'color:var(--mute)'},'未読込')),
@@ -1352,7 +1648,7 @@ function applyCsvText(text,name){const k=csvKind(text);
   saveCsv();toast(`${k==='charts'?'charts.csv':'dan.csv'} を適用しました${name?`（${name}）`:''}`);return true;}
 function chartsTemplate(){const lines=['file,version,course,level,memo'];const user=Lib.sets.filter(s=>!s.demo);
   const sets=user.length?user:Lib.sets;if(!user.length)lines.push('# .osz が無いのでデモ曲の例です');
-  for(const s of sets)for(const c of sortCharts(s.charts))lines.push([Lib.sets.filter(x=>x.title===s.title).length===1?s.title:s.file,c.meta.version,c.course,c.level!=null?(c.course==='kasane'?ROMAN[c.level]:c.level):'',c.stats.chords?`同時押し${c.stats.chords}箇所 / 最大${c.stats.maxLanes}レーン`:''].map(csvCell).join(','));
+  for(const s of sets)for(const c of sortCharts(s.charts))lines.push([Lib.sets.filter(x=>x.title===s.title).length===1?s.title:s.file,c.meta.version,c.course,c.level!=null?(c.course==='kasane'?ROMAN[c.level]:starValue(c.level)):'',c.stats.chords?`同時押し${c.stats.chords}箇所 / 最大${c.stats.maxLanes}レーン`:''].map(csvCell).join(','));
   return lines.join('\n');}
 function condCell(c){const f=t=>{const s=c[t];if(!s)return'';if(c.rate)return'秒速'+s.v;return(c.op!==COND[c.key].op?c.op:'')+s.v+(s.pct?'%':'');};const r=f('red'),g=f('gold');return g?`${r}/${g}`:r;}
 function danTemplate(){const lines=['id,name,song1,diff1,song2,diff2,song3,diff3,'+COND_ORDER.join(',')];
@@ -1380,7 +1676,7 @@ let G=null,D=null,rafId=0;const cv=$('#cv'),ctx=cv.getContext('2d');const view={
 function newStats(notes,chordNotes,course){return{notes,chordNotes,gu:10000/Math.max(1,notes*.75),badMul:BADMUL[course]||2,tokuryo:0,good:0,ok:0,bad:0,roll:0,rollDrum:0,combo:0,maxCombo:0,score:0,gauge:0,judged:0,chordJudged:0,offSum:0,offN:0,offs:[],chordHit:0,chordMiss:0,mismatch:0};}
 function newRun(chart,prac){
   loadNoise(chart);
-  const tsrc=prac?chart.targets.filter(t=>t.t>=prac.from-1&&t.t<=prac.to):chart.targets,rsrc=prac?chart.rolls.filter(r=>r.end>=prac.from&&r.t<=prac.to):chart.rolls;
+  const tsrc=prac?chart.targets.filter(t=>(prac.from<=0||t.t>=prac.from)&&t.t<=prac.to):chart.targets,rsrc=prac?chart.rolls.filter(r=>(prac.from<=0||r.end>=prac.from)&&r.t<=prac.to):chart.rolls;
   let nN=0,nC=0;for(const t of tsrc){if(t.type==='chord'){nN+=t.notes.length;nC+=t.notes.length;}else nN++;}
   return{chart,prac:prac||null,win:(chart.course==='easy'||chart.course==='normal')?WIN_SOFT:WIN_HARD,
     targets:applyOpts(tsrc.map(t=>({...t,notes:t.notes?t.notes.map(n=>({...n})):null,judged:false,res:null,buf:null}))),hidden:!D&&!!S.opt.hidden,
@@ -1468,23 +1764,25 @@ function checkDanFail(){if(!D||!G||G.failed)return;
   for(const c of D.conds){const r=evalTier(c,'red',D.st,D.tot);if(r&&r.fail){G.failed=true;G.failAt=performance.now();D.failCond=c;fadeMusic(1.8);fxStamp('danfail');break;}}}
 
 /* ---------- 進行 ---------- */
-function openStage(){stopPreview();$('#stage').hidden=false;$('#stage').classList.toggle('touch',UI.touch);document.body.classList.add('playing');$('#result').hidden=true;$('#pause').hidden=true;$('#pads').hidden=!UI.touch||S.falling===true;layoutStage();startLoop();}
-function closeStage(){cancelAnimationFrame(rafId);rafId=0;stopSong();G=null;D=null;$('#stage').hidden=true;document.body.classList.remove('playing');refreshAll();}
+function openStage(){stopPreview();$('#stage').hidden=false;$('#stage').classList.toggle('touch',UI.touch);document.body.classList.add('playing');$('#result').hidden=true;$('#pause').hidden=true;$('#pads').hidden=libraryWait||!UI.touch||S.falling===true;layoutStage();startLoop();}
+function closeStage(){songLoad++;libraryWait=false;cancelAnimationFrame(rafId);rafId=0;stopSong();G=null;D=null;$('#stage').hidden=true;document.body.classList.remove('playing');refreshAll();}
 function startLoop(){if(!rafId)rafId=requestAnimationFrame(frame);}
 function stopSong(){if(G&&G.src){try{G.src.stop();}catch(e){}G.src=null;}}
 function fadeMusic(sec){if(!G||!G.gain||!AC)return;try{const g=G.gain.gain;g.cancelScheduledValues(AC.currentTime);g.setValueAtTime(g.value,AC.currentTime);g.linearRampToValueAtTime(0,AC.currentTime+sec);G.src.stop(AC.currentTime+sec+.05);}catch(e){}}
-async function startNormal(chart){ensureAudio();D=null;await runSong(chart);}
-async function startDan(dan){ensureAudio();D={dan,idx:0,conds:dan.conds,tot:dan.tot,st:newStats(dan.tot.notes,dan.tot.chordNotes,'kasane'),results:[],auto:S.auto};openStage();await danInterlude();}
+async function startNormal(chart){if(waitForLibrary())return;ensureAudio();D=null;await runSong(chart);}
+async function startDan(dan){if(waitForLibrary())return;ensureAudio();D={dan,idx:0,conds:dan.conds,tot:dan.tot,st:newStats(dan.tot.notes,dan.tot.chordNotes,'kasane'),results:[],auto:S.auto};openStage();await danInterlude();}
 async function danInterlude(){const chart=D.dan.songs[D.idx];G=null;D.interlude={t0:performance.now(),idx:D.idx,chart};startLoop();
   const p=getAudio(chart);await Promise.all([p.catch(()=>null),wait(2800)]);if(!D)return;D.interlude=null;await runSong(chart);}
+let songLoad=0;
 async function runSong(chart,prac){
+  const ticket=++songLoad;
   if($('#stage').hidden)openStage();G=null;UI.loading=`読み込み中 — ${chart.set.title}`;startLoop();
-  let buf;try{buf=await getAudio(chart);}catch(e){closeStage();toast(e.message,'err');return;}
-  if($('#stage').hidden)return;
+  let buf;try{buf=await getAudio(chart);}catch(e){if(ticket===songLoad){closeStage();toast(e.message,'err');}return;}
+  if(ticket!==songLoad||$('#stage').hidden)return;
   G=newRun(chart,prac);if(D){G.auto=D.auto;G.disp=D.st.score;G.lastCombo=D.st.combo;}
   if(chart.set.bgUrl){G.bgImg=new Image();G.bgImg.src=chart.set.bgUrl;}
   computeLayout();
-  const rate=prac?prac.rate:1,t0=prac?Math.max(0,prac.from-2400):0,lead=prac?1000:Math.max(1400,2800-Math.max(0,chart.firstT));
+  const rate=prac?prac.rate:1,t0=prac?Math.max(0,prac.from-2400):0,lead=prac&&prac.from>0?1000:Math.max(1400,2800-Math.max(0,chart.firstT),1000-chart.firstT/rate);
   const src=AC.createBufferSource();src.buffer=buf;src.playbackRate.value=rate;const g=AC.createGain();src.connect(g);g.connect(musicGain);
   const acZero=AC.currentTime+.12+lead/1000;src.start(acZero,t0/1000);
   Object.assign(G,{rate,t0,src,gain:g,acZero,latency:((AC.outputLatency||0)+(AC.baseLatency||0))*1000,perfZero:performance.now()+(acZero-AC.currentTime)*1000,introAt:performance.now()});}
@@ -1567,12 +1865,12 @@ function showDanResult(){cancelAnimationFrame(rafId);rafId=0;if(!D)return;const 
       el('td',null,gd?el('span',{class:'ach '+(okG?'y':'n')},okG?'達成':'未達'):'—',gd?el('span',{class:'sub'},gd.main):null)));}
   gold=gold&&red;const verdict=gold?'金合格':red?'合格':'不合格';
   if(!D.auto)for(const r of D.results)markPlayed(r.chart.set);
-  const unlockC=d.songs[2];let unlockMsg=null;
+  const unlockC=d.src==='monthly'?null:d.songs[2];let unlockMsg=null;
   if(red&&!D.auto){const prev=Lib.danBest[d.key];if(prev!=='gold')Lib.danBest[d.key]=gold?'gold':'red';store.set('kt.danBest',Lib.danBest);
-    const was=Lib.unlocks[unlockC.uid];Lib.unlocks[unlockC.uid]=gold||was==='gold'?'gold':'red';store.set('kt.unlocks',Lib.unlocks);
-    unlockMsg=was?`「${unlockC.set.title}」重 ${ROMAN[unlockC.level]||''} は解禁済みです`:`「${unlockC.set.title}」重 ${ROMAN[unlockC.level]||''} が通常プレイで遊べるようになりました`;}
+    if(unlockC){const was=Lib.unlocks[unlockC.uid];Lib.unlocks[unlockC.uid]=gold||was==='gold'?'gold':'red';store.set('kt.unlocks',Lib.unlocks);
+    unlockMsg=was?`「${unlockC.set.title}」重 ${ROMAN[unlockC.level]||''} は解禁済みです`:`「${unlockC.set.title}」重 ${ROMAN[unlockC.level]||''} が通常プレイで遊べるようになりました`;}}
   const scoreEl=el('span',null,'0');const card=$('#resultCard');card.className='ov-card res';card.innerHTML='';
-  card.append(el('div',{class:'res-head'},el('span',{class:'dan-mini'},d.level?ROMAN[d.level]:'?'),el('span',{class:'ttl'},d.name)),
+  card.append(el('div',{class:'res-head'},el('span',{class:'dan-mini'},d.src==='monthly'?'月':d.level?ROMAN[d.level]:'?'),el('span',{class:'ttl'},d.name)),
     el('div',{class:'res-main'},
       el('div',{class:'res-left'},
         el('div',{class:'stamp '+(gold?'dan-gold':red?'dan-red':'fail')},verdict),
@@ -1585,7 +1883,7 @@ function showDanResult(){cancelAnimationFrame(rafId);rafId=0;if(!D)return;const 
         D.conds.length?el('div',{class:'tbl-wrap'},el('table',null,el('thead',null,el('tr',null,el('th',null,'条件'),el('th',null,'結果'),el('th',null,'合格'),el('th',null,'金合格'))),rows)):null)),
     el('div',{class:'ov-btns'},el('button',{class:'btn primary',onclick:()=>{const dd=d;$('#result').hidden=true;closeStage();startDan(dd);}},'もう一度挑戦'),
       el('button',{class:'btn',onclick:()=>{closeStage();setTab('dan');}},'段位道場へ'),
-      red&&!D.auto?el('button',{class:'btn gold',onclick:()=>{closeStage();setTab('select');selectSet(unlockC.set.key,false);UI.selChart=unlockC.uid;renderDetail();}},'解禁した譜面を見る'):null));
+      red&&!D.auto&&unlockC?el('button',{class:'btn gold',onclick:()=>{closeStage();UI.folder=songFolder(unlockC.set,effectiveFolders());UI.filt='all';$('#filter').value='';setTab('select');UI.selChart=unlockC.uid;selectSet(unlockC.set.key,false);}},'解禁した譜面を見る'):null));
   $('#result').hidden=false;UI.resultAt=performance.now();countUp(scoreEl,st.score,1300);if(red)setTimeout(()=>playJingle('danpass'),350);else if(!D.failCond)setTimeout(()=>playJingle('danfail'),350);}
 
 /* ---------- 描画 ---------- */
@@ -1766,7 +2064,9 @@ function fallingRoles(target,index){
 
 function drawFalling(now,pn){
   const c=ctx,g=G,{top,bottom,coverTop,depth,xAt,project}=fallingLayout();
-  c.fillStyle='#10142a';c.fillRect(0,0,view.W,view.H);
+  const backdrop=c.createLinearGradient(0,0,0,view.H);
+  backdrop.addColorStop(0,'#211332');backdrop.addColorStop(.56,'#11182d');backdrop.addColorStop(1,'#102c3e');
+  c.fillStyle=backdrop;c.fillRect(0,0,view.W,view.H);
   if(bottom<=top)return;
   const distance=bottom-top,speed=S.speed;
   const position=(t,sv)=>project(1-(t-now)*sv*speed);
@@ -1778,8 +2078,11 @@ function drawFalling(now,pn){
   };
   const drawBar=(col,y,color,alpha)=>{
     c.globalAlpha=alpha;
-    const halfHeight=7*depth(y);
-    band(col+.04,col+.96,y-halfHeight,y+halfHeight,color);
+    const halfHeight=8*depth(y);
+    const red=color==='d';
+    band(col+.055,col+.945,y-halfHeight,y+halfHeight,red?'#7d2449':'#115878');
+    band(col+.088,col+.912,y-halfHeight+1,y+halfHeight*.56,red?'#ff6586':'#31d5e9');
+    band(col+.11,col+.89,y-halfHeight+1,y-halfHeight+Math.max(2,halfHeight*.45),red?'#ffe5ef':'#dbfcff');
     c.globalAlpha=1;
   };
   c.save();c.beginPath();
@@ -1787,8 +2090,17 @@ function drawFalling(now,pn){
   c.lineTo(xAt(4,bottom+12),bottom+12);c.lineTo(xAt(0,bottom+12),bottom+12);
   c.closePath();c.clip();
   for(let i=0;i<4;i++){
-    const lit=pn-(g.flash[ROLES[i]]??-Infinity)<130;
-    band(i,i+.985,top,bottom+12,lit?'#405482':i%2?'#232b4a':'#1c2340');
+    band(i,i+.985,top,bottom+12,i%2?'#2a2545':'#20263d');
+    const tap=clamp(1-(pn-(g.flash[ROLES[i]]??-Infinity))/140,0,1);
+    if(tap>0){
+      c.globalAlpha=.20*tap;
+      band(i+.05,i+.95,bottom-34,bottom+10,ROLE_COLOR[ROLES[i]]==='d'?'#ff8bae':'#69ecff');
+      c.globalAlpha=1;
+    }
+  }
+  for(const col of [0,1,2,3,4]){
+    c.strokeStyle=col===0||col===4?'#8caeca':'#62768c';c.lineWidth=col===0||col===4?2:1;
+    c.beginPath();c.moveTo(xAt(col,coverTop),coverTop);c.lineTo(xAt(col,bottom),bottom);c.stroke();
   }
   for(const roll of g.rolls){
     if(roll.done||roll.end<now)continue;
@@ -1811,7 +2123,7 @@ function drawFalling(now,pn){
     for(const role of roles){
       const col=ROLES.indexOf(role),color=ROLE_COLOR[role];
       const note=target.type==='single'?target:target.notes.find(n=>n.color===color&&n.noise);
-      drawBar(col,y,color==='d'?'#ff746f':'#53d9e8',opacity);
+      drawBar(col,y,color,opacity);
       if(note?.noise&&opacity>0){
         const x=xAt(col+.5,y);
         drawNoise(c,x,y,7*depth(y),note.noise,opacity,pn);
@@ -1819,11 +2131,17 @@ function drawFalling(now,pn){
     }
   }
   if(coverTop>top)band(0,4,coverTop,coverTop+2,'#7885b2');
-  c.fillStyle='#fff';c.fillRect(xAt(0,bottom),bottom-2,xAt(4,bottom)-xAt(0,bottom),3);c.restore();
+  band(0,4,bottom-5,bottom+5,'#437c96');
+  band(0,4,bottom-1,bottom+2,'#ddfbff');
+  c.restore();
   c.textAlign='center';c.font='600 13px sans-serif';
   for(let i=0;i<4;i++){
     c.fillStyle=ROLE_COLOR[ROLES[i]]==='d'?'#ff9f99':'#89e9f2';
     c.fillText(keyLabel(S.keys[i]),xAt(i+.5,bottom),bottom+28);
+  }
+  if(g.st.combo>=2){
+    c.fillStyle='#d5f5ff';c.font='800 24px sans-serif';
+    c.fillText(`${g.st.combo} COMBO`,view.W/2,top+32);
   }
   if(g.pop&&pn-g.pop.t<480){
     c.font='700 22px sans-serif';c.fillStyle='#fff';
@@ -1887,7 +2205,7 @@ function draw(now){const c=ctx,W=view.W,H=view.H,L=view.L,g=G;if(!L)return;const
     const cg=c.createLinearGradient(x-r*.18,0,x+r*.18,0);cg.addColorStop(0,tg.judged?'#6c75a0':'#ffe58a');cg.addColorStop(1,tg.judged?'#454d75':'#d99a1c');rr(c,x-r*.17,yA,r*.34,yB-yA,r*.17);c.fillStyle=cg;c.fill();c.globalAlpha=1;
     for(let q=tg.notes.length-1;q>=0;q--){const n=tg.notes[q];drawNote(c,x,ys[q],n.big?r*bigMul:r,n.color,al);drawNoise(c,x,ys[q],n.big?r*bigMul:r,n.noise,al,pn);}}
   // レールとゴーゴーの炎
-  c.fillStyle='#39437f';c.fillRect(0,top-4,W,4);c.fillRect(0,top+fh,W,4);c.fillStyle='rgba(242,188,61,.45)';c.fillRect(0,top-4,W,1);c.fillRect(0,top+fh+3,W,1);
+  c.fillStyle='#d34d43';c.fillRect(0,top-4,W,4);c.fillRect(0,top+fh,W,4);c.fillStyle='#ffd475';c.fillRect(0,top-4,W,1);c.fillRect(0,top+fh+3,W,1);
   if(k>.01&&!REDUCED&&!LOWFX()){drawFlames(top-4,L.panelW,W,pn,k,beat);if(k>.5&&Math.random()<.4)fx.parts.push({x:jx+Math.random()*(W-jx),y:top+fh,vx:(Math.random()-.5)*.03,vy:-(.04+Math.random()*.07),grav:0,t:pn,life:1300,col:Math.random()<.5?'#ffb347':'#ff7a3c',sz:1.4+Math.random()*1.8,ember:true});}
   drawEffects(pn);drawPanel(pn);drawJudgePop(pn);drawRollCounter(now,pn);drawHud(now,pn);drawFlyers(pn);drawBanner(pn);
   // 判定の内訳
@@ -2100,7 +2418,7 @@ $('#calPad').addEventListener('pointerdown',e=>{if(CAL.on){e.preventDefault();ca
 /* ================= タイトル画面 ================= */
 function titleOpen(){return!$('#title').hidden&&!$('#title').classList.contains('out');}
 function dismissTitle(){if(!titleOpen())return;const t=$('#title');t.classList.add('out');setTimeout(()=>{t.hidden=true;},340);
-  UI.gesture=true;ensureAudio();playSE('don');const s=Lib.sets.find(x=>x.key===UI.selSet);if(s)playPreview(s.charts[0]);}
+  UI.gesture=true;ensureAudio();playSE('don');const s=Lib.sets.find(x=>x.key===UI.selSet);if(!waitForLibrary()&&s)playPreview(s.charts[0]);}
 function renderTitleStat(){const kas=Lib.charts.filter(c=>c.course==='kasane').length,passed=Lib.dans.filter(d=>Lib.danBest[d.key]).length;
   $('#tsStat').textContent=`${Lib.sets.length}曲 ・ 重譜面 ${kas} ・ 段位 合格 ${passed} / ${Lib.dans.length}`;
   $('#tsHint').textContent=UI.touch?'画面をタップ':`${keyLabel(S.keys[1])} か ${keyLabel(S.keys[2])}（ドン）、Enter、またはクリック`;}
@@ -2159,7 +2477,7 @@ function renderGuide(){const b=$('#howtoBody');b.innerHTML='';const K=S.keys.map
         el('li',null,el('b',null,'左半分を封印'),'：左手の ',kc(0),'・',kc(1),' は不可。ドンは ',kc(2),'、カッは ',kc(3),' で叩きます。'),
         el('li',null,el('b',null,'右半分を封印'),'：右手の ',kc(2),'・',kc(3),' は不可。ドンは ',kc(1),'、カッは ',kc(0),' で叩きます。')),
       el('p',null,'同時押しに置けるのは、小さいドン1個＋小さいカッ1個の列だけです。それぞれの音符の封印を確認して同時に叩きます。禁止された手で叩くと、その列はすべて不可です。大きい単音符に封印がある場合は、封印されていない側の片手で叩きます。'),
-      el('p',{class:'gnote'},'編集するには「設定」で「封印ノーツ編集をON」にし、曲詳細の「封印ノーツを視覚的に編集」を開きます。スライダーで時刻を移動し、音符の左／右半分をクリックして配置。同じ側を再クリックすると解除できます。変更は自動保存されます。編集をOFFにしても、配置済みの封印ノーツは演奏に反映されます。')),
+      el('p',{class:'gnote'},'編集するには「設定」で「編集モード」にし、曲詳細の「封印ノーツを視覚的に編集」を開きます。スライダーで時刻を移動し、音符の左／右半分をクリックして配置。同じ側を再クリックすると解除できます。変更は自動保存されます。編集をOFFにしても、配置済みの封印ノーツは演奏に反映されます。')),
     sec('ミスになる押し方',el('p',null,'次のどれかになると、その列の音符はすべて「不可」です。'),
       el('ul',{class:'glist'},el('li',null,el('b',null,'多すぎる'),'：ドン1つの列で ',kc(1),' と ',kc(2),' を両方叩く'),el('li',null,el('b',null,'足りない'),'：ドン2つの列で ',kc(1),' だけ叩く'),
         el('li',null,el('b',null,'色が違う'),'：ドンとカッの列で ',kc(1),' と ',kc(2),' を叩く'),el('li',null,el('b',null,'同じキーを2回'),'：同じ列の中で同じキーをもう一度叩く')),
@@ -2179,19 +2497,21 @@ $('#tsGuide').addEventListener('click',e=>{e.stopPropagation();dismissTitle();op
 
 /* ================= イベント ================= */
 for(const b of document.querySelectorAll('.tab'))b.addEventListener('click',()=>setTab(b.dataset.tab));
-$('#filter').addEventListener('input',renderSongList);
+$('#danMonthly').addEventListener('click',()=>{UI.danMode='monthly';renderDans();});
+$('#danKasane').addEventListener('click',()=>{UI.danMode='kasane';renderDans();});
+$('#filter').addEventListener('input',()=>{UI.folderCursor=null;renderSongList();renderDetail();});
 $('#sortSel').addEventListener('change',e=>{UI.sort=e.target.value;saveUIPrefs();renderSongList();});
-for(const b of document.querySelectorAll('.fchips button'))b.addEventListener('click',()=>{UI.filt=b.dataset.f;saveUIPrefs();renderSongList();});
+for(const b of document.querySelectorAll('.fchips button'))b.addEventListener('click',()=>{UI.filt=b.dataset.f;saveUIPrefs();renderSongList();renderDetail();});
 $('#randomBtn').addEventListener('click',pickRandom);
 $('#fileIn').addEventListener('change',e=>{addFiles([...e.target.files]);e.target.value='';});
-async function addFiles(files){let added=0;
+async function addFiles(files){libraryImports++;try{let added=0;
   for(const f of files){const n=f.name.toLowerCase();
     try{if(n.endsWith('.csv')){applyCsvText(decodeText(new Uint8Array(await f.arrayBuffer())),f.name);}
       else if(n.endsWith('.osz')||n.endsWith('.zip')){const buf=await f.arrayBuffer();const set=await loadOsz(f.name,buf);set.storeName=f.name;IDB.put(f.name,buf);added++;UI.selSet=UI.selSet||set.key;}
       else toast(`${f.name}: .osz か .csv を選んでください`,'err');}
     catch(e){toast(`${f.name}: ${e.message}`,'err');}}
   resolveAll();if(added){toast(`${added}曲を追加しました`);const last=Lib.sets.filter(s=>!s.demo).pop();if(last)UI.selSet=last.key;UI.selChart=null;const s=Lib.sets.find(x=>x.key===UI.selSet);if(s)selectSet(s.key,false);}
-  refreshAll();}
+  refreshAll();}finally{libraryImports--;finishLibraryWait();}}
 let dragDepth=0;
 window.addEventListener('dragenter',e=>{if(!e.dataTransfer||![...e.dataTransfer.types].includes('Files'))return;dragDepth++;$('#drop').hidden=false;});
 window.addEventListener('dragleave',()=>{dragDepth=Math.max(0,dragDepth-1);if(!dragDepth)$('#drop').hidden=true;});
@@ -2205,13 +2525,13 @@ $('#tplCopy').addEventListener('click',()=>{const t=$('#tplOut');if(!t.value){to
 $('#tplToPaste').addEventListener('click',()=>{$('#csvPaste').value=$('#tplOut').value;$('#csvPaste').focus();});
 $('#clearLib').addEventListener('click',()=>{$('#clearLibConfirm').hidden=false;});
 $('#clearLibNo').addEventListener('click',()=>{$('#clearLibConfirm').hidden=true;});
-$('#clearLibYes').addEventListener('click',async()=>{for(const s of Lib.sets.filter(s=>!s.demo))removeSet(s,false);await IDB.clear();$('#clearLibConfirm').hidden=true;UI.selSet=null;resolveAll();refreshAll();toast('保存した .osz を削除しました');});
+$('#clearLibYes').addEventListener('click',async()=>{for(const s of Lib.sets.filter(s=>s.storeName))removeSet(s,false);await IDB.clear();$('#clearLibConfirm').hidden=true;UI.selSet=null;resolveAll();refreshAll();toast('保存した .osz を削除しました');});
 const bindRange=(id,key,fn)=>$(id).addEventListener('input',e=>{S[key]=parseFloat(e.target.value);if(fn)fn();saveS();renderSettings();});
 bindRange('#setSudden','sudden');bindRange('#setSpeed','speed');bindRange('#setOffset','offset');
 bindRange('#setMusic','music',()=>{if(musicGain)musicGain.gain.value=S.music;});bindRange('#setSe','se',()=>{if(seGain)seGain.gain.value=S.se;});
 $('#setFalling').addEventListener('change',e=>{S.falling=e.target.value!=='taiko';S.perspective=e.target.value==='perspective';saveS();});
 $('#setLowFx').addEventListener('change',e=>{S.fx=e.target.checked?'low':'high';saveS();});
-$('#setNoiseEdit').addEventListener('change',e=>{S.noiseEdit=e.target.checked;saveS();renderDetail();});
+$('#setNoiseEdit').addEventListener('change',e=>{S.noiseEdit=e.target.checked;saveS();renderSongList();renderDetail();});
 $('#setAuto').addEventListener('change',e=>{S.auto=e.target.checked;saveS();renderDetail();});
 $('#setUnlock').addEventListener('change',e=>{S.unlockAll=e.target.checked;saveS();refreshAll();});
 $('#resetRec').addEventListener('click',()=>{$('#resetConfirm').hidden=false;});
@@ -2234,6 +2554,7 @@ window.addEventListener('keydown',e=>{
   if(e.defaultPrevented||UI.tab!=='select'||e.ctrlKey||e.metaKey||e.altKey)return;
   const ae=document.activeElement,tag=ae?ae.tagName:'';if(/^(INPUT|TEXTAREA|SELECT)$/.test(tag))return;
   const ki=S.keys.indexOf(e.code);
+  if((e.key==='Escape'||e.key==='Backspace')&&UI.folder){e.preventDefault();changeFolder(effectiveFolders().folders.find(f=>f.id===UI.folder)?.parent||'');return;}
   if(e.key==='ArrowUp'||ki===0){e.preventDefault();menuMove(-1,0);}
   else if(e.key==='ArrowDown'||ki===3){e.preventDefault();menuMove(1,0);}
   else if(e.key==='ArrowLeft'){e.preventDefault();menuMove(0,-1);}
@@ -2242,33 +2563,132 @@ window.addEventListener('keydown',e=>{
 let resizeT=0;
 window.addEventListener('resize',()=>{if(!$('#stage').hidden){layoutStage();return;}clearTimeout(resizeT);resizeT=setTimeout(()=>{if(UI.tab==='select')renderDetail();},200);});
 window.addEventListener('pointerdown',e=>{if(e.pointerType!=='touch'||UI.touch)return;UI.touch=true;renderTitleStat();
-  const st=$('#stage');if(st.hidden)return;st.classList.add('touch');$('#pads').hidden=S.falling===true;layoutStage();},true);
+  const st=$('#stage');if(st.hidden)return;st.classList.add('touch');$('#pads').hidden=libraryWait||S.falling===true;layoutStage();},true);
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&G&&!G.finished&&!G.paused&&!D)pauseGame();});
 
 
-let repositoryLoading=false;
-async function loadRepositorySongs(direct=false){if(repositoryLoading)return;if(!direct&&location.protocol==='file:')return;
-repositoryLoading=true;const button=$('#fetchGithub'),status=$('#fetchGithubStatus');button.disabled=true;let failed=0,loaded=0;
-try{let manifest,base=new URL('.',location.href).href;
-if(direct){status.textContent='GitHubの最新ファイル一覧を取得中…';
-  const head=await fetch('https://api.github.com/repos/lencie040/kasane_taiko/commits/main?t='+Date.now(),{cache:'no-store'});
-  if(!head.ok)throw new Error('GitHub HTTP '+head.status);const commit=await head.json();
-  const r=await fetch('https://api.github.com/repos/lencie040/kasane_taiko/git/trees/'+commit.sha+'?recursive=1',{cache:'no-store'});
-  if(!r.ok)throw new Error('GitHub HTTP '+r.status+(r.status===403?'（取得制限の可能性があります。時間を置いて再試行してください）':''));
-  const tree=await r.json();if(tree.truncated)throw new Error('ファイル一覧が大きすぎるため取得できません');
-  const paths=tree.tree.filter(x=>x.type==='blob').map(x=>x.path);base='https://raw.githubusercontent.com/lencie040/kasane_taiko/'+commit.sha+'/';
-  manifest={songs:paths.filter(p=>p.startsWith('content/songs/')&&/\.(osz|zip)$/i.test(p)).map(p=>p.split('/').map(encodeURIComponent).join('/'))};
-  for(const k of ['charts','dan'])if(paths.includes('content/csv/'+k+'.csv'))manifest[k]='content/csv/'+k+'.csv';
-  if(paths.includes('content/noise.json'))manifest.noise='content/noise.json';
-}else{const response=await fetch('content/manifest.json',{cache:'no-cache'});if(response.status===404)return;if(!response.ok)throw new Error('曲一覧 HTTP '+response.status);manifest=await response.json();}
-const get=async(path)=>{const r=await fetch(new URL(path,base),{cache:direct?'no-store':'no-cache'});if(!r.ok)throw new Error('HTTP '+r.status);return r;};
-for(const [i,path] of (manifest.songs||[]).entries()){status.textContent=`曲を取得中… ${i+1} / ${manifest.songs.length}`;try{const r=await get(path);await loadOsz(decodeURIComponent(path.split('/').pop()),await r.arrayBuffer());loaded++;}catch(e){failed++;Lib.loadWarn.push(path+': '+e.message);}}
-for(const kind of ['charts','dan']){if(!manifest[kind])continue;try{const r=await get(manifest[kind]);Lib[kind+'Csv']=decodeText(new Uint8Array(await r.arrayBuffer()));Lib[kind+'CsvName']=kind+'.csv';}catch(e){failed++;Lib.loadWarn.push(kind+': '+e.message);}}
-if(manifest.noise){try{const r=await get(manifest.noise),data=await r.json();for(const set of Lib.sets)for(const c of set.charts)c.repoNoise=data[c.uid]||{};}catch(e){failed++;Lib.loadWarn.push('封印設定: '+e.message);}}
-resolveAll();refreshAll();renderTitleStat();status.textContent=`取得完了：${loaded}曲`+(failed?`・${failed}件失敗（読み込みの警告を確認してください）`:'・CSV／封印設定を更新しました');
-if(direct)toast(status.textContent,failed?'err':undefined);
-}catch(e){Lib.loadWarn.push('リポジトリ読込: '+e.message);status.textContent='取得できませんでした：'+e.message;if(direct){refreshAll();toast(status.textContent,'err');}}
-finally{repositoryLoading=false;button.disabled=false;}}
+let repositoryLoading=false,libraryBooting=true,libraryImports=0,libraryWait=false;
+function waitForLibrary(){
+  if(!libraryBooting&&!repositoryLoading&&!libraryImports)return false;
+  if(!$('#title').hidden)$('#title').hidden=true;
+  libraryWait=true;
+  UI.loading='曲と設定を読み込み中…';
+  if($('#stage').hidden)openStage();
+  return true;
+}
+function finishLibraryWait(){
+  if(libraryWait&&!libraryBooting&&!repositoryLoading&&!libraryImports)closeStage();
+}
+const repoRead=key=>IDB.tx('readonly',store=>store.get(key),'repository');
+const repoWrite=(key,value)=>IDB.tx('readwrite',store=>store.put(value,key),'repository');
+const repoDelete=key=>IDB.tx('readwrite',store=>store.delete(key),'repository');
+async function repositoryIndex(direct){
+  if(!direct){
+    const response=await fetch('content/manifest.json',{cache:'no-cache'});
+    if(!response.ok)throw new Error('曲一覧 HTTP '+response.status);
+    return {manifest:await response.json(),base:new URL('.',location.href).href};
+  }
+  const root='https://api.github.com/repos/lencie040/kasane_taiko';
+  const get=async path=>{
+    const response=await fetch(root+path,{cache:'no-cache'});
+    if(!response.ok)throw new Error('GitHub HTTP '+response.status);
+    return response.json();
+  };
+  const commit=await get('/commits/main');
+  const tree=await get('/git/trees/'+commit.sha+'?recursive=1');
+  if(tree.truncated)throw new Error('GitHubのファイル一覧が大きすぎます');
+  const entries=tree.tree.filter(x=>x.type==='blob');
+  const paths=['content/csv/charts.csv','content/csv/dan.csv','content/noise.json','content/folders.json'];
+  const encode=path=>path.split('/').map(part=>encodeURIComponent(part).replace(/[!'()*]/g,char=>'%'+char.charCodeAt(0).toString(16).toUpperCase())).join('/');
+  const manifest={songs:[],hashes:{}};
+  for(const {path,sha} of entries){
+    const song=path.startsWith('content/songs/')&&/\.(osz|zip)$/i.test(path);
+    if(song)manifest.songs.push(encode(path));
+    if(song||paths.includes(path))manifest.hashes[encode(path)]=sha;
+  }
+  for(const [i,key] of ['charts','dan','noise','folders'].entries()){
+    if(manifest.hashes[paths[i]])manifest[key]=paths[i];
+  }
+  return {manifest,base:'https://raw.githubusercontent.com/lencie040/kasane_taiko/'+commit.sha+'/'};
+}
+async function loadRepositorySongs(direct=false){
+  if(repositoryLoading||(!direct&&location.protocol==='file:'))return;
+  repositoryLoading=true;
+  const button=$('#fetchGithub'),status=$('#fetchGithubStatus');
+  button.disabled=true;
+  let failed=0,loaded=0,downloaded=0,indexWarning='';
+  try{
+    const previous=await repoRead('index');
+    let index;
+    try{index=await repositoryIndex(direct);}
+    catch(error){if(!previous)throw error;index=previous;indexWarning='（保存済みの一覧を使用）';}
+    const {manifest,base}=index;
+    const get=async path=>{
+      const hash=manifest.hashes?.[path],key='file:'+path+'@'+hash,existing=hash&&await repoRead(key);
+      if(hash&&existing?.hash===hash)return existing.data;
+      const url=new URL(path,base);
+      if(hash)url.searchParams.set('v',hash);
+      const response=await fetch(url,{cache:'no-cache'});
+      if(!response.ok)throw new Error('HTTP '+response.status);
+      const data=await response.arrayBuffer();
+      if(hash){
+        const header=new TextEncoder().encode('blob '+data.byteLength+'\0');
+        const bytes=new Uint8Array(header.length+data.byteLength);
+        bytes.set(header);bytes.set(new Uint8Array(data),header.length);
+        const digest=await crypto.subtle.digest('SHA-1',bytes);
+        const actual=[...new Uint8Array(digest)].map(v=>v.toString(16).padStart(2,'0')).join('');
+        if(actual!==hash)throw new Error('ファイルが更新中です。再取得してください');
+        await repoWrite(key,{hash,data});
+      }
+      downloaded++;
+      return data;
+    };
+    const current=new Set(manifest.songs||[]);
+    for(const set of [...Lib.sets])if(set.repoPath&&!current.has(set.repoPath))removeSet(set,false);
+    for(const [i,path] of (manifest.songs||[]).entries()){
+      status.textContent=`曲を読み込み中… ${i+1} / ${current.size}`;
+      if(libraryWait)UI.loading=status.textContent;
+      try{
+        const hash=manifest.hashes?.[path];
+        if(!hash||!Lib.sets.some(set=>set.repoPath===path&&set.repoHash===hash)){
+          const set=await loadOsz(decodeURIComponent(path.split('/').pop()),await get(path),path);
+          if(set.repoPath===path)set.repoHash=hash;
+        }
+        loaded++;
+      }catch(error){failed++;Lib.loadWarn.push(path+': '+error.message);}
+    }
+    for(const kind of ['charts','dan','noise','folders']){
+      try{
+        const value=manifest[kind]?decodeText(new Uint8Array(await get(manifest[kind]))):null;
+        if(kind==='noise'){
+          const data=value?JSON.parse(value):{};
+          for(const chart of Lib.charts)chart.repoNoise=data[chart.uid]||{};
+        }else if(kind==='folders')repoFolders=value?parseFolders(JSON.parse(value)):emptyFolders();
+        else{
+          Lib[kind+'Csv']=value??store.get('kt.'+kind+'Csv','');
+          Lib[kind+'CsvName']=value!=null?kind+'.csv':store.get('kt.'+kind+'CsvName','');
+        }
+      }catch(error){failed++;Lib.loadWarn.push(kind+': '+error.message);}
+    }
+    if(!failed){
+      const paths=manifest=>[...(manifest.songs||[]),...['charts','dan','noise','folders'].map(k=>manifest[k]).filter(Boolean)];
+      await repoWrite('index',index);
+      if(previous)for(const path of paths(previous.manifest)){
+        const hash=previous.manifest.hashes?.[path];
+        if(hash&&hash!==manifest.hashes?.[path])await repoDelete('file:'+path+'@'+hash);
+      }
+    }
+    resolveAll();refreshAll();renderTitleStat();
+    status.textContent=`${loaded}曲を確認・${downloaded}ファイル取得${indexWarning}`+(failed?`・${failed}件失敗`:'');
+    if(direct)toast(status.textContent,failed?'err':undefined);
+  }catch(error){
+    Lib.loadWarn.push('リポジトリ読込: '+error.message);
+    status.textContent='取得できませんでした：'+error.message;
+    if(direct){refreshAll();toast(status.textContent,'err');}
+  }finally{
+    repositoryLoading=false;button.disabled=false;finishLibraryWait();
+  }
+}
 $('#fetchGithub').addEventListener('click',()=>loadRepositorySongs(true));
 
 /* ================= 起動 ================= */
@@ -2277,7 +2697,7 @@ $('#fetchGithub').addEventListener('click',()=>loadRepositorySongs(true));
   if(await IDB.open()){const saved=await IDB.all();let n=0;
     for(const{name,data}of saved){try{const s=await loadOsz(name,data);s.storeName=name;n++;}catch(e){Lib.loadWarn.push(`${name}: ${e.message}`);}}
     if(n){resolveAll();const first=Lib.sets.find(s=>!s.demo);if(first)UI.selSet=first.key;UI.selChart=null;}}
-  await loadRepositorySongs();
+  try{await loadRepositorySongs();}finally{libraryBooting=false;finishLibraryWait();}
   const s=Lib.sets.find(x=>x.key===UI.selSet);if(s)selectSet(s.key,false);refreshAll();renderTitleStat();
 })();
 </script>
