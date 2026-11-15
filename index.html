@@ -129,6 +129,7 @@ kbd{font-family:var(--f-num);font-size:12px;border:1px solid var(--line-2);borde
 .dan-songs li{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:10px;align-items:center;background:var(--panel-2);border-radius:8px;padding:7px 12px}
 .dan-songs li.last{background:color-mix(in srgb,var(--gold) 14%,var(--panel-2));outline:1px solid color-mix(in srgb,var(--gold) 50%,transparent)}
 .dan-songs .no{font-family:var(--f-display);color:var(--mute);font-size:14px}
+.dan-songs .no small{display:block;font:700 10px/1.25 var(--f-body);overflow-wrap:anywhere}
 .dan-songs .tt{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dan-songs .missing{color:var(--danger)}
 .tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
@@ -683,10 +684,11 @@ body{min-height:100dvh;animation:arcade-wallpaper 12s linear infinite}
   background:color-mix(in srgb,var(--cc),#000 42%);box-shadow:inset 0 2px 3px #0004;padding:0 4px}
 .dtile .dv small{font-size:clamp(9px,1.7vw,13px);font-weight:900}
 .dtile .dv b{font-family:var(--f-num);font-weight:800;font-size:clamp(14px,2.8vw,22px);line-height:1;letter-spacing:-.04em}
-.crownic{position:absolute;top:-17px;right:-6px;width:32px;height:24px;z-index:2;pointer-events:none;
-  filter:drop-shadow(0 1px 0 #2a1d30) drop-shadow(0 0 1px #2a1d30);
+.crown-outline{position:absolute;top:-17px;right:-6px;width:32px;height:24px;z-index:2;pointer-events:none;
+  filter:drop-shadow(1px 0 #111) drop-shadow(-1px 0 #111) drop-shadow(0 1px #111) drop-shadow(0 -1px #111)}
+.crownic{display:block;width:100%;height:100%;
   -webkit-mask:var(--crown-mask) center/contain no-repeat;mask:var(--crown-mask) center/contain no-repeat}
-.dtile.dx .crownic{width:26px;height:20px;top:-15px;right:-8px}
+.dtile.dx .crown-outline{width:26px;height:20px;top:-15px;right:-8px}
 .crownic.clear{background:linear-gradient(180deg,#f4f7fb,#aab4c2 55%,#dfe5ee)}
 .crownic.fc{background:linear-gradient(180deg,#fff3a6,#f2b81c 55%,#ffd84d)}
 .crownic.zenryo{background:linear-gradient(100deg,#ff5f6d,#ffc24b 22%,#7ee07e 44%,#5cc8ff 66%,#b48cf2 88%,#ff5f6d)}
@@ -702,8 +704,8 @@ body{min-height:100dvh;animation:arcade-wallpaper 12s linear infinite}
 .dtile.dx .dl em{font-size:clamp(11px,2.2vw,15px)}
 .dtile.dx .dv{margin:0 3px 3px;min-width:clamp(26px,5vw,38px)}
 .dtile.dx .dv b{font-size:clamp(13px,2.6vw,19px)}
-.crs:disabled{filter:saturate(.3) brightness(.76);cursor:default}
-.crs.is-on:disabled::after{display:none}
+.crs.is-missing{filter:saturate(.35) brightness(.83)}
+.crs.is-missing.is-on{filter:none}.crs.is-missing.is-on .k{opacity:.74}
 .course-rims{justify-content:center;margin:5px 14px 10px}
 .course-rims .btn{touch-action:none;min-width:92px}
 .course-progress{min-width:5em;text-align:center;color:#613145;font-weight:800}
@@ -713,11 +715,16 @@ body{min-height:100dvh;animation:arcade-wallpaper 12s linear infinite}
   .crs .nm strong{font-size:10px;white-space:nowrap}.crs .nm small{font-size:10px}
 }
 @media (min-width:900px){
-  #songlist>li{width:90%}
-  #songlist>li.is-on{width:100%}
+  main:has(#tab-select:not([hidden])){max-width:none;padding-block-start:24px}
+  .arcade-menu{max-width:clamp(820px,77vw,1560px)}
+  .arcade-heading h2{font-size:clamp(30px,3vw,56px)}
+  #songlist>li{width:84%;margin-bottom:clamp(7px,.95vh,14px)}
+  #songlist>li.is-on{width:89%}
+  #songlist .song-t,.folder-entry strong{font-size:clamp(18px,min(2.2vw,2.75vh),42px)}
+  #songlist .song.is-on .song-t{font-size:clamp(22px,min(3vw,4.1vh),56px)}
   #songlist .song.is-on{padding-inline:clamp(16px,3vw,40px)}
   #songlist .song .chips{gap:10px}
-  .dtile{min-width:118px}
+  .dtile{min-width:0}
   .dtile.dx{min-width:64px}
   .dtile .dl em{font-size:12px}
   .dtile .di{width:30px;height:30px;font-size:18px}
@@ -1254,49 +1261,135 @@ function monthlyPeriod(date=new Date()){
   return parts.find(p=>p.type==='year').value+'-'+parts.find(p=>p.type==='month').value;
 }
 const MONTHLY_LEVELS=[
-  ['五級',1,2],['四級',2,3],['三級',3,4],['二級',4,5],['一級',5,6],
-  ['初段',6,7],['二段',6.5,7.5],['三段',7,8],['四段',7.5,8.5],['五段',8,9],
-  ['六段',8,9],['七段',8.5,9],['八段',9,10.2],['九段',9,10.7],['十段',10.1,11.3],
-  ['玄人',10.5,11.3],['名人',10.9,11.4],['超人',11.1,11.5],['達人',11.3,11.5]
+  ['五級',1,4],['四級',3,5],['三級',4,6],['二級',5,7],['一級',5,7],
+  ['初段',6,7],['二段',7,8],['三段',7,8],['四段',8,9],['五段',8,9],
+  ['六段',8,9.5],['七段',9,10],['八段',9,10.3],['九段',9,10.7],['十段',10.1,11.3],
+  ['玄人',10.6,11.3],['名人',10.9,11.4],['超人',11.1,11.5],['達人',11.3,11.5]
 ];
+const FIRST_DAN=5,TENTH_DAN=14,KUROUTO=15,TATSUJIN=18;
+const MONTHLY_ROLES=['物量','リズム・技術','総合'];
+const chartProfiles=new WeakMap();
+function chartProfile(chart){
+  if(chartProfiles.has(chart))return chartProfiles.get(chart);
+  const notes=chart.targets,span=Math.max(1,(chart.length-chart.firstT)/1000);
+  let peak=0,start=0,complexity=0,lastUnit=null,changes=0,tight=0;
+  for(let i=0;i<notes.length;i++){
+    const note=notes[i];
+    while(note.t-notes[start].t>2000)start++;
+    peak=Math.max(peak,(i-start+1)/2);
+    if(!i)continue;
+    const gap=note.t-notes[i-1].t,seg=segAt(chart.segs,note.t);
+    if(!seg||gap<=0)continue;
+    const beats=gap/seg.bl;
+    const grid=Math.round(beats*4)/4;
+    if(beats<2&&Math.abs(grid-beats)>.035)complexity++;
+    const unit=Math.round(beats*24);
+    if(beats<=1&&lastUnit!=null&&unit!==lastUnit)changes++;
+    lastUnit=beats<=1?unit:null;
+    if(beats<=.51&&notes[i-1].color!==note.color)tight++;
+  }
+  const shifts=chart.segs.slice(1).filter((seg,i)=>
+    Math.abs(seg.bl/chart.segs[i].bl-1)>.08||Math.abs(seg.sv/chart.segs[i].sv-1)>.18).length;
+  const divisor=Math.max(1,notes.length-1);
+  const profile={
+    density:.55*notes.length/span+.45*peak+Math.log1p(notes.length)*.3,
+    technical:(complexity*2+changes+tight*.65)/divisor+Math.min(.55,shifts/25)
+  };
+  chartProfiles.set(chart,profile);
+  return profile;
+}
+function estimateDrumroll(chart,hitsPerSecond){
+  return chart.rolls.reduce((total,roll)=>{
+    const estimate=Math.max(0,Math.floor((roll.end-roll.t)/1000*hitsPerSecond));
+    return total+(roll.type==='balloon'?Math.min(roll.hits,estimate):estimate);
+  },0);
+}
+function monthlyConditions(rank,songs){
+  const tier=(key,op,red,gold,pct=true)=>({key,op,red:{v:red,pct},gold:{v:gold,pct}});
+  const notes=songs.reduce((total,chart)=>total+chart.stats.notes,0);
+  if(rank<FIRST_DAN){
+    const roll=(speed)=>songs.reduce((total,chart)=>total+estimateDrumroll(chart,speed),0);
+    const hits=tier('hits','>=',Math.floor(notes*([.82,.85,.88,.91,.93][rank])+roll(5.5)),
+      Math.ceil(notes*.98+roll(7)),false);
+    return rank===0?[hits]:[tier('bad','<=',[0,16,12,9,7][rank],[0,9,7,5,3][rank]),hits];
+  }
+  const rolls=(speed)=>Math.max(1,songs.reduce((total,chart)=>total+estimateDrumroll(chart,speed),0));
+  const speed=6.5+(rank-FIRST_DAN)*.42;
+  const gauge=tier('gauge','>=',rank<10?98:100,100);
+  const drumroll=tier('roll','>=',rolls(speed),rolls(speed+1.5),false);
+  if(rank===TATSUJIN)return [gauge,{key:'ok',op:'<=',red:{v:7,pct:false},gold:{v:0,pct:true}},
+    {key:'bad',op:'<=',red:{v:2,pct:false},gold:{v:0,pct:true}},drumroll];
+  if(rank>=TENTH_DAN){
+    const i=rank-TENTH_DAN;
+    return [gauge,tier('ok','<=',[3.2,2,1.25,.65][i],[1.6,1,.6,.28][i]),
+      tier('bad','<=',[.35,.25,.18,.12][i],[.17,.12,.08,.04][i]),drumroll];
+  }
+  const i=rank-FIRST_DAN;
+  return [gauge,tier('good','>=',[61,65,70,74,78,82,85,88,91][i],[70,74,78,82,86,89,92,94,96][i]),
+    tier('bad','<=',[2.8,2.6,2.3,2,1.7,1.4,1.15,.9,.65][i],[1.6,1.45,1.25,1.05,.9,.7,.55,.42,.30][i]),drumroll];
+}
 function monthlyDans(charts,period){
   const random=mulberry32(Number(period.replace('-','')));
-  const pool=[...new Map(charts.filter(c=>!c.demo&&!c.set.demo&&c.course!=='kasane'&&c.level!=null).map(c=>[c.uid,c])).values()]
-    .sort((a,b)=>a.uid<b.uid?-1:a.uid>b.uid?1:0);
-  for(let i=pool.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
-  // 先に上位段位の枠を確保し、同じ譜面を月内で使い回さない。
+  const pool=[...new Map(charts.filter(c=>!c.set.demo&&c.course!=='kasane'&&c.level!=null&&c.stats.notes>0).map(c=>[c.uid,c])).values()]
+    .sort((a,b)=>a.uid<b.uid?-1:a.uid>b.uid?1:0)
+    .map(chart=>({chart,...chartProfile(chart),sealed:hasSealedNotes(chart),drumroll:rollMsOf(chart)>0,jitter:random()}));
+
+  // Reserve one drumroll slot per rank and use augmenting paths to avoid duplicate charts.
   let owners=new Map();
   const ranks=[];
   for(let rank=MONTHLY_LEVELS.length-1;rank>=0;rank--){
     const [name,min,max]=MONTHLY_LEVELS[rank];
-    const candidates=pool.filter(c=>inLevelRange(c.level,[min,max])&&(rank<5||['oni','ura'].includes(c.course)));
-    const slots=Array.from({length:3},()=>({candidates}));
-    const trial=new Map(owners);
-    function assign(slot,seen){
-      for(const c of slot.candidates){
-        if(seen.has(c))continue;
-        seen.add(c);
-        const previous=trial.get(c);
-        if(!previous||assign(previous,seen)){trial.set(c,slot);return true;}
+    const candidates=pool.filter(({chart,sealed})=>
+      inLevelRange(chart.level,[min,max])&&(!sealed||rank>=KUROUTO)&&
+      (rank<FIRST_DAN+2||['oni','ura'].includes(chart.course)));
+    if(candidates.length<3||!candidates.some(c=>c.drumroll))continue;
+
+    const relative=(key,c)=>{
+      const lower=candidates.filter(x=>x[key]<c[key]).length;
+      return lower/Math.max(1,candidates.length-1);
+    };
+    const scores=new Map(candidates.map(c=>{
+      const density=relative('density',c),tech=relative('technical',c);
+      const level=(c.chart.level-min)/Math.max(.1,max-min);
+      const oni=['oni','ura'].includes(c.chart.course);
+      const courseBias=oni?(rank<FIRST_DAN?-.18:.12):0;
+      const noise=c.jitter*.4+courseBias;
+      return [c.chart,[density-.14*tech+noise,tech-.12*density+noise,
+        .46*Math.min(density,tech)+.28*(density+tech)/2+.35*level+noise]];
+    }));
+    const ordered=MONTHLY_ROLES.map((_,role)=>[...candidates].sort((a,b)=>scores.get(b.chart)[role]-scores.get(a.chart)[role]));
+    let best=null;
+    for(let anchor=0;anchor<3;anchor++){
+      const slots=ordered.map((list,index)=>({candidates:list.filter(c=>index!==anchor||c.drumroll).map(c=>c.chart)}));
+      const trial=new Map(owners);
+      function assign(slot,seen){
+        for(const chart of slot.candidates){
+          if(!seen.has(chart)&&!trial.has(chart)){trial.set(chart,slot);return true;}
+        }
+        for(const chart of slot.candidates){
+          if(seen.has(chart))continue;
+          seen.add(chart);
+          if(assign(trial.get(chart),seen)){trial.set(chart,slot);return true;}
+        }
+        return false;
       }
-      return false;
+      if(![slots[anchor],...slots.filter((_,i)=>i!==anchor)].every(slot=>assign(slot,new Set())))continue;
+      const bySlot=new Map([...trial].map(([chart,slot])=>[slot,chart]));
+      const quality=slots.reduce((sum,slot,i)=>sum+scores.get(bySlot.get(slot))[i],0);
+      if(!best||quality>best.quality)best={trial,slots,quality};
     }
-    if(!slots.every(slot=>assign(slot,new Set())))continue;
-    owners=trial;ranks.unshift({rank,name,slots});
+    if(best){owners=best.trial;ranks.unshift({rank,name,slots:best.slots});}
   }
-  const bySlot=new Map([...owners].map(([c,slot])=>[slot,c]));
+  const bySlot=new Map([...owners].map(([chart,slot])=>[slot,chart]));
   return ranks.map(({rank,name,slots})=>{
-    const songs=slots.map(slot=>bySlot.get(slot)).sort((a,b)=>a.level-b.level);
-    const tier=(key,op,red,gold)=>({key,op,red:{v:red,pct:true},gold:{v:gold,pct:true}});
-    const conds=[tier('gauge','>=',rank<5?80:rank<12?95:100,100),
-      tier('ok','<=',Math.max(.25,+(24-rank*1.35).toFixed(2)),Math.max(.1,+(12-rank*.67).toFixed(2))),
-      tier('bad','<=',Math.max(.1,+(12-rank*.67).toFixed(2)),Math.max(0,+(6-rank*.34).toFixed(2)))];
-    return finishDan({id:period+'-'+rank+'-'+songs.map(c=>c.uid).join('|'),src:'monthly',period,name,songs,refs:[],conds});
+    const songs=slots.map(slot=>bySlot.get(slot));
+    return finishDan({id:period+'-v2-'+rank+'-'+songs.map(c=>c.uid).join('|'),
+      src:'monthly',period,name,songs,refs:[],conds:monthlyConditions(rank,songs)});
   });
 }
 function autoDan(c){
   const L=c.level||5,[r1,r2]=AUTO_LV[clamp(L,1,10)];
-  const all=Lib.charts.filter(x=>x!==c&&x.course!=='kasane');
+  const all=playableSets().flatMap(set=>set.charts).filter(x=>x!==c&&x.course!=='kasane');
   if(all.length<2)return finishDan({id:c.uid,src:'auto',songs:[null,null,c],refs:[],conds:[],note:'1・2曲目に使える通常譜面が足りません'});
   const oni=x=>x.course==='oni'||x.course==='ura';
   const h=s=>{let v=0;for(const ch of s)v=(v*31+ch.codePointAt(0))>>>0;return(v%1000)/1e5;};
@@ -1314,8 +1407,12 @@ function buildDans(){
     if(songs[2]&&songs[2].stats.chords===0)Lib.csvWarn.push(`dan.csv ${r.line}行目: 3曲目に同時押しがないため、特良の条件は常に満たされます`);
     out.push(finishDan({id:r.id,src:'csv',name:r.name,songs,refs:r.refs,conds:r.conds}));}
   const covered=new Set(out.map(d=>d.songs[2]).filter(Boolean));
-  for(const c of Lib.charts)if(c.course==='kasane'&&!covered.has(c))out.push(autoDan(c));
-  out.sort((a,b)=>(a.level??99)-(b.level??99));Lib.monthlyPeriod=monthlyPeriod();Lib.dans=out.concat(monthlyDans(Lib.charts,Lib.monthlyPeriod));
+  for(const c of playableSets().flatMap(set=>set.charts))if(c.course==='kasane'&&!covered.has(c))out.push(autoDan(c));
+  out.sort((a,b)=>(a.level??99)-(b.level??99));Lib.dans=out;refreshMonthlyDans();
+}
+function refreshMonthlyDans(){
+  Lib.monthlyPeriod=monthlyPeriod();Lib.monthlyDirty=false;
+  Lib.dans=Lib.dans.filter(d=>d.src!=='monthly').concat(monthlyDans(Lib.charts,Lib.monthlyPeriod));
 }
 function danForChart(c){return Lib.dans.find(d=>d.src!=='monthly'&&d.songs[2]===c);}
 
@@ -1457,8 +1554,9 @@ function renderRecords(){
   if(!box||$('#tab-records').hidden)return;
   box.replaceChildren();
   const counts={zentoku:0,zenryo:0,fc:0,clear:0};
-  for(const c of Lib.charts){const crown=Lib.best[c.uid]?.crown;if(crown in counts)counts[crown]++;}
-  const plays=Object.values(Lib.played).reduce((sum,r)=>sum+r.n,0);
+  const sets=playableSets(),available=sets.flatMap(set=>set.charts);
+  for(const c of available){const crown=Lib.best[c.uid]?.crown;if(crown in counts)counts[crown]++;}
+  const plays=sets.reduce((sum,set)=>sum+(Lib.played[set.key]?.n||0),0);
   const passed=Lib.dans.filter(d=>Lib.danBest[d.key]).length;
   const tile=(label,value,cls)=>el('div',{class:'rtile '+cls},el('small',null,label),el('b',{class:'num'},value));
   box.append(el('div',{class:'rtiles'},tile('全特良',counts.zentoku,'zentoku'),tile('全良',counts.zenryo,'zenryo'),
@@ -1469,14 +1567,16 @@ function renderRecords(){
     const field=el('select',{'aria-label':label},items.map(([key,name])=>el('option',{value:key},name)));
     field.value=value;return field;
   };
-  const filter=select('表示する記録',[['played','記録あり'],['clear','クリア済み'],['all','全譜面']],recordFilter);
+  const filter=select('表示する記録',[['played','記録あり'],['clear','クリア済み'],['fc','フルコンボ以上のみ'],['zenryo','全良以上のみ'],['all','全譜面']],recordFilter);
   const order=select('記録の並び順',[['score','スコア順'],['title','曲名順'],['level','難しい順']],recordOrder);
   const list=el('div',{class:'record-list'}),footer=el('div',{class:'row record-status','aria-live':'polite'});
   const redraw=()=>{
     const query=norm(recordQuery);
-    const charts=Lib.charts.filter(c=>{
-      const best=Lib.best[c.uid];
-      return (recordFilter==='all'||(recordFilter==='clear'?best?.crown:best))&&norm(c.set.title+' '+c.meta.version).includes(query);
+    const charts=available.filter(c=>{
+      const best=Lib.best[c.uid],crown=best?.crown;
+      const match={all:true,clear:!!crown,played:!!best,
+        fc:['fc','zenryo','zentoku'].includes(crown),zenryo:['zenryo','zentoku'].includes(crown)};
+      return match[recordFilter]&&norm(c.set.title+' '+c.meta.version).includes(query);
     });
     const titleOrder=(a,b)=>a.set.title.localeCompare(b.set.title,'ja')||a.meta.version.localeCompare(b.meta.version,'ja');
     charts.sort((a,b)=>(recordOrder==='score'?(Lib.best[b.uid]?.score||0)-(Lib.best[a.uid]?.score||0):recordOrder==='level'?(b.level||0)-(a.level||0):0)||titleOrder(a,b));
@@ -1563,7 +1663,7 @@ function folderToolbar(data){
   }
   if(!S.noiseEdit)return;
   if(folder){
-    const candidates=Lib.sets.filter(set=>songFolder(set,data)!==folder.id)
+    const candidates=playableSets().filter(set=>songFolder(set,data)!==folder.id)
       .sort((a,b)=>a.title.localeCompare(b.title,'ja'));
     if(candidates.length){
       const pick=el('select',{'aria-label':'フォルダに入れる曲'},el('option',{value:''},'曲を選ぶ'),
@@ -1626,8 +1726,12 @@ function folderMoveControl(set){
   return el('label',{class:'folder-move'},'曲のフォルダ ',select);
 }
 
+function playableSets(){
+  const songs=Lib.sets.filter(set=>!set.demo);
+  return songs.length?songs:Lib.sets;
+}
 function visibleSets(){const q=norm($('#filter').value),f=UI.filt||'all',srt=UI.sort||'added';
-  let list=Lib.sets.filter(s=>!q||norm(s.title+' '+s.artist+' '+s.file+' '+(s.titleAscii||'')).includes(q));
+  let list=playableSets().filter(s=>!q||norm(s.title+' '+s.artist+' '+s.file+' '+(s.titleAscii||'')).includes(q));
   if(f==='kasane')list=list.filter(s=>s.charts.some(c=>c.course==='kasane'));
   else if(f==='unclear')list=list.filter(hasUnclear);
   else if(f==='fav')list=list.filter(s=>Lib.fav[s.key]);
@@ -1667,7 +1771,7 @@ function diffTile(course,c,extra){
   return el('span',{class:'dtile'+(extra?' dx':'')+(!c?' is-missing':'')+(locked?' locked':''),style:`--cc:${C.color}`,title:C.jp},
     el('span',{class:'dl'},el('i',{class:'di'},COURSE_ICON[course]),el('em',null,extra?(course==='ura'?'裏':'重'):C.jp)),
     el('span',{class:'dv'},(c&&!locked&&c.course!=='kasane')?el('small',null,'★'):null,el('b',null,lv)),
-    ck&&CROWN[ck]?el('span',{class:'crownic '+ck,title:CROWN[ck],role:'img','aria-label':CROWN[ck]}):null,
+    ck&&CROWN[ck]?el('span',{class:'crown-outline',title:CROWN[ck],role:'img','aria-label':CROWN[ck]},el('span',{class:'crownic '+ck,'aria-hidden':'true'})):null,
     c?sealBadge(c):null);
 }
 function songChips(set){
@@ -1725,6 +1829,8 @@ function backToSongs(){
 
 function renderSongList(){
   const ul=$('#songlist'),folders=effectiveFolders();
+  const animate=!REDUCED&&typeof ul.animate==='function'&&ul.getClientRects().length>0;
+  const previous=animate?new Map([...ul.children].filter(row=>row.dataset.entry).map(row=>[row.dataset.entry,row.getBoundingClientRect()])):null;
   ul.replaceChildren();folderToolbar(folders);
   const entries=arcadeEntries(),count=entries.length;
   $('#listCount').textContent=`${entries.filter(entry=>entry.set).length}曲`;
@@ -1744,7 +1850,17 @@ function renderSongList(){
     const row=entry.folder?folderStrip(entry.folder,selected,choose):songStrip(entry.set,selected,choose);
     // Keep each strip level. The diagonal comes from the horizontal steps.
     row.style.setProperty('--strip-shift',offset*3+'%');
+    row.dataset.entry=entry.folder?'folder:'+entry.folder.id:'song:'+entry.set.key;
     ul.append(row);
+  }
+  if(previous?.size){
+    const positions=[...ul.children].map(row=>[row,previous.get(row.dataset.entry),row.getBoundingClientRect()]);
+    for(const [row,before,after] of positions){
+      if(!before){row.animate([{opacity:.35,transform:'scale(.97)'},{opacity:1,transform:'none'}],{duration:190,easing:'ease-out'});continue;}
+      const x=before.left-after.left,y=before.top-after.top;
+      if(Math.abs(x)+Math.abs(y)<2)continue;
+      row.animate([{transform:`translate(${x}px,${y}px)`},{transform:'none'}],{duration:200,easing:'cubic-bezier(.2,.75,.2,1)'});
+    }
   }
 }
 function selectSet(key,user){UI.folderCursor=null;const changed=UI.selSet!==key;UI.selSet=key;const s=Lib.sets.find(x=>x.key===key);if(!s)return;
@@ -1763,13 +1879,13 @@ function menuMove(dSong,dCourse,silent){
   }
   const set=currentSet();if(!set)return;
   const courses=visibleCourses(set);
-  for(let slot=(UI.courseBack?-1:UI.courseSlot)+step;slot>=-1&&slot<4;slot+=step){
-    const chart=slot>=0?chartForSlot(set,courses[slot]):null;
-    if(slot>=0&&!chart)continue;
-    UI.courseBack=slot===-1;UI.courseSlot=slot;
-    if(chart)UI.selChart=chart.uid;
-    if(!silent)playSE('ka');renderDetail();focusCourseCard();return;
-  }
+  const current=UI.courseBack?-1:UI.courseSlot;
+  const slot=clamp(current+step,-1,3);
+  if(slot===current)return;
+  UI.courseBack=slot===-1;UI.courseSlot=slot;
+  UI.selChart=slot<0?null:chartForSlot(set,courses[slot])?.uid??null;
+  if(!silent)playSE('ka');
+  renderDetail();focusCourseCard();
 }
 let rimPending=null,rimCount=0,rimKind='';
 const RIM_PAIR_MS=100;
@@ -1852,7 +1968,7 @@ function menuDecide(){if(UI.chooseCourse&&UI.courseBack){backToSongs();return;}i
     selectSet(entry.set.key,true);showCoursePicker();return;
   }
   resetRimSequence();
-  const c=currentSet()?.charts.find(x=>x.uid===UI.selChart);if(!c)return;
+  const set=currentSet(),c=set&&chartForSlot(set,visibleCourses(set)[UI.courseSlot]);if(!c)return;
   UI.gesture=true;ensureAudio();playSE('don');if(isLocked(c)){UI.danMode='kasane';setTab('dan');}else startNormal(c);}
 function drawDensity(cvd,c,sel){if(!cvd.isConnected)return;const r=cvd.getBoundingClientRect();const w=Math.max(10,r.width),h=Math.max(10,r.height),dpr=Math.min(2,devicePixelRatio||1);
   cvd.width=Math.round(w*dpr);cvd.height=Math.round(h*dpr);const x=cvd.getContext('2d');x.scale(dpr,dpr);
@@ -1875,7 +1991,7 @@ function noiseEligible(t){return t.type==='single'||(t.type==='chord'&&t.notes.l
 function noiseKey(c){return 'kasane-red-noise-v1:'+c.uid;}
 function noiseId(t,i){return i+':'+t.t+':'+(t.type==='single'?t.color+(t.big?'B':''):t.notes.map(n=>n.color+(n.big?'B':'')).join(''));}
 function loadNoise(c){const data=store.get(noiseKey(c),c.repoNoise||{});c.targets.forEach((t,i)=>{const v=data&&data[noiseId(t,i)];const ns=t.type==='single'?[t]:t.notes;ns.forEach((n,j)=>{n.noise=noiseEligible(t)&&Array.isArray(v)&&['left','right'].includes(v[j])?v[j]:null;});});}
-function saveNoise(c){const data={};c.targets.forEach((t,i)=>{const ns=t.type==='single'?[t]:t.notes;if(noiseEligible(t)&&ns.some(n=>n.noise))data[noiseId(t,i)]=ns.map(n=>n.noise||null);});try{localStorage.setItem(noiseKey(c),JSON.stringify(data));updateSealBadges(c);const density=$('#detail .dens');if(density)drawDensity(density,c,UI.pracOpen?UI.prac:null);return true;}catch(e){toast('保存できません。ブラウザの保存容量・設定を確認してください','err');return false;}}
+function saveNoise(c){const data={};c.targets.forEach((t,i)=>{const ns=t.type==='single'?[t]:t.notes;if(noiseEligible(t)&&ns.some(n=>n.noise))data[noiseId(t,i)]=ns.map(n=>n.noise||null);});try{localStorage.setItem(noiseKey(c),JSON.stringify(data));Lib.monthlyDirty=true;updateSealBadges(c);const density=$('#detail .dens');if(density)drawDensity(density,c,UI.pracOpen?UI.prac:null);return true;}catch(e){toast('保存できません。ブラウザの保存容量・設定を確認してください','err');return false;}}
 function noiseBlocked(t,role){const color=ROLE_COLOR[role],n=t.type==='single'?t:t.notes.find(n=>n.color===color);return !!n&&((n.noise==='left'&&role.endsWith('L'))||(n.noise==='right'&&role.endsWith('R')));}
 function noiseRole(n){return(n.color==='d'?'don':'ka')+(n.noise==='left'?'R':'L');}
 function noiseEditor(c){loadNoise(c);const box=el('details',{class:'noise-editor',style:'margin:16px;padding:14px;border:1px solid #a32d46;border-radius:12px'}),canvas=el('canvas',{width:1000,height:280,style:'width:100%;background:#090c18;border-radius:10px;cursor:crosshair;touch-action:none','aria-label':'ノーツの左半分か右半分をクリックして封印を切り替え'}),seek=el('input',{type:'range',min:0,max:Math.max(1,c.length),value:0,step:1,style:'width:100%','aria-label':'編集する時刻'}),zoom=el('select',{'aria-label':'表示範囲'}),label=el('span');let hits=[],frame=0;
@@ -1951,8 +2067,8 @@ function renderDetail(){const d=$('#detail');$('#arcadeMenu').hidden=!!UI.choose
     el('span',{class:'k','aria-hidden':'true'},'↶'),el('span',{class:'nm'},el('strong',null,'もどる'))));
   for(const [slot,course] of courses.entries()){
     const c=chartForSlot(s,course),C=COURSES[course],locked=c&&isLocked(c);
-    const active=!!c&&!UI.courseBack&&UI.courseSlot===slot;
-    const b=el('button',{class:'crs'+(active?' is-on':'')+(locked?' locked':''),disabled:!c,style:`--cc:${C.color}`,'aria-pressed':String(active)},
+    const active=!UI.courseBack&&UI.courseSlot===slot;
+    const b=el('button',{class:'crs'+(active?' is-on':'')+(locked?' locked':'')+(!c?' is-missing':''),style:`--cc:${C.color}`,'aria-pressed':String(active)},
       el('span',{class:'k'},C.k),
       el('span',{class:'nm'},el('strong',null,C.jp),c?sealBadge(c):null,
         el('small',null,locked?'封印中':c?.meta.version),
@@ -1961,7 +2077,7 @@ function renderDetail(){const d=$('#detail');$('#arcadeMenu').hidden=!!UI.choose
     b.addEventListener('click',()=>{
       if(active){menuDecide();return;}
       resetRimSequence();UI.gesture=true;ensureAudio();playSE('ka');
-      UI.courseBack=false;UI.courseSlot=slot;UI.selChart=c.uid;renderDetail();focusCourseCard();
+      UI.courseBack=false;UI.courseSlot=slot;UI.selChart=c?.uid??null;renderDetail();focusCourseCard();
     });
     list.append(b);
   }
@@ -1970,7 +2086,7 @@ function renderDetail(){const d=$('#detail');$('#arcadeMenu').hidden=!!UI.choose
   d.append(el('div',{class:'row course-rims'},pickerRimButton(-1,'◀ 左カツ'),hint,pickerRimButton(1,'右カツ ▶')));
   paintRimProgress();
   if(UI.courseBack)return;
-  const c=s.charts.find(x=>x.uid===UI.selChart);if(!c)return;
+  const c=chartForSlot(s,courses[UI.courseSlot]);if(!c)return;
   const alternatives=s.charts.filter(chart=>chart.course===c.course);
   if(alternatives.length>1){
     const select=el('select',{'aria-label':'譜面'},alternatives.map(chart=>el('option',{value:chart.uid},`${chart.meta.version} ・ ${levelText(chart)}`)));
@@ -2004,7 +2120,7 @@ function renderDetail(){const d=$('#detail');$('#arcadeMenu').hidden=!!UI.choose
 
 function renderDans(){const box=$('#danlist');if(!box)return;box.innerHTML='';
   const period=monthlyPeriod();
-  if(Lib.monthlyPeriod!==period)buildDans();
+  if(Lib.monthlyPeriod!==period||Lib.monthlyDirty)refreshMonthlyDans();
   const monthly=UI.danMode!=='kasane';
   $('#kasaneIntro').hidden=$('#kasaneRules').hidden=monthly;
   $('#danMonthly').setAttribute('aria-pressed',String(monthly));$('#danKasane').setAttribute('aria-pressed',String(!monthly));
@@ -2015,7 +2131,7 @@ function renderDans(){const box=$('#danlist');if(!box)return;box.innerHTML='';
     const state=rec==='gold'?el('span',{class:'state gold'},'金合格'):rec==='red'?el('span',{class:'state red'},'合格'):el('span',{class:'state'},'未合格');
     const songs=el('ol',{class:'dan-songs'});
     for(let i=0;i<3;i++){const c=d.songs[i],ref=d.refs[i];
-      songs.append(el('li',{class:i===2?'last':''},el('span',{class:'no'},`${i+1}曲目`),
+      songs.append(el('li',{class:i===2?'last':''},el('span',{class:'no'},`${i+1}曲目`,d.src==='monthly'?el('small',null,MONTHLY_ROLES[i]):null),
         c?el('span',{class:'tt'},c.set.title):el('span',{class:'tt missing'},ref?`未読込: ${ref.file} / ${ref.version}`:'未設定'),
         c?chipFor(c):null));}
     const card=el('article',{class:'dan'+(rec?' passed-'+rec:'')},
@@ -2500,20 +2616,21 @@ function frame(){rafId=requestAnimationFrame(frame);
 function drawLoading(){const c=ctx,W=view.W,H=view.H,pn=performance.now();drawBackdrop(pn,0,0);
   for(let i=0;i<3;i++){const b=Math.max(0,Math.sin(pn*.008-i*.8));drawNote(c,W/2-36+i*36,H/2-12-b*14,12,i===1?'k':'d');}
   c.fillStyle='#a2a8ca';c.font=`500 14px ${FB}`;c.textAlign='center';c.fillText(UI.loading||'読み込み中…',W/2,H/2+30);c.textAlign='left';}
-function drawInterlude(){const c=ctx,W=view.W,H=view.H,pn=performance.now(),it=D.interlude,ch=it.chart;drawBackdrop(pn,.5+.5*Math.sin(pn*.004),it.idx===2?.5:0);
+function drawInterlude(){const c=ctx,W=view.W,H=view.H,pn=performance.now(),it=D.interlude,ch=it.chart;
+  const stacked=ch.stats.chords>0;drawBackdrop(pn,.5+.5*Math.sin(pn*.004),stacked ? .5 : 0);
   const a=easeOut(clamp((pn-it.t0)/500,0,1)),cx=W/2;let y=Math.max(56,H/2-230);
   c.save();c.globalAlpha=a;c.textAlign='center';
   c.font=`700 14px ${FB}`;c.fillStyle='#f2bc3d';c.fillText(D.dan.name,cx,y);y+=38;
   const sx=cx-80;c.textBaseline='middle';
   for(let i=0;i<3;i++){const x=sx+i*80;if(i<2){c.fillStyle=i<it.idx?'#f2bc3d':'#3c4784';c.fillRect(x,y-2,80,4);}}
-  for(let i=0;i<3;i++){const x=sx+i*80,cur=i===it.idx;c.beginPath();c.arc(x,y,cur?14:10,0,TAU);c.fillStyle=i<it.idx?'#f2bc3d':cur?(i===2?'#f2bc3d':'#f2ecdc'):'#262c4e';c.fill();
+  for(let i=0;i<3;i++){const x=sx+i*80,cur=i===it.idx;c.beginPath();c.arc(x,y,cur?14:10,0,TAU);c.fillStyle=i<it.idx?'#f2bc3d':cur?(stacked?'#f2bc3d':'#f2ecdc'):'#262c4e';c.fill();
     c.fillStyle=i<=it.idx?'#15101a':'#6f769e';c.font=`${cur?15:11}px ${FD}`;c.fillText(String(i+1),x,y+1);}
   c.textBaseline='alphabetic';y+=Math.min(64,W*.13)+30;const off=(1-a)*30;
-  c.font=`${Math.min(64,W*.13)}px ${FD}`;c.lineWidth=7;c.lineJoin='round';c.strokeStyle='#0a0d1e';c.strokeText(`${it.idx+1}曲目`,cx,y+off);c.fillStyle=it.idx===2?'#f2bc3d':'#f2ecdc';c.fillText(`${it.idx+1}曲目`,cx,y+off);y+=Math.min(48,W*.1);
+  c.font=`${Math.min(64,W*.13)}px ${FD}`;c.lineWidth=7;c.lineJoin='round';c.strokeStyle='#0a0d1e';c.strokeText(`${it.idx+1}曲目`,cx,y+off);c.fillStyle=stacked?'#f2bc3d':'#f2ecdc';c.fillText(`${it.idx+1}曲目`,cx,y+off);y+=Math.min(48,W*.1);
   c.font=`700 ${Math.min(26,W*.06)}px ${FB}`;c.fillStyle='#f2ecdc';c.fillText(fit(c,ch.set.title,W-40),cx,y);y+=34;
   const C=COURSES[ch.course];c.font=`700 14px ${FB}`;const lab=`${C.jp} ${levelText(ch)}`+(ch.stats.chords?` ・ 最大${ch.stats.maxLanes}レーン`:'');const lw=c.measureText(lab).width+28;
   rr(c,cx-lw/2,y-18,lw,28,14);c.fillStyle=C.color;c.fill();c.fillStyle='#15101a';c.fillText(lab,cx,y+1);y+=40;
-  if(it.idx===2){c.font=`700 13px ${FB}`;c.fillStyle='#f2bc3d';c.fillText('縦に並んだノーツは、数と色をそろえて同時押し',cx,y);y+=30;}
+  if(stacked){c.font=`700 13px ${FB}`;c.fillStyle='#f2bc3d';c.fillText('縦に並んだノーツは、数と色をそろえて同時押し',cx,y);y+=30;}
   c.font=`500 13px ${FB}`;
   for(const cond of D.conds.slice(0,7)){const dd=condDesc(cond,'red',D.tot);let line=`${COND[cond.key].jp}　${dd.main}`;
     if(it.idx>0&&cond.key!=='gauge'){const e=evalTier(cond,'red',D.st,D.tot);if(e&&e.remain!=null&&cond.op==='<=')line+=`　あと${e.remain}個まで`;else if(e&&e.need>0)line+=`　あと${fmtNum(e.need)}`;}
@@ -2924,8 +3041,8 @@ $('#calPad').addEventListener('pointerdown',e=>{if(CAL.on){e.preventDefault();ca
 function titleOpen(){return!$('#title').hidden&&!$('#title').classList.contains('out');}
 function dismissTitle(){if(!titleOpen())return;const t=$('#title');t.classList.add('out');setTimeout(()=>{t.hidden=true;},340);
   UI.gesture=true;ensureAudio();playSE('don');const s=Lib.sets.find(x=>x.key===UI.selSet);if(!waitForLibrary()&&s)playPreview(s.charts[0]);}
-function renderTitleStat(){const kas=Lib.charts.filter(c=>c.course==='kasane').length,passed=Lib.dans.filter(d=>Lib.danBest[d.key]).length;
-  $('#tsStat').textContent=`${Lib.sets.length}曲 ・ 重譜面 ${kas} ・ 段位 合格 ${passed} / ${Lib.dans.length}`;
+function renderTitleStat(){const kas=playableSets().flatMap(set=>set.charts).filter(c=>c.course==='kasane').length,passed=Lib.dans.filter(d=>Lib.danBest[d.key]).length;
+  $('#tsStat').textContent=`${playableSets().length}曲 ・ 重譜面 ${kas} ・ 段位 合格 ${passed} / ${Lib.dans.length}`;
   $('#tsHint').textContent=UI.touch?'画面をタップ':`${keyLabel(S.keys[1])} か ${keyLabel(S.keys[2])}（ドン）、Enter、またはクリック`;}
 $('#title').addEventListener('click',dismissTitle);
 
