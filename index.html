@@ -1439,7 +1439,7 @@ function monthlyConditions(rank,songs){
     const roll=(speed)=>songs.reduce((total,chart)=>total+estimateDrumroll(chart,speed),0);
     const hits=tier('hits','>=',Math.floor(notes*([.76,.79,.82,.85,.88][rank])+roll(4)),
       Math.ceil(notes*.94+roll(5.5)),false);
-    return rank===0?[hits]:[tier('bad','<=',[0,20,16,12,10][rank],[0,12,10,8,6][rank]),hits];
+    return rank===0?[hits]:[tier('bad','<=',[0,25,20,15,13][rank],[0,15,13,10,8][rank]),hits];
   }
   const rolls=(speed)=>Math.max(1,songs.reduce((total,chart)=>total+estimateDrumroll(chart,speed),0));
   const speed=(rank===TATSUJIN?6.5:5.3)+(rank-FIRST_DAN)*.42;
@@ -1451,11 +1451,11 @@ function monthlyConditions(rank,songs){
   if(rank>=TENTH_DAN){
     const i=rank-TENTH_DAN;
     return [gauge,tier('ok','<=',[4.2,3,2,1.2][i],[2.2,1.6,1,.55][i]),
-      tier('bad','<=',[.65,.55,.45,.35][i],[.4,.32,.25,.18][i]),drumroll];
+      tier('bad','<=',[.85,.70,.57,.45][i],[.50,.40,.32,.25][i]),drumroll];
   }
   const i=rank-FIRST_DAN;
   return [gauge,tier('good','>=',[55,59,64,68,72,76,80,83,86][i],[64,68,72,76,80,84,87,90,92][i]),
-    tier('bad','<=',[4,3.6,3.2,2.8,2.4,2,1.7,1.35,1][i],[2.6,2.3,2,1.75,1.5,1.25,1,.8,.6][i]),drumroll];
+    tier('bad','<=',[5,4.5,4,3.5,3,2.5,2.1,1.7,1.25][i],[3.25,2.9,2.5,2.2,1.9,1.55,1.25,1,.75][i]),drumroll];
 }
 function monthlyDans(charts,period){
   const random=mulberry32(Number(period.replace('-','')));
