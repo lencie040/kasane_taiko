@@ -683,7 +683,15 @@ body{min-height:100dvh;animation:arcade-wallpaper 12s linear infinite}
   background:color-mix(in srgb,var(--cc),#000 42%);box-shadow:inset 0 2px 3px #0004;padding:0 4px}
 .dtile .dv small{font-size:clamp(9px,1.7vw,13px);font-weight:900}
 .dtile .dv b{font-family:var(--f-num);font-weight:800;font-size:clamp(14px,2.8vw,22px);line-height:1;letter-spacing:-.04em}
-.dtile .cr{position:absolute;top:-9px;right:-3px;font-size:12px;line-height:1;text-shadow:none;filter:drop-shadow(0 1px 0 #0008)}
+.crownic{position:absolute;top:-17px;right:-6px;width:32px;height:24px;z-index:2;pointer-events:none;
+  filter:drop-shadow(0 1px 0 #2a1d30) drop-shadow(0 0 1px #2a1d30);
+  -webkit-mask:var(--crown-mask) center/contain no-repeat;mask:var(--crown-mask) center/contain no-repeat}
+.dtile.dx .crownic{width:26px;height:20px;top:-15px;right:-8px}
+.crownic.clear{background:linear-gradient(180deg,#f4f7fb,#aab4c2 55%,#dfe5ee)}
+.crownic.fc{background:linear-gradient(180deg,#fff3a6,#f2b81c 55%,#ffd84d)}
+.crownic.zenryo{background:linear-gradient(100deg,#ff5f6d,#ffc24b 22%,#7ee07e 44%,#5cc8ff 66%,#b48cf2 88%,#ff5f6d)}
+.crownic.zentoku{background:linear-gradient(180deg,#d9a6ff,#8f3fd8 55%,#b66cf0)}
+:root{--crown-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 18'><path d='M1 3l6 5 5-7 5 7 6-5-2 13H3z M3 16h18v2H3z'/></svg>")}
 .dtile .seal-badge{position:absolute;bottom:-8px;left:2px;font-size:9px;padding:0 4px;border-radius:4px;background:#2a1d30;color:#ffe14d;text-shadow:none}
 .dtile.is-missing{filter:grayscale(1) brightness(1.1);opacity:.5}
 .dtile.locked{background:repeating-linear-gradient(135deg,#0002 0 6px,transparent 6px 12px),var(--cc);filter:saturate(.6)}
@@ -703,6 +711,22 @@ body{min-height:100dvh;animation:arcade-wallpaper 12s linear infinite}
 @media(max-width:650px){
   .crs-list{grid-template-columns:repeat(5,minmax(64px,1fr));gap:6px;padding-inline:9px}
   .crs .nm strong{font-size:10px;white-space:nowrap}.crs .nm small{font-size:10px}
+}
+@media (min-width:900px){
+  #songlist>li{width:90%}
+  #songlist>li.is-on{width:100%}
+  #songlist .song.is-on{padding-inline:clamp(16px,3vw,40px)}
+  #songlist .song .chips{gap:10px}
+  .dtile{min-width:118px}
+  .dtile.dx{min-width:64px}
+  .dtile .dl em{font-size:12px}
+  .dtile .di{width:30px;height:30px;font-size:18px}
+  .dtile .dv{min-width:50px}
+  .dtile .dv b{font-size:24px}
+  .dtile .dv small{font-size:13px}
+  .dtile.dx .dl em{font-size:15px}
+  .dtile.dx .dv{min-width:44px}
+  .dtile.dx .dv b{font-size:19px}
 }
 </style>
 
@@ -1639,11 +1663,11 @@ const COURSE_ICON={easy:'梅',normal:'竹',hard:'松',oni:'鬼',ura:'裏',kasane
 function diffTile(course,c,extra){
   const C=COURSES[course],locked=c&&isLocked(c);
   const lv=!c?'–':locked?'封':levelText(c).replace(/^★/,'');
-  const crown=c&&!locked&&crownOf(c);
+  const ck=c&&!locked?Lib.best[c.uid]?.crown:null;
   return el('span',{class:'dtile'+(extra?' dx':'')+(!c?' is-missing':'')+(locked?' locked':''),style:`--cc:${C.color}`,title:C.jp},
     el('span',{class:'dl'},el('i',{class:'di'},COURSE_ICON[course]),el('em',null,extra?(course==='ura'?'裏':'重'):C.jp)),
     el('span',{class:'dv'},(c&&!locked&&c.course!=='kasane')?el('small',null,'★'):null,el('b',null,lv)),
-    crown?el('span',{class:'cr'},crown):null,
+    ck&&CROWN[ck]?el('span',{class:'crownic '+ck,title:CROWN[ck],role:'img','aria-label':CROWN[ck]}):null,
     c?sealBadge(c):null);
 }
 function songChips(set){
@@ -1726,7 +1750,7 @@ function renderSongList(){
 function selectSet(key,user){UI.folderCursor=null;const changed=UI.selSet!==key;UI.selSet=key;const s=Lib.sets.find(x=>x.key===key);if(!s)return;
   if(!s.charts.some(c=>c.uid===UI.selChart)){const sc=sortCharts(s.charts);const standard=sc.filter(c=>BASE_COURSES.includes(c.course)&&!isLocked(c));UI.selChart=(standard.at(-1)||sc.find(c=>!isLocked(c))||sc[0]).uid;}
   if(user&&(changed||!preview)){UI.gesture=true;ensureAudio();playPreview(s.charts[0]);}renderSongList();renderDetail();}
-function menuMove(dSong,dCourse){
+function menuMove(dSong,dCourse,silent){
   const step=dCourse||dSong;if(!step)return;
   resetRimSequence();
   if(!UI.chooseCourse){
@@ -1744,7 +1768,7 @@ function menuMove(dSong,dCourse){
     if(slot>=0&&!chart)continue;
     UI.courseBack=slot===-1;UI.courseSlot=slot;
     if(chart)UI.selChart=chart.uid;
-    playSE('ka');renderDetail();focusCourseCard();return;
+    if(!silent)playSE('ka');renderDetail();focusCourseCard();return;
   }
 }
 let rimPending=null,rimCount=0,rimKind='';
@@ -1776,13 +1800,13 @@ function hitPickerRim(side){
     clearTimeout(previous.timer);rimPending=null;
     if(previous.side!==side){countOniHit('kasane');return;}
     if(previous.side===1)countOniHit('ura');
-    else{menuMove(0,-1);return;}
+    else{menuMove(0,-1,true);return;}
   }
   rimPending={side,timer:setTimeout(()=>{
     rimPending=null;
     if(!UI.chooseCourse||UI.courseBack||UI.courseSlot!==3)return;
     if(side===1)countOniHit('ura');
-    else menuMove(0,-1);
+    else menuMove(0,-1,true);
   },RIM_PAIR_MS)};
 }
 function pickerRimButton(side,label){
