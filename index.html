@@ -668,7 +668,7 @@ body{min-height:100dvh;animation:arcade-wallpaper 12s linear infinite}
 #songlist{position:relative;isolation:isolate;max-height:none;overflow:hidden;touch-action:pan-x}
 #songlist>li:not(.song-outgoing){z-index:1}
 #songlist>li.song-outgoing{position:absolute;z-index:0;margin:0;translate:none;transform:none;pointer-events:none}
-#songlist>li:not(.empty){translate:var(--strip-shift,0%) 0}
+#songlist>li:not(.empty):not(.song-outgoing){translate:var(--strip-shift,0%) 0}
 #songlist .song .chips{display:flex;margin-top:4px}
 #songlist .chips .chip:not(.is-missing){border-color:var(--cc)}
 #songlist .chip.is-missing{opacity:.53;background:#ded0cd}
@@ -1958,10 +1958,12 @@ function backToSongs(){
 function renderSongList(){
   const ul=$('#songlist'),folders=effectiveFolders();
   const animate=!REDUCED&&typeof ul.animate==='function'&&ul.getClientRects().length>0;
-  const previous=animate?[...ul.children].filter(row=>row.dataset.entry):[];
-  const positions=new Map(previous.map(row=>[row.dataset.entry,row.getBoundingClientRect()]));
-  const outgoing=animate?[...ul.querySelectorAll('li.song-outgoing')]:[];
-  ul.replaceChildren(...outgoing);folderToolbar(folders);
+  const previous=animate?[...ul.children].filter(row=>row.dataset.entry).map(row=>({
+    row,key:row.dataset.entry,bounds:row.getBoundingClientRect()
+  })):[];
+  const priorExit=animate?ul.querySelector('.song-outgoing'):null;
+  const priorBounds=priorExit?.getBoundingClientRect();
+  ul.replaceChildren();folderToolbar(folders);
   const entries=arcadeEntries(),count=entries.length;
   $('#listCount').textContent=`${entries.filter(entry=>entry.set).length}曲`;
   $('#navHint').textContent=`カ（${keyLabel(S.keys[0])}・${keyLabel(S.keys[3])}）で移動、ドンで決定`;
@@ -1983,35 +1985,53 @@ function renderSongList(){
     row.dataset.entry=entry.folder?'folder:'+entry.folder.id:'song:'+entry.set.key;
     ul.append(row);
   }
-  if(!positions.size)return;
-  const duration=200;
-  const rows=[...ul.children].filter(row=>row.dataset.entry);
-  let departing=null,topAnimation=null;
-  if(previous.length>=2&&rows[0]?.dataset.entry===previous[1].dataset.entry&&
-      !rows.some(row=>row.dataset.entry===previous[0].dataset.entry)){
-    // Keep the departing strip under the incoming top strip until the transition ends.
-    const old=previous[0],bounds=positions.get(old.dataset.entry),listBounds=ul.getBoundingClientRect();
-    old.classList.add('song-outgoing');
-    delete old.dataset.entry;
-    old.inert=true;old.setAttribute('aria-hidden','true');
-    Object.assign(old.style,{left:`${bounds.left-listBounds.left-ul.clientLeft}px`,
-      top:`${bounds.top-listBounds.top-ul.clientTop}px`,width:`${bounds.width}px`,height:`${bounds.height}px`});
-    ul.prepend(old);departing=old;
+  if(previous.length)animateSongStrips(ul,previous,priorExit?.dataset.departed,priorBounds);
+}
+function animateSongStrips(list,previous,priorKey,priorBounds){
+  const rows=[...list.children],keys=rows.map(row=>row.dataset.entry),length=rows.length;
+  const forward=length>1&&previous.length===length&&previous.slice(1).every((item,i)=>item.key===keys[i]);
+  const backward=length>1&&previous.length===length&&previous.slice(0,-1).every((item,i)=>item.key===keys[i+1]);
+  // A two-entry list has the same order in both directions, so use the last input.
+  const direction=forward&&backward?(UI.arcadeDirection||1):forward?1:backward?-1:0;
+  const outgoing=direction>0?previous[0]:direction<0?previous.at(-1):null;
+  const covering=direction>0?rows[0]:direction<0?rows.at(-1):null;
+  const entering=direction>0?rows.at(-1):direction<0?rows[0]:null;
+  const positions=new Map(previous.map(item=>[item.key,item.bounds]));
+  let departing=null,coverAnimation=null;
+
+  if(outgoing&&covering){
+    const listBounds=list.getBoundingClientRect(),bounds=outgoing.bounds;
+    departing=outgoing.row.cloneNode(true);
+    departing.classList.add('song-outgoing');
+    departing.dataset.departed=outgoing.key;
+    delete departing.dataset.entry;
+    departing.inert=true;departing.setAttribute('aria-hidden','true');
+    Object.assign(departing.style,{left:`${bounds.left-listBounds.left-list.clientLeft}px`,
+      top:`${bounds.top-listBounds.top-list.clientTop}px`,width:`${bounds.width}px`,height:`${bounds.height}px`});
+    list.prepend(departing);
   }
-  const changes=rows.map(row=>[row,positions.get(row.dataset.entry),row.getBoundingClientRect()]);
+
+  const duration=200,easing='cubic-bezier(.2,.75,.2,1)';
+  const changes=rows.map(row=>{
+    const key=row.dataset.entry;
+    // If a direction is reversed mid-slide, start the returning edge at its visible position.
+    const before=row===entering?(key===priorKey?priorBounds:null):positions.get(key);
+    return [row,before,row.getBoundingClientRect()];
+  });
   for(const [row,before,after] of changes){
     if(!before){
-      row.animate([{opacity:.35,transform:'scale(.97)'},{opacity:1,transform:'none'}],{duration:190,easing:'ease-out'});
+      row.animate([{opacity:0,transform:'scale(.98)'},{opacity:1,transform:'none'}],{duration,easing});
       continue;
     }
     const x=before.left-after.left,y=before.top-after.top;
     if(Math.abs(x)+Math.abs(y)<2)continue;
-    const animation=row.animate([{transform:`translate(${x}px,${y}px)`},{transform:'none'}],{duration,easing:'cubic-bezier(.2,.75,.2,1)'});
-    if(row===rows[0])topAnimation=animation;
+    const animation=row.animate([{transform:`translate(${x}px,${y}px)`},{transform:'none'}],{duration,easing});
+    if(row===covering)coverAnimation=animation;
   }
   if(departing){
-    if(topAnimation)topAnimation.finished.then(()=>departing.remove(),()=>departing.remove());
-    else departing.remove();
+    const remove=()=>departing.remove();
+    if(coverAnimation)coverAnimation.finished.then(remove,remove);
+    else remove();
   }
 }
 function selectSet(key,user){UI.folderCursor=null;const changed=UI.selSet!==key;UI.selSet=key;const s=Lib.sets.find(x=>x.key===key);if(!s)return;
@@ -2025,7 +2045,8 @@ function menuMove(dSong,dCourse,silent){
     if(!entries.length)return;
     UI.gesture=true;ensureAudio();playSE('ka');
     const next=(arcadeIndex(entries)+step+entries.length)%entries.length;
-    selectArcadeEntry(entries[next]);
+    UI.arcadeDirection=Math.sign(step);
+    try{selectArcadeEntry(entries[next]);}finally{UI.arcadeDirection=0;}
     return;
   }
   const set=currentSet();if(!set)return;
