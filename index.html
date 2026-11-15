@@ -205,6 +205,16 @@ input[type=range]{width:100%;accent-color:var(--gold)}
   #stage .falling-dan-head .stage-quit{min-height:26px}
   .falling-dan-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,104px),1fr))}
 }
+body:has(#tab-medley:not([hidden])){animation:none}
+.medley-player{display:grid;gap:14px;min-width:0;padding:clamp(12px,3vw,24px);background:var(--panel);border:1px solid var(--line-2);border-radius:14px}
+.medley-options,.medley-controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px}
+.medley-options select{padding:4px 8px;border:1px solid var(--line-2);border-radius:6px;background:var(--panel-2)}
+.medley-head{display:grid;gap:3px;min-width:0}
+.medley-head h3{font-size:clamp(19px,4vw,26px);line-height:1.25;overflow-wrap:anywhere}
+.medley-head p{margin:0;color:var(--mute);overflow-wrap:anywhere}
+#medleyLane{display:block;width:100%;height:clamp(100px,18vw,148px);border-radius:8px;background:#1b192a}
+.medley-time{display:flex;align-items:center;gap:10px;color:var(--mute);font-size:13px}
+.medley-time progress{flex:1;min-width:0;height:8px;accent-color:var(--don)}
 .overlay{position:absolute;inset:0;background:rgba(10,13,30,.82);display:grid;place-items:center;padding:24px max(16px,env(safe-area-inset-left,0px));overflow:auto}
 .ov-card{background:var(--panel);border:1px solid var(--line-2);border-radius:16px;padding:24px;width:min(640px,100%);display:grid;gap:16px}
 .ov-card h2{font-family:var(--f-display);font-size:26px}
@@ -894,6 +904,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
     <nav class="tabs" aria-label="画面">
       <button class="tab is-on" data-tab="select" id="tabbtn-select">曲選択</button>
       <button class="tab" data-tab="dan" id="tabbtn-dan">段位道場</button>
+      <button class="tab" data-tab="medley" id="tabbtn-medley">作業用BGM</button>
       <button class="tab" data-tab="records" id="tabbtn-records">記録</button>
       <button class="tab" data-tab="load" id="tabbtn-load">読み込み・CSV</button>
       <button class="tab" data-tab="settings" id="tabbtn-settings">設定</button>
@@ -939,6 +950,30 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
       <p class="lead">1曲目と2曲目は通常の譜面、3曲目に重譜面が来ます。合格すると、その重譜面が通常プレイでも遊べます。</p>
       <p>縦に重なった音符はドン・カツの数を合わせて同時に叩きます。全キーが ±18ms 以内に揃うと特良になります。</p>
     </details>
+  </section>
+
+  <section class="pane" id="tab-medley" hidden>
+    <div>
+      <h2 class="h-sec">作業用BGMメドレー</h2>
+      <p class="lead">デモ曲を除く全譜面をオート再生します。未解禁の重譜面も含み、全譜面を流し終えると繰り返します。</p>
+    </div>
+    <div class="medley-player">
+      <div class="medley-options">
+        <label>再生順 <select id="medleyOrder"><option value="ordered">収録順</option><option value="shuffle">ランダム</option></select></label>
+        <label class="switch"><input id="medleyShow" type="checkbox" checked>譜面を表示</label>
+      </div>
+      <div class="medley-head">
+        <h3 id="medleyTitle">停止中</h3>
+        <p id="medleyStatus" role="status"></p>
+      </div>
+      <canvas id="medleyLane" aria-hidden="true"></canvas>
+      <div class="medley-time"><progress id="medleyProgress" value="0" max="1" aria-label="譜面の再生位置"></progress><span class="num" id="medleyTime">0:00 / 0:00</span></div>
+      <div class="medley-controls">
+        <button class="btn primary" id="medleyPlay">再生</button>
+        <button class="btn" id="medleyNext" disabled>次の譜面</button>
+        <button class="btn" id="medleyStop" disabled>停止</button>
+      </div>
+    </div>
   </section>
 
   <section class="pane" id="tab-records" hidden>
@@ -1696,10 +1731,208 @@ async function playPreview(chart){stopPreview();if(!UI.gesture||UI.tab!=='select
 function showEq(){const eq=$('#detail .eq');if(eq)eq.hidden=UI.previewKey!==UI.selSet;}
 function stopPreview(){const p=preview;preview=null;UI.previewKey=null;showEq();if(p&&p.src&&AC){try{p.g.gain.cancelScheduledValues(AC.currentTime);p.g.gain.setValueAtTime(p.g.gain.value,AC.currentTime);p.g.gain.linearRampToValueAtTime(0,AC.currentTime+.25);p.src.stop(AC.currentTime+.3);}catch(e){}}}
 
+/* ================= 作業用BGM ================= */
+const medleyView={title:$('#medleyTitle'),status:$('#medleyStatus'),order:$('#medleyOrder'),show:$('#medleyShow'),lane:$('#medleyLane'),
+  progress:$('#medleyProgress'),time:$('#medleyTime'),play:$('#medleyPlay'),next:$('#medleyNext'),stop:$('#medleyStop')};
+const medleyContext=medleyView.lane.getContext('2d');
+let medley=null,medleyFrame=0,medleyTimer=0,medleyDrawAt=0;
+
+function medleyCharts(){return Lib.charts.filter(chart=>!chart.set.demo);}
+function medleyQueue(charts,shuffle,previous){
+  const queue=charts.slice();
+  if(shuffle){
+    for(let i=queue.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[queue[i],queue[j]]=[queue[j],queue[i]];}
+    if(queue.length>1&&queue[0]===previous){const j=1+Math.floor(Math.random()*(queue.length-1));[queue[0],queue[j]]=[queue[j],queue[0]];}
+  }
+  return queue;
+}
+
+async function loadMedleyTrack(session){
+  while(medley===session&&session.unreadable.size<session.charts.length){
+    if(session.index===session.queue.length){
+      session.queue=medleyQueue(session.charts,session.shuffle,session.current?.chart);
+      session.index=0;
+    }
+    const chart=session.queue[session.index++];
+    if(session.unreadable.has(chart))continue;
+    let buffer;
+    try{buffer=await getAudio(chart);}catch(error){session.unreadable.add(chart);continue;}
+    const speed=chart.segs.reduce((min,seg)=>Math.min(min,seg.sv/(4*seg.bl)),Infinity);
+    return {chart,position:session.index,buffer,duration:Math.max(.05,chart.length/1000),offset:0,ahead:1.2/speed};
+  }
+  return null;
+}
+
+function medleyElapsed(track){return track?track.clock?clamp(AC.currentTime-track.startAt,0,track.duration):track.offset:0;}
+function releaseMedleyTrack(track,stop=true){
+  if(!track?.clock)return;
+  track.clock.onended=null;
+  const nodes=track.source&&track.source!==track.clock?[track.source,track.clock]:[track.clock];
+  for(const node of nodes){if(stop)node.stop();node.disconnect();}
+  track.source=track.clock=null;
+}
+
+function scheduleMedleyTrack(session,track,when){
+  const {offset,buffer,duration}=track;
+  track.startAt=when-offset;
+  track.endAt=when+(duration-offset);
+  if(offset<buffer.duration&&offset<duration){
+    const source=AC.createBufferSource();
+    source.buffer=buffer;source.connect(musicGain);
+    source.start(when,offset);source.stop(track.endAt);
+    track.source=source;
+  }
+  // A short audio file can end before the last note. Keep the cue on the audio clock.
+  if(track.source&&buffer.duration>=duration)track.clock=track.source;
+  else{
+    track.clock=AC.createConstantSource();track.clock.offset.value=0;
+    track.clock.connect(AC.destination);track.clock.start(when);track.clock.stop(track.endAt);
+  }
+  track.clock.onended=()=>{
+    if(medley!==session||session.current!==track)return;
+    releaseMedleyTrack(track,false);
+    advanceMedley(session);
+  };
+}
+
+function scheduleMedleyNext(session){
+  if(session.next&&!session.next.clock&&session.current?.clock&&!session.paused){
+    scheduleMedleyTrack(session,session.next,Math.max(AC.currentTime,session.current.endAt));
+  }
+}
+
+function advanceMedley(session){
+  const next=session.pending;
+  session.current=null;
+  if(!session.next)renderMedley();
+  activateMedleyTrack(session,next);
+}
+
+async function activateMedleyTrack(session,pending){
+  const track=await pending;
+  if(medley!==session)return;
+  if(!track){stopMedley();medleyView.status.textContent='再生できる音源がありませんでした。';return;}
+  session.current=track;session.next=null;
+  if(!track.clock&&!session.paused)scheduleMedleyTrack(session,track,AC.currentTime);
+  loadNoise(track.chart);
+  session.pending=loadMedleyTrack(session);
+  session.pending.then(next=>{
+    if(medley!==session||session.current!==track)return;
+    session.next=next;scheduleMedleyNext(session);
+  });
+  renderMedley();
+}
+
+function toggleMedley(){
+  if(!medley){
+    if(waitForLibrary())return;
+    const charts=medleyCharts();if(!charts.length)return;
+    UI.gesture=true;ensureAudio();stopPreview();
+    const shuffle=medleyView.order.value==='shuffle';
+    const session=medley={charts,shuffle,queue:medleyQueue(charts,shuffle),index:0,unreadable:new Set(),paused:false,current:null,next:null};
+    renderMedley();activateMedleyTrack(session,loadMedleyTrack(session));
+    return;
+  }
+  const session=medley,track=session.current;
+  if(!track)return;
+  session.paused=!session.paused;
+  if(session.paused){
+    track.offset=medleyElapsed(track);releaseMedleyTrack(track);releaseMedleyTrack(session.next);
+  }else{
+    ensureAudio();scheduleMedleyTrack(session,track,AC.currentTime);scheduleMedleyNext(session);
+  }
+  renderMedley();
+}
+
+function stopMedley(){
+  if(!medley)return;
+  const session=medley;medley=null;
+  releaseMedleyTrack(session.current);releaseMedleyTrack(session.next);
+  renderMedley();
+}
+
+function renderMedley(){
+  if(UI.tab!=='medley')return;
+  const session=medley,track=session?.current,v=medleyView;
+  const total=session?.charts.length??medleyCharts().length;
+  v.title.textContent=track?.chart.set.title??(session?'読み込み中…':'停止中');
+  const skipped=session?.unreadable.size?` ・ 音源エラー ${session.unreadable.size}件` : '';
+  v.status.textContent=track?`${track.chart.meta.version} ・ ${COURSES[track.chart.course].jp} ${levelText(track.chart)} ・ ${track.position} / ${total}譜面${skipped}`:
+    total?`${total}譜面${skipped}`:libraryBooting?'曲を読み込み中…':'再生できる譜面がありません。';
+  v.play.textContent=session?(session.paused?'再開':'一時停止'):'再生';
+  v.play.disabled=session?!track:!total;
+  v.next.disabled=!track;v.stop.disabled=!session;v.order.disabled=!!session;v.lane.hidden=!v.show.checked;
+  cancelAnimationFrame(medleyFrame);clearInterval(medleyTimer);
+  if(document.hidden)return;
+  drawMedleyTimeline();
+  if(track&&!session.paused){
+    if(v.show.checked)medleyFrame=requestAnimationFrame(updateMedleyTimeline);
+    else medleyTimer=setInterval(drawMedleyTimeline,1000);
+  }
+}
+
+function updateMedleyTimeline(now){
+  medleyFrame=requestAnimationFrame(updateMedleyTimeline);
+  if(now-medleyDrawAt<32)return;
+  medleyDrawAt=now;drawMedleyTimeline();
+}
+
+function drawMedleyTimeline(){
+  const v=medleyView,track=medley?.current,elapsed=medleyElapsed(track),duration=track?.duration??0;
+  v.progress.max=duration||1;v.progress.value=elapsed;
+  const time=`${fmtTime(elapsed*1000)} / ${fmtTime(duration*1000)}`;
+  if(v.time.textContent!==time)v.time.textContent=time;
+  if(v.lane.hidden)return;
+  const c=medleyContext,w=v.lane.clientWidth,h=v.lane.clientHeight,dpr=Math.min(1.5,devicePixelRatio||1);
+  const width=Math.round(w*dpr),height=Math.round(h*dpr);
+  if(v.lane.width!==width||v.lane.height!==height){v.lane.width=width;v.lane.height=height;}
+  c.setTransform(dpr,0,0,dpr,0,0);
+  c.clearRect(0,0,w,h);
+  const x0=Math.min(72,w*.15),lanes=track?.chart.stats.maxLanes??1,dy=Math.min(34,h/(lanes+1)),top=(h-dy*lanes)*.5;
+  c.fillStyle='#313047';c.fillRect(x0,top,w-x0,dy*lanes);
+  c.fillStyle='#e9dfa9';c.fillRect(x0-1,top,2,dy*lanes);
+  for(let i=1;i<lanes;i++){c.fillStyle='#484660';c.fillRect(x0,top+i*dy,w-x0,1);}
+  if(!track)return;
+  const now=elapsed*1000,until=now+track.ahead,r=dy*.29,span=w-x0,xAt=(t,speed)=>x0+(t-now)*speed*span;
+  for(const roll of track.chart.rolls){
+    if(roll.t>until)break;
+    if(roll.end<=now)continue;
+    const x=xAt(Math.max(now,roll.t),roll.speed);if(x>w+r)continue;
+    const length=roll.type==='roll'?Math.min(w+r,xAt(roll.end,roll.speed))-x:0;
+    rr(c,x-r,top+dy*.5-r,length+r*2,r*2,r);c.fillStyle=roll.type==='roll'?'#ffd260':'#f3a06e';c.fill();
+  }
+  const targets=track.chart.targets;
+  let lo=0,hi=targets.length;
+  while(lo<hi){const mid=(lo+hi)>>1;if(targets[mid].t<now)lo=mid+1;else hi=mid;}
+  for(let i=lo;i<targets.length&&targets[i].t<=until;i++){
+    const t=targets[i],x=xAt(t.t,t.speed);if(x>w+r*2)continue;
+    for(const note of t.notes||[t]){
+      const y=top+((note.lane??0)+.5)*dy,size=note.big?r*1.35:r;
+      c.beginPath();c.arc(x,y,size,0,TAU);c.fillStyle=note.color==='d'?'#f36a58':'#53d1df';c.fill();
+      c.strokeStyle='#fff1df';c.lineWidth=1.5;c.stroke();
+      if(note.noise){const a=note.noise==='left'?Math.PI*.5:-Math.PI*.5;c.beginPath();c.arc(x,y,size,a,a+Math.PI);c.fillStyle='#741834';c.fill();}
+    }
+  }
+}
+
+medleyView.play.addEventListener('click',toggleMedley);
+medleyView.stop.addEventListener('click',stopMedley);
+medleyView.next.addEventListener('click',()=>{
+  if(!medley?.current)return;
+  releaseMedleyTrack(medley.current);releaseMedleyTrack(medley.next);advanceMedley(medley);
+});
+medleyView.show.addEventListener('change',renderMedley);
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden&&medley&&!medley.paused)ensureAudio();
+  renderMedley();
+});
+window.addEventListener('pagehide',stopMedley);
+window.addEventListener('resize',()=>{if(UI.tab==='medley'&&!document.hidden)drawMedleyTimeline();});
+
 /* ================= 画面: 共通 ================= */
-function setTab(t){if(t!=='select'){UI.chooseCourse=false;resetRimSequence();stopPreview();}UI.tab=t;for(const b of document.querySelectorAll('.tab'))b.classList.toggle('is-on',b.dataset.tab===t);
-  for(const id of['select','dan','records','load','settings'])$('#tab-'+id).hidden=id!==t;refreshAll();}
-function refreshAll(){renderSongList();renderDetail();renderDans();renderRecords();renderLoad();renderSettings();}
+function setTab(t){if(t!=='select'){UI.chooseCourse=false;resetRimSequence();stopPreview();}if(t!=='medley')stopMedley();UI.tab=t;for(const b of document.querySelectorAll('.tab'))b.classList.toggle('is-on',b.dataset.tab===t);
+  for(const id of['select','dan','medley','records','load','settings'])$('#tab-'+id).hidden=id!==t;refreshAll();}
+function refreshAll(){renderSongList();renderDetail();renderDans();renderMedley();renderRecords();renderLoad();renderSettings();}
 function crownBadge(k){return k?el('span',{class:'crown '+k},CROWN[k]):el('span',{class:'crown none'},'—');}
 let recordQuery='',recordFilter='played',recordOrder='score',recordPage=0;
 function renderRecords(){
