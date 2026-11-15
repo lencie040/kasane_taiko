@@ -498,6 +498,108 @@ body{background-color:var(--ink);background-image:repeating-linear-gradient(135d
   .folder-tools input{font-size:16px}.folder-entry{min-height:48px}
   .setting input[type=range]{width:100%;min-width:0}
 }
+/* Arcade selection: central stacks of horizontal song strips. */
+:root{--arcade-outline:#30203b;--arcade-paper:#fff8df}
+body{
+  background-color:#ff9952;
+  background-image:
+    radial-gradient(circle at 23px 23px,#fff7b34d 0 10px,transparent 11px),
+    radial-gradient(circle at 54px 54px,#fff9ca60 0 3px,transparent 4px),
+    linear-gradient(155deg,#fff044 0%,#ffba44 42%,#fb6b66 78%,#f465a2 100%);
+  background-size:80px 80px,80px 80px,100% 100%;
+  background-attachment:fixed;
+}
+.top{background:#fff7db;color:var(--arcade-outline);border-bottom:6px solid #3c223c;box-shadow:none}
+.top .tab,.top .btn.ghost{color:#462534}
+.top .tab:hover{background:#ffe3a3;color:#462534}
+.top .tab.is-on{background:#ffe032;outline:2px solid #4c293a;outline-offset:-2px}
+.top .btn.ghost{border-color:#805568}
+.brand-name{color:#a02141;text-shadow:none}
+.mark i{border-color:#412339}
+.h-sec{display:inline-block;justify-self:start;padding:4px 15px;border:3px solid #36203c;border-radius:12px;background:#fff8df;box-shadow:0 3px #7e4140}
+#tab-select .select-grid{position:relative;display:block}
+.arcade-menu{max-width:780px;margin-inline:auto}
+.arcade-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:4px 0 10px}
+.arcade-heading h2{font-family:var(--f-body);font-weight:900;font-size:clamp(23px,4vw,36px);color:#fff9df;paint-order:stroke fill;-webkit-text-stroke:5px #412437}
+.arcade-heading .list-count{color:#452638;background:#fff8df;border:2px solid #482d3e;border-radius:999px;padding:2px 12px}
+.arcade-catalog{background:#fff8e7;border:2px solid #684052;border-radius:12px;padding:5px 10px;margin-bottom:6px}
+.arcade-catalog summary{cursor:pointer;font-weight:800;padding:3px}
+.arcade-catalog .list-tools{margin:2px 0}
+.arcade-catalog .list-head{margin:4px 0}
+#songlist{display:block;max-height:clamp(300px,62dvh,690px);padding:10px clamp(8px,2vw,24px);background:none;border:0;box-shadow:none;scrollbar-width:thin;overscroll-behavior:contain}
+#songlist>li{margin:0 auto 11px;position:relative;width:var(--strip-width,91%)}
+#songlist>li.empty{background:#fff4d7;border-radius:14px;padding:18px}
+#songlist .song,.folder-entry{
+  --strip:var(--sc,#42c6ce);
+  background:linear-gradient(180deg,color-mix(in srgb,var(--strip),white 26%),var(--strip));
+  border:4px solid #2a1d30;border-radius:16px;box-shadow:inset 0 0 0 2px #fff9,0 5px 0 #673147a0;
+  padding:8px clamp(9px,3vw,48px);min-height:0;text-align:center;
+}
+#songlist .song{display:block;cursor:pointer}
+#songlist .song-t,.folder-entry strong{
+  display:block;background:color-mix(in srgb,var(--strip),#fff8f1 68%);border-radius:8px;
+  padding:6px 24px;color:#2d1936;line-height:1.2;font-weight:900;font-size:clamp(17px,3.4vw,27px);
+}
+#songlist .song:not(.is-on) :is(.song-a,.chips){display:none}
+#songlist .song .song-t .tag{display:none}
+#songlist .song.is-on,.folder-entry.is-on{
+  border-color:#25152b;outline:5px solid #fff138;box-shadow:0 0 0 9px #ffe14d75,0 6px 0 #5d3346;
+}
+#songlist .song.is-on{padding-block:12px 10px}
+#songlist .song.is-on .song-t span:first-child{white-space:normal;overflow-wrap:anywhere}
+#songlist .song-a,#songlist .chips{justify-content:center}
+#songlist .song-a{color:#261d33}
+#songlist .fav{top:14px;right:9px;color:#30203d;background:#fff6d9;border-radius:50%}
+#songlist .chip{background:#fff8dd;border-color:#4c354c;color:#342237}
+.folder-entry{grid-template-columns:24px minmax(0,1fr) 20px;--strip:var(--folder,#3ccf85);color:#36213b}
+.folder-tools{justify-content:center}.folder-tools:not(:empty){margin:8px 0}
+.arcade-footer{display:flex;justify-content:center;align-items:center;gap:8px;margin-top:10px}
+.arcade-footer .nav-hint{margin:0;text-align:center;font-weight:800;background:#fff6d9;border:2px solid #512f45;border-radius:99px;padding:5px 14px}
+.arcade-footer .btn{min-width:44px}
+#detail{max-width:1040px;margin-inline:auto;border:4px solid #3d2441;border-radius:20px;box-shadow:0 5px #733747;background:var(--arcade-paper)}
+#detail .hero{min-height:0;padding:15px 20px;background:#a62150;border-bottom:4px solid #361c39}
+#detail .hero h2{font-family:var(--f-display);font-size:clamp(21px,4vw,36px)}
+#detail .hero .file{display:none}
+.course-top{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px}
+.course-top h2{font-family:var(--f-body);font-weight:900;font-size:clamp(18px,4vw,27px)}
+.crs-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(128px,30%),1fr));gap:10px;margin-bottom:12px}
+.crs{min-width:0;display:flex;flex-direction:column;justify-content:flex-start;gap:5px;padding:8px 5px;min-height:126px;border:3px solid #35223b;background:var(--cc);text-align:center;border-radius:13px}
+.crs.is-on{background:var(--cc);border-color:#311b32;outline:4px solid #ffdb36;box-shadow:inset 0 0 0 2px white}
+.crs .nm{width:100%;background:#fff8e5e8;border-radius:7px;padding:3px 2px}
+.crs .k{width:30px;height:30px;font-size:17px;background:#fff6db;border-radius:100%;color:#3b2546}
+.crs .nm strong{font-size:clamp(11px,2.7vw,15px)}.crs .nm small{white-space:normal;overflow-wrap:anywhere;font-size:11px}
+.crs .lv{justify-items:center;color:#291833}.crs .lv small{color:#311b37}
+.crs .pips{justify-content:center}
+.ts-in{padding-inline:14px}
+.title-screen{background:radial-gradient(circle at 12px 12px,#fff8c24a 0 4px,transparent 5px) 0 0/38px 38px,linear-gradient(160deg,#fff547,#ff944e 48%,#ee4f86)}
+.title-screen .ts-logo{paint-order:stroke fill;-webkit-text-stroke:8px #371b32;text-shadow:0 7px #982a47}
+.title-screen .ts-sub,.title-screen .ts-hint,.title-screen .ts-stat,.title-screen .ts-guide{color:#3a1b38;font-weight:800}
+.title-screen .ts-start{border:4px solid #3c203b;background:#ff4a49;box-shadow:0 5px #712c44}
+.title-screen .ts-drum{border:4px solid #392339;background:#49b7c5}
+.title-screen .ts-drum i{border:4px solid #392339;background:radial-gradient(circle,#ff684e 0 54%,#fff3db 55%)}
+.result .res-head,.res .res-head{border-bottom:4px solid #ffc840}
+.dan-rank{background:#fff8d4;box-shadow:0 3px #6b304f;border:3px solid #6b304f}
+@media(max-width:650px){
+  #songlist{max-height:clamp(270px,60dvh,540px);padding-inline:9px}
+  #songlist>li{margin-bottom:10px}
+  #songlist .song,.folder-entry{border-width:3px;border-radius:12px}
+  .arcade-footer .nav-hint{font-size:11px}
+  .arcade-footer .btn{min-width:38px;padding-inline:8px}
+  .crs-list{padding-inline:10px}.crs .lv{font-size:16px}
+  .ts-in{gap:10px}
+}
+.arcade-player{display:none}
+.arcade-cta{margin:0 14px 12px;padding:8px;justify-content:center;background:#fff0c4;border:2px solid #bd7356;border-radius:12px}
+.arcade-cta .primary{min-width:min(215px,100%)}
+@media(min-width:1120px){
+  .arcade-player{display:block;position:absolute;left:0;bottom:6px;width:15%;max-width:175px;text-align:center}
+  .arcade-drum{position:relative;margin:0 auto 9px;width:85%;aspect-ratio:1.25;background:#51b8c7;border:5px solid #342337;border-radius:45% 48% 47% 43%;box-shadow:inset 8px 0 #d6f5e8,0 4px #b94c63}
+  .arcade-drum i{position:absolute;right:-5px;top:-6%;height:112%;aspect-ratio:1;border-radius:50%;border:4px solid #352334;background:radial-gradient(circle at 35% 42%,#2e1f2e 0 5%,transparent 6%),radial-gradient(circle at 66% 42%,#2e1f2e 0 5%,transparent 6%),radial-gradient(circle,#ff674b 0 51%,#fff4d6 52% 67%,#49333b 68%)}
+  .arcade-drum i::after{content:'';position:absolute;left:39%;top:52%;width:22%;height:16%;border:3px solid #382034;border-top:0;border-radius:0 0 18px 18px;background:#a12b3c}
+  .arcade-nameplate{border:3px solid #342337;border-radius:999px;background:#fff4dd;color:#321d34;font-weight:900;padding:2px 5px}
+  .arcade-nameplate b{background:#f45246;color:white;border-radius:99px;padding:1px 6px}
+}
+@media(max-height:500px){.title-screen .ts-drum{display:none}.ts-in{gap:6px}.ts-logo{font-size:clamp(38px,10vh,60px)}}
 </style>
 
 <header class="top">
@@ -519,7 +621,10 @@ body{background-color:var(--ink);background-image:repeating-linear-gradient(135d
 <main>
   <section class="pane" id="tab-select">
     <div class="select-grid">
-      <div>
+      <div class="arcade-menu" id="arcadeMenu">
+        <div class="arcade-player" aria-hidden="true"><div class="arcade-drum"><i></i></div><div class="arcade-nameplate"><b>1P</b> 重ね太鼓</div></div>
+        <div class="arcade-heading"><h2>曲をえらぶ</h2><span class="list-count num" id="listCount"></span></div>
+        <details class="arcade-catalog"><summary>検索・並び順・絞り込み</summary>
         <div class="list-head"><input id="filter" type="search" placeholder="曲名・アーティストで検索" aria-label="曲を検索"><button class="btn" id="randomBtn" title="表示中の曲からランダムに選びます">おまかせ</button></div>
         <div class="list-tools">
           <label class="sort"><span>並び順</span><select id="sortSel" aria-label="並び順">
@@ -529,11 +634,10 @@ body{background-color:var(--ink);background-image:repeating-linear-gradient(135d
           <div class="fchips" role="group" aria-label="絞り込み">
             <button data-f="all">すべて</button><button data-f="kasane">重あり</button><button data-f="unclear">未クリアあり</button><button data-f="fav">★ お気に入り</button>
           </div>
-          <span class="list-count num" id="listCount"></span>
-        </div>
+        </div></details>
         <div id="folderTools" class="folder-tools"></div>
         <ul class="songlist" id="songlist"></ul>
-        <p class="nav-hint" id="navHint"></p>
+        <div class="arcade-footer"><button class="btn" id="arcadePrev" aria-label="前の曲またはフォルダ">▲</button><p class="nav-hint" id="navHint"></p><button class="btn" id="arcadeNext" aria-label="次の曲またはフォルダ">▼</button></div>
       </div>
       <div class="detail" id="detail"></div>
     </div>
@@ -1215,7 +1319,7 @@ function showEq(){const eq=$('#detail .eq');if(eq)eq.hidden=UI.previewKey!==UI.s
 function stopPreview(){const p=preview;preview=null;UI.previewKey=null;showEq();if(p&&p.src&&AC){try{p.g.gain.cancelScheduledValues(AC.currentTime);p.g.gain.setValueAtTime(p.g.gain.value,AC.currentTime);p.g.gain.linearRampToValueAtTime(0,AC.currentTime+.25);p.src.stop(AC.currentTime+.3);}catch(e){}}}
 
 /* ================= 画面: 共通 ================= */
-function setTab(t){UI.tab=t;for(const b of document.querySelectorAll('.tab'))b.classList.toggle('is-on',b.dataset.tab===t);
+function setTab(t){if(t!=='select')UI.chooseCourse=false;UI.tab=t;for(const b of document.querySelectorAll('.tab'))b.classList.toggle('is-on',b.dataset.tab===t);
   for(const id of['select','dan','records','load','settings'])$('#tab-'+id).hidden=id!==t;refreshAll();}
 function refreshAll(){renderSongList();renderDetail();renderDans();renderRecords();renderLoad();renderSettings();}
 function crownBadge(k){return k?el('span',{class:'crown '+k},CROWN[k]):el('span',{class:'crown none'},'—');}
@@ -1255,7 +1359,7 @@ function renderRecords(){
       const best=Lib.best[c.uid],rank=rankOf(best?.score||0);
       list.append(el('button',{class:'record-row',onclick:()=>{
         UI.folder=songFolder(c.set,effectiveFolders());UI.filt='all';$('#filter').value='';
-        setTab('select');UI.selChart=c.uid;selectSet(c.set.key,false);
+        setTab('select');UI.selChart=c.uid;selectSet(c.set.key,false);showCoursePicker();
       }},el('span',{class:'record-title'},el('strong',null,c.set.title),el('small',null,c.meta.version)),
         el('span',null,chipFor(c),' ',crownBadge(best?.crown)),
         el('span',{class:'record-score num'},best?.score!=null?fmtNum(best.score):'—',rank?el('small',null,' '+rank[2]+rank[1]):null)));
@@ -1312,7 +1416,7 @@ function effectiveFolders(){
 }
 function songFolder(set,folders){return folders.assignments[set.key]||UNASSIGNED;}
 function changeFolder(id){
-  UI.folder=id;UI.selSet=null;UI.selChart=null;UI.folderCursor=0;
+  UI.chooseCourse=false;UI.folder=id;UI.selSet=null;UI.selChart=null;UI.folderCursor=0;
   stopPreview();renderSongList();renderDetail();
   $('#songlist').scrollTop=0;
 }
@@ -1372,7 +1476,7 @@ function renderFolderRows(ul,data){
   const folders=data.folders.filter(f=>f.parent===(UI.folder||''));
   if(!UI.folder)folders.push({id:UNASSIGNED,name:'未設定'});
   folders.forEach((folder,i)=>ul.append(el('li',null,
-    el('button',{class:'folder-entry'+((UI.folderCursor??(!UI.selSet?0:-1))===i?' is-on':''),onclick:()=>changeFolder(folder.id)},
+    el('button',{style:`--folder:hsl(${hashHue(folder.name)} 69% 60%)`,class:'folder-entry'+((UI.folderCursor??(!UI.selSet?0:-1))===i?' is-on':''),onclick:()=>changeFolder(folder.id)},
       el('span',{class:'folder-icon','aria-hidden':'true'}),el('strong',null,folder.name),el('span',{'aria-hidden':'true'},'›')))));
 }
 function folderMoveControl(set){
@@ -1408,39 +1512,66 @@ function pickRandom(){const sets=visibleSets();if(!sets.length){toast('表示中
   const pool=sets.length>1?sets.filter(s=>s.key!==UI.selSet):sets,s=pool[Math.floor(Math.random()*pool.length)];
   const cur=Lib.charts.find(c=>c.uid===UI.selChart),cs=sortCharts(s.charts).filter(c=>!isLocked(c));
   const same=cur&&cs.find(c=>c.course===cur.course);UI.selChart=(same||cs[cs.length-1]||s.charts[0]).uid;playSE('don');selectSet(s.key,true);
-  const li=$('#songlist .song.is-on');if(li){li.scrollIntoView({block:'nearest'});li.classList.add('picked');}}
+  const li=$('#songlist .song.is-on');if(li){alignSongStrips(true);li.classList.add('picked');}}
 function hashHue(s){let h=0;for(const ch of String(s))h=(h*31+ch.codePointAt(0))>>>0;return h%360;}
-function renderSongList(){const ul=$('#songlist');ul.innerHTML='';const folders=effectiveFolders();folderToolbar(folders);const sets=visibleSets();
+function alignSongStrips(center=false){
+  const list=$('#songlist'),rows=[...list.children];
+  const index=rows.findIndex(row=>row.matches('.is-on')||row.querySelector('.folder-entry.is-on'));
+  for(const [i,row] of rows.entries()){
+    const distance=index<0?0:Math.min(4,Math.abs(index-i));
+    row.style.setProperty('--strip-width',index===i?'98%':(92-distance*2)+'%');
+  }
+  if(center&&index>=0){
+    const row=rows[index];
+    list.scrollTop+=row.getBoundingClientRect().top-list.getBoundingClientRect().top-(list.clientHeight-row.offsetHeight)/2;
+  }
+}
+function showCoursePicker(){
+  if(waitForLibrary())return;
+  UI.chooseCourse=true;
+  renderDetail();window.scrollTo(0,0);
+  $('#detail .crs.is-on')?.focus({preventScroll:true});
+}
+function backToSongs(){
+  UI.chooseCourse=false;
+  renderSongList();renderDetail();window.scrollTo(0,0);alignSongStrips(true);
+  $('#songlist .song.is-on')?.focus({preventScroll:true});
+}
+
+function renderSongList(){const ul=$('#songlist');const scroll=ul.scrollTop;ul.innerHTML='';const folders=effectiveFolders();folderToolbar(folders);const sets=visibleSets();
   if(folders.folders.length&&!$('#filter').value.trim())renderFolderRows(ul,folders);
-  const hint=$('#navHint');if(hint)hint.textContent=`↑↓ か カ（${keyLabel(S.keys[0])}・${keyLabel(S.keys[3])}）で曲、←→ でコース、Enter か ドン（${keyLabel(S.keys[1])}・${keyLabel(S.keys[2])}）で演奏`;
+  const hint=$('#navHint');if(hint)hint.textContent=`↑↓ か カ（${keyLabel(S.keys[0])}・${keyLabel(S.keys[3])}）で移動、Enter か ドン（${keyLabel(S.keys[1])}・${keyLabel(S.keys[2])}）で決定`;
   for(const b of document.querySelectorAll('.fchips button'))b.classList.toggle('is-on',b.dataset.f===(UI.filt||'all'));
   const ss=$('#sortSel');if(ss.value!==(UI.sort||'added'))ss.value=UI.sort||'added';
   const cnt=$('#listCount');if(cnt)cnt.textContent=`${sets.length}曲`;
-  if(!sets.length){if(ul.childElementCount)return;ul.append(el('li',{class:'empty'},folders.folders.length?'このフォルダに曲はありません':$('#filter').value||UI.filt!=='all'?'条件に合う曲がありません':'右上の「.osz / CSV を追加」か、ドラッグ＆ドロップで曲を追加できます'));return;}
+  if(!sets.length){if(ul.childElementCount){alignSongStrips();ul.scrollTop=scroll;return;}ul.append(el('li',{class:'empty'},folders.folders.length?'このフォルダに曲はありません':$('#filter').value||UI.filt!=='all'?'条件に合う曲がありません':'右上の「.osz / CSV を追加」か、ドラッグ＆ドロップで曲を追加できます'));return;}
   for(const s of sets){const topC=sortCharts(s.charts).filter(c=>!isLocked(c)).pop()||s.charts[0],pl=Lib.played[s.key],fav=!!Lib.fav[s.key];
     const li=el('li',{class:'song'+(UI.selSet===s.key?' is-on':''),tabindex:'0',role:'button',style:`--sc:${COURSES[topC.course].color}`},
       el('div',{class:'song-t'},el('span',null,s.title),s.demo?el('span',{class:'tag'},'デモ'):null),
       el('div',{class:'song-a'},el('span',null,s.artist||'—'),pl?el('span',{class:'plays'},`${pl.n}回`):null),el('div',{class:'chips'},sortCharts(s.charts).map(chip)),
       el('button',{class:'fav'+(fav?' on':''),'aria-label':fav?'お気に入りから外す':'お気に入りに追加','aria-pressed':String(fav),onclick:e=>{e.stopPropagation();toggleFav(s.key);}},fav?'★':'☆'));
-    li.addEventListener('click',()=>{if(UI.selSet!==s.key){UI.gesture=true;ensureAudio();playSE('ka');}selectSet(s.key,true);});
-    li.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();if(e.key==='Enter'&&UI.selSet===s.key)menuDecide();else selectSet(s.key,true);}});ul.append(li);}}
+    li.addEventListener('click',()=>{selectSet(s.key,true);showCoursePicker();});
+    li.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();if(e.key==='Enter'&&UI.selSet===s.key)menuDecide();else{selectSet(s.key,true);showCoursePicker();}}});ul.append(li);}
+  alignSongStrips();ul.scrollTop=scroll;}
 function selectSet(key,user){UI.folderCursor=null;const changed=UI.selSet!==key;UI.selSet=key;const s=Lib.sets.find(x=>x.key===key);if(!s)return;
   if(!s.charts.some(c=>c.uid===UI.selChart)){const sc=sortCharts(s.charts);UI.selChart=(sc.filter(c=>!isLocked(c)).pop()||sc[0]).uid;}
   if(user&&(changed||!preview)){UI.gesture=true;ensureAudio();playPreview(s.charts[0]);}renderSongList();renderDetail();}
 function menuMove(dSong,dCourse){
+  if(dCourse&&!UI.chooseCourse){menuMove(dCourse,0);return;}
   const sets=visibleSets(),folders=[...document.querySelectorAll('#songlist .folder-entry')];
   if(dSong&&folders.length&&(UI.folderCursor!=null||!sets.length)){
     const current=UI.folderCursor??0,next=current+dSong;
     if(next>=folders.length&&sets.length){UI.folderCursor=null;selectSet(sets[0].key,true);return;}
     UI.folderCursor=(next+folders.length)%folders.length;renderSongList();renderDetail();
-    $('#songlist .folder-entry.is-on')?.scrollIntoView({block:'nearest'});return;
+    alignSongStrips(true);return;
   }
   if(dSong<0&&folders.length&&sets[0]?.key===UI.selSet){UI.folderCursor=folders.length-1;renderSongList();renderDetail();return;}
   if(!sets.length)return;UI.gesture=true;ensureAudio();
+  if(dSong&&UI.chooseCourse){menuMove(0,dSong);return;}
   if(dSong){let i=sets.findIndex(s=>s.key===UI.selSet);i=i<0?0:(i+dSong+sets.length)%sets.length;playSE('ka');selectSet(sets[i].key,true);
-    const li=$('#songlist .song.is-on');if(li)li.scrollIntoView({block:'nearest'});return;}
+    alignSongStrips(true);return;}
   const s=sets.find(x=>x.key===UI.selSet);if(!s)return;const cs=sortCharts(s.charts);let i=cs.findIndex(c=>c.uid===UI.selChart);i=clamp(i+dCourse,0,cs.length-1);
-  if(cs[i].uid!==UI.selChart){UI.selChart=cs[i].uid;playSE('ka');renderDetail();}}
+  if(cs[i].uid!==UI.selChart){UI.selChart=cs[i].uid;playSE('ka');renderDetail();$('#detail .crs.is-on')?.focus({preventScroll:true});}}
 function adjSpeed(d){S.speed=Math.round(clamp(S.speed+d,.5,4)*10)/10;saveS();renderDetail();renderSettings();}
 function optRow(){const o=S.opt;const set=(fn)=>()=>{fn();saveS();UI.gesture=true;ensureAudio();playSE('ka');renderDetail();};
   const seg=(label,val)=>el('button',{class:'opt'+(o.rand===val?' is-on':''),'aria-pressed':String(o.rand===val),onclick:set(()=>{o.rand=val;})},label);
@@ -1467,8 +1598,9 @@ function pracBlock(c,dc){const max=Math.ceil(c.length/500)*500;let P=UI.prac;if(
   det.addEventListener('toggle',()=>{UI.pracOpen=det.open;upd();});requestAnimationFrame(upd);return det;}
 async function startPractice(c,p){if(waitForLibrary())return;ensureAudio();D=null;await runSong(c,p);}
 function menuDecide(){if(waitForLibrary())return;
-  const folder=$('#songlist .folder-entry.is-on')||(!visibleSets().length&&$('#songlist .folder-entry'));if(folder){folder.click();return;}
-  const visible=visibleSets();if(!visible.some(s=>s.key===UI.selSet)){const first=visible[0];if(first)selectSet(first.key,true);return;}const s=Lib.sets.find(x=>x.key===UI.selSet);if(!s)return;const c=s.charts.find(x=>x.uid===UI.selChart);if(!c)return;
+  const folder=!UI.chooseCourse&&($('#songlist .folder-entry.is-on')||(!visibleSets().length&&$('#songlist .folder-entry')));if(folder){folder.click();return;}
+  const visible=visibleSets();if(!visible.some(s=>s.key===UI.selSet)){const first=visible[0];if(!first)return;selectSet(first.key,true);}
+  if(!UI.chooseCourse){showCoursePicker();return;}const s=Lib.sets.find(x=>x.key===UI.selSet);if(!s)return;const c=s.charts.find(x=>x.uid===UI.selChart);if(!c)return;
   UI.gesture=true;ensureAudio();playSE('don');if(isLocked(c)){UI.danMode='kasane';setTab('dan');}else startNormal(c);}
 function drawDensity(cvd,c,sel){if(!cvd.isConnected)return;const r=cvd.getBoundingClientRect();const w=Math.max(10,r.width),h=Math.max(10,r.height),dpr=Math.min(2,devicePixelRatio||1);
   cvd.width=Math.round(w*dpr);cvd.height=Math.round(h*dpr);const x=cvd.getContext('2d');x.scale(dpr,dpr);
@@ -1555,8 +1687,9 @@ function paintSealSprite(c,x,y,r,side,alpha,pn){if(!side)return;
     c.strokeStyle=i%4===0?'#ff5376':'#ff234f';c.lineWidth=Math.max(1.2,r*.035);c.strokeRect(px-w/2,py-h/2,w,h);}
   c.restore();}
 
-function renderDetail(){const d=$('#detail');d.innerHTML='';const s=UI.folderCursor==null?visibleSets().find(x=>x.key===UI.selSet):null;
-  if(!s){d.append(el('div',{class:'empty',style:'margin:16px'},'左の一覧から曲を選んでください'));return;}
+function renderDetail(){const d=$('#detail');$('#arcadeMenu').hidden=!!UI.chooseCourse;d.hidden=!UI.chooseCourse;if(d.hidden)return;d.innerHTML='';const s=UI.folderCursor==null?visibleSets().find(x=>x.key===UI.selSet):null;
+  if(!s){UI.chooseCourse=false;$('#arcadeMenu').hidden=false;d.hidden=true;return;}
+  d.append(el('div',{class:'course-top'},el('button',{class:'btn',onclick:backToSongs},'↶ もどる'),el('h2',null,'むずかしさをえらぶ')));
   const hero=el('div',{class:'hero'+(s.bgUrl?'':' gen'),style:`--hue:${hashHue(s.title)}`},el('span',{class:'eq',hidden:UI.previewKey!==s.key||null,title:'試聴中','aria-label':'試聴中'},el('i'),el('i'),el('i'),el('i')),el('div',{class:'eyebrow'},s.demo?'デモ曲':'.osz'),el('h2',null,s.title),el('div',{class:'art'},s.artist||''),s.demo?null:el('div',{class:'file'},s.file+'.osz'));
   if(s.bgUrl)hero.style.setProperty('--bgimg',`url("${s.bgUrl}")`);d.append(hero);
   const folderControl=folderMoveControl(s);if(folderControl)d.append(folderControl);
@@ -1566,9 +1699,10 @@ function renderDetail(){const d=$('#detail');d.innerHTML='';const s=UI.folderCur
       el('span',{class:'k'},C.k),el('span',{class:'nm'},el('strong',null,C.jp+(locked?'（封印中）':''),' ',sealBadge(c)),el('small',null,c.meta.version+(c.stats.chords?` ・ 最大${c.stats.maxLanes}レーン`:'')),
         el('span',{class:'pips','aria-hidden':'true'},Array.from({length:Math.max(10,Math.floor(c.level||0))},(_,i)=>el('i',{class:i<(c.level||0)?'on':''})))),
       el('span',{class:'lv'},levelText(c),el('small',null,crownOf(c)||(Lib.best[c.uid]?fmtNum(Lib.best[c.uid].score):''))));
-    b.addEventListener('click',()=>{if(UI.selChart!==c.uid){UI.gesture=true;ensureAudio();playSE('ka');}UI.selChart=c.uid;renderDetail();});list.append(b);}
+    b.addEventListener('click',()=>{if(UI.selChart!==c.uid){UI.gesture=true;ensureAudio();playSE('ka');}if(UI.selChart===c.uid){menuDecide();return;}UI.selChart=c.uid;renderDetail();});list.append(b);}
   d.append(list);
   const c=s.charts.find(x=>x.uid===UI.selChart);if(!c)return;
+  const actions=el('div',{class:'play-row arcade-cta'});d.append(actions);
   const bpm=c.bpm[0]===c.bpm[1]?`${c.bpm[0]}`:`${c.bpm[0]}–${c.bpm[1]}`;
   d.append(el('dl',{class:'stats'},
     el('div',null,el('dt',null,'ノーツ'),el('dd',null,fmtNum(c.stats.notes))),
@@ -1584,12 +1718,12 @@ function renderDetail(){const d=$('#detail');d.innerHTML='';const s=UI.folderCur
   const best=Lib.best[c.uid];
   if(isLocked(c)){const dan=danForChart(c);
     d.append(el('div',{class:'notice'},`この重譜面は「${dan?dan.name:'重段位'}」に合格すると通常プレイで遊べます。`));
-    d.append(el('div',{class:'play-row'},el('button',{class:'btn gold',onclick:()=>{UI.danMode='kasane';setTab('dan');}},'段位道場へ')));return;}
+    actions.append(el('button',{class:'btn gold',onclick:()=>{UI.danMode='kasane';setTab('dan');}},'段位道場へ'));return;}
   if(c.course==='kasane')d.append(el('div',{class:'notice'},`縦に並んだノーツは、並んだ数と色どおりにキーを同時押し。数が合わないとその列は全部不可です。±${TOKU_WIN}ms で揃うと特良。`));
   if(S.auto)d.append(el('div',{class:'notice'},'オート演奏がオンです（記録されません）。'));
-  d.append(el('div',{class:'play-row'},el('button',{class:'btn primary',id:'playBtn',onclick:()=>{UI.gesture=true;startNormal(c);}},'演奏開始'),
-    el('span',{class:'keys-hint'},el('kbd',null,keyLabel(S.keys[0])),' ',el('kbd',null,keyLabel(S.keys[1])),' ',el('kbd',null,keyLabel(S.keys[2])),' ',el('kbd',null,keyLabel(S.keys[3])),' カ ドン ドン カ'),
-    best?el('span',{class:'keys-hint num'},`ベスト ${fmtNum(best.score)}`):null));}
+  actions.append(el('button',{class:'btn primary',id:'playBtn',onclick:()=>{UI.gesture=true;startNormal(c);}},'演奏開始'),
+    el('span',{class:'keys-hint'},el('kbd',null,keyLabel(S.keys[0])),' ',el('kbd',null,keyLabel(S.keys[1])),' ',el('kbd',null,keyLabel(S.keys[2])),' ',el('kbd',null,keyLabel(S.keys[3])),' カ ドン ドン カ'));
+  if(best)actions.append(el('span',{class:'keys-hint num'},`ベスト ${fmtNum(best.score)}`));}
 
 function renderDans(){const box=$('#danlist');if(!box)return;box.innerHTML='';
   const period=monthlyPeriod();
@@ -1883,7 +2017,7 @@ function showDanResult(){cancelAnimationFrame(rafId);rafId=0;if(!D)return;const 
         D.conds.length?el('div',{class:'tbl-wrap'},el('table',null,el('thead',null,el('tr',null,el('th',null,'条件'),el('th',null,'結果'),el('th',null,'合格'),el('th',null,'金合格'))),rows)):null)),
     el('div',{class:'ov-btns'},el('button',{class:'btn primary',onclick:()=>{const dd=d;$('#result').hidden=true;closeStage();startDan(dd);}},'もう一度挑戦'),
       el('button',{class:'btn',onclick:()=>{closeStage();setTab('dan');}},'段位道場へ'),
-      red&&!D.auto&&unlockC?el('button',{class:'btn gold',onclick:()=>{closeStage();UI.folder=songFolder(unlockC.set,effectiveFolders());UI.filt='all';$('#filter').value='';setTab('select');UI.selChart=unlockC.uid;selectSet(unlockC.set.key,false);}},'解禁した譜面を見る'):null));
+      red&&!D.auto&&unlockC?el('button',{class:'btn gold',onclick:()=>{closeStage();UI.folder=songFolder(unlockC.set,effectiveFolders());UI.filt='all';$('#filter').value='';setTab('select');UI.selChart=unlockC.uid;selectSet(unlockC.set.key,false);showCoursePicker();}},'解禁した譜面を見る'):null));
   $('#result').hidden=false;UI.resultAt=performance.now();countUp(scoreEl,st.score,1300);if(red)setTimeout(()=>playJingle('danpass'),350);else if(!D.failCond)setTimeout(()=>playJingle('danfail'),350);}
 
 /* ---------- 描画 ---------- */
@@ -1902,8 +2036,9 @@ function computeLayout(){const W=view.W,H=view.H;const gw=clamp(W*.4,130,440);vi
   view.bigDan=!!D&&W>=900&&H>=620;
   const N=G.lanes,hudH=84,gap=36,below=D?(view.bigDan?96+D.conds.length*46:160):66;
   const avail=Math.max(100,H-hudH-gap-below-10);const laneH=clamp(Math.min(avail/N,N===1?104:88,W*.19),40,104);const fieldH=laneH*N;
-  const top=hudH+gap+Math.max(0,(avail-fieldH)*.4);const r=laneH*.33;const judgeX=Math.max(clamp(W*.2,96,250),r*1.55+6+66);
-  view.L={laneH,fieldH,top,r,judgeX,panelW:judgeX-r*1.55-6};}
+  const top=Math.min(hudH+gap+Math.max(0,(avail-fieldH)*.4),Math.max(80,H*.25));const r=laneH*.33;const judgeX=Math.max(clamp(W*.2,96,250),r*1.55+6+66);
+  view.L={laneH,fieldH,top,r,judgeX,panelW:judgeX-r*1.55-6};
+  if(!S.falling)view.gauge={x:Math.max(96,W-gw-40),y:top-25,w:Math.min(gw,W-125),h:14};}
 function rr(c,x,y,w,h,r){c.beginPath();if(c.roundRect)c.roundRect(x,y,w,h,r);else c.rect(x,y,w,h);}
 function fit(c,s,maxW){if(maxW<=0)return'';if(c.measureText(s).width<=maxW)return s;let lo=0,hi=s.length;while(lo<hi){const m=(lo+hi+1)>>1;if(c.measureText(s.slice(0,m)+'…').width<=maxW)lo=m;else hi=m-1;}return s.slice(0,lo)+'…';}
 function cover(c,img,W,H){const s=Math.max(W/img.naturalWidth,H/img.naturalHeight);const w=img.naturalWidth*s,h=img.naturalHeight*s;c.drawImage(img,(W-w)/2,(H-h)/2,w,h);}
@@ -1929,13 +2064,51 @@ function bgPattern(){if(bgPat)return bgPat;const t=document.createElement('canva
   fan(0,16);fan(64,16);fan(32,32);fan(0,48);fan(64,48);bgPat=ctx.createPattern(t,'repeat');return bgPat;}
 /* 動かない背景（地・模様・背景画像・空・月・周辺減光）は1枚にまとめて使い回す */
 let bgCache=null;
-function buildBgCache(){const W=view.W,H=view.H,dpr=view.dpr||1,cc=document.createElement('canvas');cc.width=Math.max(1,Math.round(W*dpr));cc.height=Math.max(1,Math.round(H*dpr));
-  const c=cc.getContext('2d');c.scale(dpr,dpr);c.fillStyle='#0c1024';c.fillRect(0,0,W,H);const pat=bgPattern();if(pat){c.fillStyle=pat;c.fillRect(0,0,W,H);}
-  const img=G&&G.bgImg&&G.bgImg.complete&&G.bgImg.naturalWidth?G.bgImg:null;if(img){c.globalAlpha=.16;cover(c,img,W,H);c.globalAlpha=1;}
-  const L=view.L;if(L){const sb=L.top-8;if(sb>=40){const sg=c.createLinearGradient(0,0,0,sb);sg.addColorStop(0,'rgba(8,10,30,0)');sg.addColorStop(1,'rgba(70,34,92,.5)');c.fillStyle=sg;c.fillRect(0,0,W,sb);
-      if(sb>200){const mx=W*.8,my=Math.max(118,sb*.42),mr=Math.min(30,sb*.1);const mg=c.createRadialGradient(mx,my,mr*.6,mx,my,mr*3.2);mg.addColorStop(0,'rgba(255,240,200,.22)');mg.addColorStop(1,'rgba(255,240,200,0)');
-        c.fillStyle=mg;c.fillRect(mx-mr*3.2,my-mr*3.2,mr*6.4,mr*6.4);c.beginPath();c.arc(mx,my,mr,0,TAU);c.fillStyle='#f6ecd0';c.fill();c.beginPath();c.arc(mx+mr*.38,my-mr*.22,mr*.92,0,TAU);c.fillStyle='rgba(12,16,36,.88)';c.fill();}}}
-  const v=c.createLinearGradient(0,0,0,H);v.addColorStop(0,'rgba(5,7,18,.7)');v.addColorStop(.2,'rgba(5,7,18,0)');v.addColorStop(.8,'rgba(5,7,18,0)');v.addColorStop(1,'rgba(5,7,18,.65)');c.fillStyle=v;c.fillRect(0,0,W,H);
+function buildBgCache(){const W=view.W,H=view.H,dpr=view.dpr||1,cc=document.createElement('canvas');
+  cc.width=Math.max(1,Math.round(W*dpr));cc.height=Math.max(1,Math.round(H*dpr));
+  const c=cc.getContext('2d');c.scale(dpr,dpr);
+  const L=view.L,roof=L.top+L.fieldH+9;
+  const upper=c.createLinearGradient(0,0,0,L.top);
+  upper.addColorStop(0,'#c82357');upper.addColorStop(1,'#841744');
+  c.fillStyle=upper;c.fillRect(0,0,W,H);
+  // Draw the paper fans and stalls once per layout.
+  c.save();c.beginPath();c.rect(0,0,W,L.top);c.clip();
+  for(let i=-1;i<=Math.ceil(W/110);i++){
+    const x=i*110,y=i%2?12:66,r=44;
+    c.beginPath();c.arc(x,y,r,0,TAU);
+    c.fillStyle=i%2?'#f877a1':'#fcefca';c.fill();
+    c.lineWidth=1;c.strokeStyle=i%2?'#ffd7d5':'#cc3560';
+    for(let spoke=0;spoke<24;spoke++){
+      const a=spoke*TAU/24;c.beginPath();c.moveTo(x,y);c.lineTo(x+Math.cos(a)*r,y+Math.sin(a)*r);c.stroke();
+    }
+    c.beginPath();c.arc(x,y,r*.26,0,TAU);c.fillStyle='#a62053';c.fill();
+  }
+  c.restore();
+  const img=G?.bgImg?.complete&&G.bgImg.naturalWidth?G.bgImg:null;
+  c.fillStyle='#982d35';c.fillRect(0,roof,W,Math.max(0,H-roof));
+  if(img&&H>roof){
+    c.save();c.beginPath();c.rect(0,roof,W,H-roof);c.clip();c.translate(0,roof);
+    c.globalAlpha=.27;cover(c,img,W,H-roof);c.restore();
+  }
+  const floor=Math.max(roof,H-34);
+  for(let x=0,index=0;x<W;x+=116,index++){
+    c.fillStyle=index%2?'#d65135':'#bc3b2b';c.fillRect(x,roof+16,115,Math.max(0,floor-roof-16));
+    const height=Math.max(0,Math.min(150,(floor-roof)*.65));
+    const window=c.createLinearGradient(0,roof+28,0,roof+29+height);
+    window.addColorStop(0,'#ffe298');window.addColorStop(.4,'#e99a55');window.addColorStop(1,'#642c39');
+    c.fillStyle='#671f32';c.fillRect(x+6,roof+28,104,height+6);
+    c.fillStyle=window;c.fillRect(x+9,roof+30,98,height);
+    for(let beam=0;beam<3;beam++){c.fillStyle='#792338';c.fillRect(x+9+beam*48,roof+29,3,height);}
+    c.fillStyle='#b6523d';c.fillRect(x+6,roof+29+height,104,7);
+    c.fillStyle='#9f202e';c.fillRect(x+6,roof+16,103,10);
+    c.fillStyle='#ffdb97';rr(c,x+47,roof+6,23,19,6);c.fill();
+    c.strokeStyle='#b74142';c.lineWidth=2;c.stroke();
+  }
+  c.fillStyle='#601e37';c.fillRect(0,roof,W,9);
+  c.fillStyle='#ffcf52';c.fillRect(0,roof+9,W,3);
+  for(let x=0,i=0;x<W;x+=22,i++){
+    c.fillStyle=i%2?'#fff0c2':'#e64748';c.fillRect(x,floor,22,34);
+  }
   return{c:cc,W,H,L:view.L,img:!!img,g:G};}
 function drawBackdrop(pn,beat,k){const c=ctx,W=view.W,H=view.H,scene=!!(G&&view.L);
   if(!scene){c.fillStyle='#0c1024';c.fillRect(0,0,W,H);const pat=bgPattern();if(pat){c.save();c.translate(-(REDUCED?0:(pn*.012)%64),0);c.fillStyle=pat;c.fillRect(0,0,W+64,H);c.restore();}
@@ -2173,8 +2346,8 @@ function draw(now){const c=ctx,W=view.W,H=view.H,L=view.L,g=G;if(!L)return;const
   // 1小節の長さ(px)。狭い画面でも音符同士が重なりすぎないよう下限を設ける
   const N=g.lanes,lh=L.laneH,top=L.top,fh=L.fieldH,jx=L.judgeX,r=L.r,sp=S.speed*Math.max(W-jx,lh*7.5),fx=g.fx;
   // レーン
-  c.fillStyle='#05070f';c.fillRect(0,top-8,W,fh+16);
-  const lg=c.createLinearGradient(0,top,0,top+fh);lg.addColorStop(0,'#262b4f');lg.addColorStop(1,'#181c38');c.fillStyle=lg;c.fillRect(0,top,W,fh);
+  c.fillStyle='#291b2b';c.fillRect(0,top-8,W,fh+16);
+  const lg=c.createLinearGradient(0,top,0,top+fh);lg.addColorStop(0,'#353238');lg.addColorStop(1,'#242329');c.fillStyle=lg;c.fillRect(0,top,W,fh);
   if(k>.01){const kg=c.createLinearGradient(0,top,0,top+fh);kg.addColorStop(0,`rgba(255,96,40,${.34*k})`);kg.addColorStop(1,`rgba(242,188,61,${.12*k})`);c.fillStyle=kg;c.fillRect(0,top,W,fh);}
   for(const role of ROLES){const dt=pn-(g.flash[role]||-1e9);if(dt>170)continue;const a=(1-dt/170)*.32,col=ROLE_COLOR[role]==='d'?'238,74,43':'60,178,219';
     const fg=c.createLinearGradient(jx-r*1.4,0,jx+(W-jx)*.6,0);fg.addColorStop(0,`rgba(${col},${a})`);fg.addColorStop(1,`rgba(${col},0)`);c.fillStyle=fg;c.fillRect(L.panelW,top,W,fh);}
@@ -2280,6 +2453,7 @@ function drawRollCounter(now,pn){const c=ctx,L=view.L,g=G;let ro=null;for(const 
   c.textAlign='right';c.fillStyle='#7a3b0c';c.font=`24px ${FD}`;c.fillText(String(ro.count),4,8);c.textAlign='left';c.font=`700 13px ${FB}`;c.fillText('打',8,7);
   c.font=`600 11px ${FN}`;c.fillStyle='#a8641a';c.fillText(rate.toFixed(1)+'/s',26,7);c.restore();}
 function drawHud(now,pn){const c=ctx,W=view.W,g=G,C=COURSES[g.chart.course],gz=view.gauge;
+  if(!S.falling){drawArcadeHud(now,pn);return;}
   const hb=c.createLinearGradient(0,0,0,96);hb.addColorStop(0,'rgba(7,9,22,.95)');hb.addColorStop(1,'rgba(7,9,22,0)');c.fillStyle=hb;c.fillRect(0,0,W,96);
   c.fillStyle='rgba(242,236,220,.08)';c.fillRect(0,0,W,3);c.fillStyle=C.color;c.fillRect(0,0,W*clamp(now/Math.max(1,g.chart.length),0,1),3);
   c.font=`700 13px ${FB}`;const lab=`${C.jp} ${levelText(g.chart)}`,bw=c.measureText(lab).width+18;rr(c,16,14,bw,25,6);c.fillStyle=C.color;c.fill();
@@ -2296,6 +2470,28 @@ function drawHud(now,pn){const c=ctx,W=view.W,g=G,C=COURSES[g.chart.course],gz=v
     if(na<500){c.save();c.globalAlpha=1-na/500;rr(c,gz.x-6,gz.y-6,gz.w+12,gz.h+12,9);c.strokeStyle='#ffe58a';c.lineWidth=3;c.stroke();c.restore();}}
   if(clearV>0){const mx=gz.x+gz.w*clearV;c.font=`700 10px ${FB}`;c.fillStyle=v>=clearV?'#f2bc3d':'#a2a8ca';c.textAlign='center';c.fillText(D?'合格':'クリア',mx,gz.y+gz.h+14);}
   c.font=`600 12px ${FN}`;c.fillStyle='#a2a8ca';c.textAlign='right';c.fillText(`${D?'段位 ':''}魂 ${(st.gauge/100).toFixed(1)}%`,view.H<=520?W-130:W-16,gz.y+gz.h+32);c.textAlign='left';}
+function drawArcadeHud(now,pn){
+  const c=ctx,W=view.W,g=G,L=view.L,C=COURSES[g.chart.course],st=D?D.st:g.st;
+  c.save();
+  const progress=clamp(now/Math.max(1,g.chart.length),0,1);
+  c.fillStyle='#5e1740';c.fillRect(0,0,W,5);
+  c.fillStyle='#ffd75f';c.fillRect(0,0,W*progress,5);
+  const label=C.jp+' '+levelText(g.chart);
+  c.font=`800 13px ${FB}`;
+  const badgeWidth=c.measureText(label).width+16;
+  rr(c,10,12,badgeWidth,23,5);c.fillStyle=C.color;c.fill();
+  c.fillStyle='#28172a';c.fillText(label,18,28);
+  c.font=`900 ${W<540?15:24}px ${FB}`;
+  c.textAlign='right';c.lineJoin='round';c.lineWidth=5;c.strokeStyle='#38182c';c.fillStyle='#fff8e4';
+  const title=fit(c,g.chart.set.title,W-badgeWidth-31);
+  c.strokeText(title,W-12,30);c.fillText(title,W-12,30);
+  g.disp+=(st.score-g.disp)*.2;if(Math.abs(st.score-g.disp)<1)g.disp=st.score;
+  c.textAlign='left';c.font=`900 ${W<540?15:24}px ${FN}`;
+  c.strokeText(fmtNum(g.disp),11,L.top-12);c.fillText(fmtNum(g.disp),11,L.top-12);
+  const condition=D?.conds.find(x=>x.key==='gauge');
+  drawGauge(st.gauge/10000,condition?condition.red.v/100:CLEAR[g.chart.course]/10000,pn);
+  c.restore();
+}
 function drawGauge(v,clearV,pn){const c=ctx,{x,y,w,h}=view.gauge,full=v>=.9999;
   rr(c,x-3,y-3,w+6,h+6,7);c.fillStyle='#05070f';c.fill();rr(c,x,y,w,h,4);c.fillStyle='#1d2242';c.fill();
   const n=Math.max(16,Math.round(w/10)),sw=w/n;
@@ -2466,7 +2662,7 @@ function renderGuide(){const b=$('#howtoBody');b.innerHTML='';const K=S.keys.map
   const ex=(cols,note)=>el('div',{class:'gex'},stack(cols),el('span',{class:'garrow'},'→'),el('span',{class:'gkeys'},need(cols)),note?el('small',null,note):null);
   const sec=(h,...kids)=>el('section',{class:'gsec'},el('h3',null,h),...kids);
   b.append(
-    sec('基本',el('p',null,'左から流れてくる音符が判定枠に重なったら叩きます。赤い「ドン」は太鼓の面、青い「カッ」はふち。'),
+    sec('基本',el('p',null,'右から流れてくる音符が判定枠に重なったら叩きます。赤い「ドン」は太鼓の面、青い「カッ」はふち。'),
       el('div',{class:'gdrum'},[0,1,2,3].map(i=>el('div',{class:'gkey '+(ROLE_COLOR[ROLES[i]]==='d'?'d':'k')},el('b',null,K[i]),el('small',null,ROLE_JP[i===0?'kaL':i===1?'donL':i===2?'donR':'kaR'])))),
       el('p',null,'大きい音符は、ふつうの曲ではどちらか1つのキーで叩けます。黄色い帯は連打、オレンジの風船はドンで割ります。キーは「設定」で変えられます。')),
     sec('重（かさね）ノーツ',el('p',null,'同じ時刻に音符が重なっていると、縦に並んで流れてきます。並んだドンの数とカッの数のとおりに、同時に叩きます。'),
@@ -2502,6 +2698,8 @@ $('#danKasane').addEventListener('click',()=>{UI.danMode='kasane';renderDans();}
 $('#filter').addEventListener('input',()=>{UI.folderCursor=null;renderSongList();renderDetail();});
 $('#sortSel').addEventListener('change',e=>{UI.sort=e.target.value;saveUIPrefs();renderSongList();});
 for(const b of document.querySelectorAll('.fchips button'))b.addEventListener('click',()=>{UI.filt=b.dataset.f;saveUIPrefs();renderSongList();renderDetail();});
+$('#arcadePrev').addEventListener('click',()=>menuMove(-1,0));
+$('#arcadeNext').addEventListener('click',()=>menuMove(1,0));
 $('#randomBtn').addEventListener('click',pickRandom);
 $('#fileIn').addEventListener('change',e=>{addFiles([...e.target.files]);e.target.value='';});
 async function addFiles(files){libraryImports++;try{let added=0;
@@ -2554,6 +2752,7 @@ window.addEventListener('keydown',e=>{
   if(e.defaultPrevented||UI.tab!=='select'||e.ctrlKey||e.metaKey||e.altKey)return;
   const ae=document.activeElement,tag=ae?ae.tagName:'';if(/^(INPUT|TEXTAREA|SELECT)$/.test(tag))return;
   const ki=S.keys.indexOf(e.code);
+  if((e.key==='Escape'||e.key==='Backspace')&&UI.chooseCourse){e.preventDefault();backToSongs();return;}
   if((e.key==='Escape'||e.key==='Backspace')&&UI.folder){e.preventDefault();changeFolder(effectiveFolders().folders.find(f=>f.id===UI.folder)?.parent||'');return;}
   if(e.key==='ArrowUp'||ki===0){e.preventDefault();menuMove(-1,0);}
   else if(e.key==='ArrowDown'||ki===3){e.preventDefault();menuMove(1,0);}
@@ -2698,7 +2897,10 @@ $('#fetchGithub').addEventListener('click',()=>loadRepositorySongs(true));
     for(const{name,data}of saved){try{const s=await loadOsz(name,data);s.storeName=name;n++;}catch(e){Lib.loadWarn.push(`${name}: ${e.message}`);}}
     if(n){resolveAll();const first=Lib.sets.find(s=>!s.demo);if(first)UI.selSet=first.key;UI.selChart=null;}}
   try{await loadRepositorySongs();}finally{libraryBooting=false;finishLibraryWait();}
-  const s=Lib.sets.find(x=>x.key===UI.selSet);if(s)selectSet(s.key,false);refreshAll();renderTitleStat();
+  const folders=effectiveFolders();
+  if(folders.folders.length){UI.selSet=null;UI.selChart=null;UI.folderCursor=0;}
+  else{const first=visibleSets()[0];if(first)selectSet(first.key,false);}
+  refreshAll();renderTitleStat();
 })();
 </script>
 
