@@ -669,6 +669,31 @@ body{min-height:100dvh;animation:arcade-wallpaper 12s linear infinite}
 #songlist .song .chips{display:flex;margin-top:4px}
 #songlist .chips .chip:not(.is-missing){border-color:var(--cc)}
 #songlist .chip.is-missing{opacity:.53;background:#ded0cd}
+/* 難易度タイル（かんたん/ふつう/むずかしい/おに ＋ ★）。裏・重は右端に小さく詰める */
+#songlist .song .chips{display:flex;flex-wrap:nowrap;gap:clamp(3px,.9vw,8px);justify-content:center;align-items:stretch;margin-top:10px}
+.dtile{position:relative;flex:1 1 0;min-width:0;display:flex;align-items:stretch;border-radius:7px;overflow:visible;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--cc),white 22%),var(--cc));
+  border:2px solid color-mix(in srgb,var(--cc),#000 38%);box-shadow:inset 0 0 0 1px #fff7;color:#fff;
+  font-weight:900;text-shadow:0 1px 0 #0006,0 0 3px #0005}
+.dtile .dl{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:3px 0 2px 1px;overflow:hidden}
+.dtile .di{font-style:normal;display:grid;place-items:center;width:clamp(20px,3.6vw,30px);height:clamp(20px,3.6vw,30px);
+  border-radius:50%;background:#fff3;font-size:clamp(12px,2.2vw,18px);line-height:1;text-shadow:0 1px 0 #0007}
+.dtile .dl em{font-style:normal;font-size:clamp(7px,1.35vw,10px);line-height:1.1;white-space:nowrap;letter-spacing:-.06em}
+.dtile .dv{flex:0 0 auto;min-width:clamp(26px,5vw,40px);display:flex;align-items:center;justify-content:center;gap:1px;margin:3px 3px 3px 0;border-radius:5px;
+  background:color-mix(in srgb,var(--cc),#000 42%);box-shadow:inset 0 2px 3px #0004;padding:0 4px}
+.dtile .dv small{font-size:clamp(9px,1.7vw,13px);font-weight:900}
+.dtile .dv b{font-family:var(--f-num);font-weight:800;font-size:clamp(14px,2.8vw,22px);line-height:1;letter-spacing:-.04em}
+.dtile .cr{position:absolute;top:-9px;right:-3px;font-size:12px;line-height:1;text-shadow:none;filter:drop-shadow(0 1px 0 #0008)}
+.dtile .seal-badge{position:absolute;bottom:-8px;left:2px;font-size:9px;padding:0 4px;border-radius:4px;background:#2a1d30;color:#ffe14d;text-shadow:none}
+.dtile.is-missing{filter:grayscale(1) brightness(1.1);opacity:.5}
+.dtile.locked{background:repeating-linear-gradient(135deg,#0002 0 6px,transparent 6px 12px),var(--cc);filter:saturate(.6)}
+/* 裏・重: 詰めた小型タイル（ラベル1文字・縦積み） */
+.dtile.dx{flex:0 0 auto;flex-direction:column;align-items:stretch;min-width:0}
+.dtile.dx .dl{flex-direction:row;gap:2px;padding:2px 4px 0}
+.dtile.dx .di{display:none}
+.dtile.dx .dl em{font-size:clamp(11px,2.2vw,15px)}
+.dtile.dx .dv{margin:0 3px 3px;min-width:clamp(26px,5vw,38px)}
+.dtile.dx .dv b{font-size:clamp(13px,2.6vw,19px)}
 .crs:disabled{filter:saturate(.3) brightness(.76);cursor:default}
 .crs.is-on:disabled::after{display:none}
 .course-rims{justify-content:center;margin:5px 14px 10px}
@@ -1610,12 +1635,21 @@ function visibleCourses(set){
   const oni=UI.oniCourse||(ONI_COURSES.includes(selected?.course)?selected.course:'oni');
   return [...BASE_COURSES.slice(0,3),oni];
 }
+const COURSE_ICON={easy:'梅',normal:'竹',hard:'松',oni:'鬼',ura:'裏',kasane:'重'};
+function diffTile(course,c,extra){
+  const C=COURSES[course],locked=c&&isLocked(c);
+  const lv=!c?'–':locked?'封':levelText(c).replace(/^★/,'');
+  const crown=c&&!locked&&crownOf(c);
+  return el('span',{class:'dtile'+(extra?' dx':'')+(!c?' is-missing':'')+(locked?' locked':''),style:`--cc:${C.color}`,title:C.jp},
+    el('span',{class:'dl'},el('i',{class:'di'},COURSE_ICON[course]),el('em',null,extra?(course==='ura'?'裏':'重'):C.jp)),
+    el('span',{class:'dv'},(c&&!locked&&c.course!=='kasane')?el('small',null,'★'):null,el('b',null,lv)),
+    crown?el('span',{class:'cr'},crown):null,
+    c?sealBadge(c):null);
+}
 function songChips(set){
-  const special=['ura','kasane'].map(course=>chartForSlot(set,course)).filter(Boolean).map(chip);
-  const standard=BASE_COURSES.map(course=>{
-    const c=chartForSlot(set,course), C=COURSES[course];
-    return c?chip(c):el('span',{class:'chip is-missing',style:`--cc:${C.color}`},C.jp,el('b',null,'–'));
-  });
+  const standard=BASE_COURSES.map(course=>diffTile(course,chartForSlot(set,course),false));
+  /* 裏・重はおにの右に詰めて表示する */
+  const special=['ura','kasane'].map(course=>chartForSlot(set,course)).filter(Boolean).map(c=>diffTile(c.course,c,true));
   return [...standard,...special];
 }
 function arcadeEntries(){
