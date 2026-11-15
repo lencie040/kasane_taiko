@@ -1721,13 +1721,15 @@ function resetRimSequence(){
   rimPending=null;rimCount=0;rimKind='';paintRimProgress();
 }
 function countOniHit(kind){
+  const set=currentSet();if(!set)return;
+  const course=UI.oniCourse===kind?'oni':kind;
+  const chart=chartForSlot(set,course);
+  if(!chart){resetRimSequence();return;}
   if(kind!==rimKind){rimKind=kind;rimCount=0;}
   rimCount++;
   if(rimCount<10){paintRimProgress();return;}
   resetRimSequence();
-  const set=currentSet();if(!set)return;
-  UI.oniCourse=UI.oniCourse===kind?'oni':kind;
-  UI.selChart=chartForSlot(set,UI.oniCourse)?.uid??null;
+  UI.oniCourse=course;UI.selChart=chart.uid;
   renderDetail();focusCourseCard();
 }
 function hitPickerRim(side){
