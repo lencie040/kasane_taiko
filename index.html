@@ -665,7 +665,9 @@ html,body{min-height:100%}
 body{min-height:100dvh;animation:arcade-wallpaper 12s linear infinite}
 @keyframes arcade-wallpaper{to{background-position:80px 80px,-80px 80px,0 0}}
 #tab-select{min-height:calc(100dvh - 165px)}
-#songlist{max-height:none;overflow:hidden;touch-action:pan-x}
+#songlist{position:relative;isolation:isolate;max-height:none;overflow:hidden;touch-action:pan-x}
+#songlist>li:not(.song-outgoing){z-index:1}
+#songlist>li.song-outgoing{position:absolute;z-index:0;margin:0;translate:none;transform:none;pointer-events:none}
 #songlist>li:not(.empty){translate:var(--strip-shift,0%) 0}
 #songlist .song .chips{display:flex;margin-top:4px}
 #songlist .chips .chip:not(.is-missing){border-color:var(--cc)}
@@ -1384,7 +1386,7 @@ function monthlyDans(charts,period){
   return ranks.map(({rank,name,slots})=>{
     const songs=slots.map(slot=>bySlot.get(slot));
     return finishDan({id:period+'-v2-'+rank+'-'+songs.map(c=>c.uid).join('|'),
-      src:'monthly',period,name,songs,refs:[],conds:monthlyConditions(rank,songs)});
+      src:'monthly',period,name,rank,songs,refs:[],conds:monthlyConditions(rank,songs)});
   });
 }
 function autoDan(c){
@@ -1830,8 +1832,10 @@ function backToSongs(){
 function renderSongList(){
   const ul=$('#songlist'),folders=effectiveFolders();
   const animate=!REDUCED&&typeof ul.animate==='function'&&ul.getClientRects().length>0;
-  const previous=animate?new Map([...ul.children].filter(row=>row.dataset.entry).map(row=>[row.dataset.entry,row.getBoundingClientRect()])):null;
-  ul.replaceChildren();folderToolbar(folders);
+  const previous=animate?[...ul.children].filter(row=>row.dataset.entry):[];
+  const positions=new Map(previous.map(row=>[row.dataset.entry,row.getBoundingClientRect()]));
+  const outgoing=animate?[...ul.querySelectorAll('li.song-outgoing')]:[];
+  ul.replaceChildren(...outgoing);folderToolbar(folders);
   const entries=arcadeEntries(),count=entries.length;
   $('#listCount').textContent=`${entries.filter(entry=>entry.set).length}曲`;
   $('#navHint').textContent=`カ（${keyLabel(S.keys[0])}・${keyLabel(S.keys[3])}）で移動、ドンで決定`;
@@ -1853,14 +1857,35 @@ function renderSongList(){
     row.dataset.entry=entry.folder?'folder:'+entry.folder.id:'song:'+entry.set.key;
     ul.append(row);
   }
-  if(previous?.size){
-    const positions=[...ul.children].map(row=>[row,previous.get(row.dataset.entry),row.getBoundingClientRect()]);
-    for(const [row,before,after] of positions){
-      if(!before){row.animate([{opacity:.35,transform:'scale(.97)'},{opacity:1,transform:'none'}],{duration:190,easing:'ease-out'});continue;}
-      const x=before.left-after.left,y=before.top-after.top;
-      if(Math.abs(x)+Math.abs(y)<2)continue;
-      row.animate([{transform:`translate(${x}px,${y}px)`},{transform:'none'}],{duration:200,easing:'cubic-bezier(.2,.75,.2,1)'});
+  if(!positions.size)return;
+  const duration=200;
+  const rows=[...ul.children].filter(row=>row.dataset.entry);
+  let departing=null,topAnimation=null;
+  if(previous.length>=2&&rows[0]?.dataset.entry===previous[1].dataset.entry&&
+      !rows.some(row=>row.dataset.entry===previous[0].dataset.entry)){
+    // Keep the departing strip under the incoming top strip until the transition ends.
+    const old=previous[0],bounds=positions.get(old.dataset.entry),listBounds=ul.getBoundingClientRect();
+    old.classList.add('song-outgoing');
+    delete old.dataset.entry;
+    old.inert=true;old.setAttribute('aria-hidden','true');
+    Object.assign(old.style,{left:`${bounds.left-listBounds.left-ul.clientLeft}px`,
+      top:`${bounds.top-listBounds.top-ul.clientTop}px`,width:`${bounds.width}px`,height:`${bounds.height}px`});
+    ul.prepend(old);departing=old;
+  }
+  const changes=rows.map(row=>[row,positions.get(row.dataset.entry),row.getBoundingClientRect()]);
+  for(const [row,before,after] of changes){
+    if(!before){
+      row.animate([{opacity:.35,transform:'scale(.97)'},{opacity:1,transform:'none'}],{duration:190,easing:'ease-out'});
+      continue;
     }
+    const x=before.left-after.left,y=before.top-after.top;
+    if(Math.abs(x)+Math.abs(y)<2)continue;
+    const animation=row.animate([{transform:`translate(${x}px,${y}px)`},{transform:'none'}],{duration,easing:'cubic-bezier(.2,.75,.2,1)'});
+    if(row===rows[0])topAnimation=animation;
+  }
+  if(departing){
+    if(topAnimation)topAnimation.finished.then(()=>departing.remove(),()=>departing.remove());
+    else departing.remove();
   }
 }
 function selectSet(key,user){UI.folderCursor=null;const changed=UI.selSet!==key;UI.selSet=key;const s=Lib.sets.find(x=>x.key===key);if(!s)return;
@@ -2118,6 +2143,9 @@ function renderDetail(){const d=$('#detail');$('#arcadeMenu').hidden=!!UI.choose
     el('span',{class:'keys-hint'},el('kbd',null,keyLabel(S.keys[0])),' ',el('kbd',null,keyLabel(S.keys[1])),' ',el('kbd',null,keyLabel(S.keys[2])),' ',el('kbd',null,keyLabel(S.keys[3])),' カ ドン ドン カ'));
   if(best)actions.append(el('span',{class:'keys-hint num'},`ベスト ${fmtNum(best.score)}`));}
 
+function hideMonthlySong(d,index){
+  return d.src==='monthly'&&(d.rank===TATSUJIN||(d.rank>=TENTH_DAN&&index===2));
+}
 function renderDans(){const box=$('#danlist');if(!box)return;box.innerHTML='';
   const period=monthlyPeriod();
   if(Lib.monthlyPeriod!==period||Lib.monthlyDirty)refreshMonthlyDans();
@@ -2130,10 +2158,10 @@ function renderDans(){const box=$('#danlist');if(!box)return;box.innerHTML='';
   for(const d of list){const rec=Lib.danBest[d.key];
     const state=rec==='gold'?el('span',{class:'state gold'},'金合格'):rec==='red'?el('span',{class:'state red'},'合格'):el('span',{class:'state'},'未合格');
     const songs=el('ol',{class:'dan-songs'});
-    for(let i=0;i<3;i++){const c=d.songs[i],ref=d.refs[i];
+    for(let i=0;i<3;i++){const c=d.songs[i],ref=d.refs[i],hidden=hideMonthlySong(d,i);
       songs.append(el('li',{class:i===2?'last':''},el('span',{class:'no'},`${i+1}曲目`,d.src==='monthly'?el('small',null,MONTHLY_ROLES[i]):null),
-        c?el('span',{class:'tt'},c.set.title):el('span',{class:'tt missing'},ref?`未読込: ${ref.file} / ${ref.version}`:'未設定'),
-        c?chipFor(c):null));}
+        c?el('span',{class:'tt'},hidden?'？？？':c.set.title):el('span',{class:'tt missing'},ref?`未読込: ${ref.file} / ${ref.version}`:'未設定'),
+        c?chipFor(c,hidden):null));}
     const card=el('article',{class:'dan'+(rec?' passed-'+rec:'')},
       el('div',{class:'dan-head'},el('div',{class:'dan-rank',style:d.level?`--dl:${DAN_COL[d.level-1]}`:null},d.src==='monthly'?'月':d.level?ROMAN[d.level]:'?'),
         el('div',{class:'dan-name'},el('h3',null,d.name),el('p',null,d.ready?`全${fmtNum(d.tot.notes)}ノーツ ・ 同時押し${fmtNum(d.tot.chordNotes)}個`:(d.note||'曲がそろっていません'))),state),songs);
@@ -2148,7 +2176,11 @@ function renderDans(){const box=$('#danlist');if(!box)return;box.innerHTML='';
     card.append(el('div',{class:'dan-foot'},el('span',{class:'src'},d.src==='monthly'?'月替わり':d.src==='auto'?'自動で組んだ段位（dan.csv で上書きできます）':`dan.csv の「${d.id}」`),
       el('button',{class:'btn primary',disabled:!d.ready||null,onclick:()=>{UI.gesture=true;startDan(d);}},'挑戦する')));
     box.append(card);}}
-function chipFor(c){const C=COURSES[c.course];return el('span',{class:'chip',style:`--cc:${C.color}`},C.jp,el('b',null,levelText(c)),sealBadge(c));}
+function chipFor(c,hideDecimal=false){
+  const C=COURSES[c.course];
+  const rating=hideDecimal&&c.level!=null?'★'+Math.floor(c.level):levelText(c);
+  return el('span',{class:'chip',style:`--cc:${C.color}`},C.jp,el('b',null,rating),hideDecimal?null:sealBadge(c));
+}
 
 function renderLoad(){
   const ul=$('#libList');ul.innerHTML='';
