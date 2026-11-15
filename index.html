@@ -540,7 +540,7 @@ body{
   display:block;background:color-mix(in srgb,var(--strip),#fff8f1 68%);border-radius:8px;
   padding:6px 24px;color:#2d1936;line-height:1.2;font-weight:900;font-size:clamp(17px,3.4vw,27px);
 }
-#songlist .song:not(.is-on) :is(.song-a,.chips){display:none}
+#songlist .song:not(.is-on) .song-a{display:none}
 #songlist .song .song-t .tag{display:none}
 #songlist .song.is-on,.folder-entry.is-on{
   border-color:#25152b;outline:5px solid #fff138;box-shadow:0 0 0 9px #ffe14d75,0 6px 0 #5d3346;
@@ -667,7 +667,9 @@ body{min-height:100dvh;animation:arcade-wallpaper 12s linear infinite}
 #songlist{max-height:none;overflow:hidden;touch-action:pan-x}
 #songlist>li:not(.empty){translate:var(--strip-shift,0%) 0}
 #songlist .song .chips{display:flex;margin-top:4px}
-#songlist .song:not(.is-on) .chips{display:none}
+#songlist .song:not(.is-on) .chips{margin-top:3px}
+#songlist .song:not(.is-on) .chips .chip{font-size:10px;line-height:1.3}
+#songlist .chips .chip:not(.is-missing){border-color:var(--cc)}
 #songlist .chip.is-missing{opacity:.53;background:#ded0cd}
 .crs:disabled{filter:saturate(.3) brightness(.76);cursor:default}
 .crs.is-on:disabled::after{display:none}
@@ -1610,11 +1612,14 @@ function visibleCourses(set){
   const oni=UI.oniCourse||(ONI_COURSES.includes(selected?.course)?selected.course:'oni');
   return [...BASE_COURSES.slice(0,3),oni];
 }
-function songChips(set){
-  return BASE_COURSES.map(course=>{
+function songChips(set,selected){
+  const special=['ura','kasane'].map(course=>chartForSlot(set,course)).filter(Boolean).map(chip);
+  if(!selected)return special;
+  const standard=BASE_COURSES.map(course=>{
     const c=chartForSlot(set,course), C=COURSES[course];
     return c?chip(c):el('span',{class:'chip is-missing',style:`--cc:${C.color}`},C.jp,el('b',null,'–'));
   });
+  return [...standard,...special];
 }
 function arcadeEntries(){
   return [...visibleFolders(effectiveFolders()).map((folder,index)=>({folder,index})),...visibleSets().map(set=>({set}))];
@@ -1630,10 +1635,11 @@ function selectArcadeEntry(entry){
 }
 function songStrip(set,selected,choose){
   const top=sortCharts(set.charts).filter(c=>!isLocked(c)).pop()||set.charts[0],fav=!!Lib.fav[set.key];
+  const chips=songChips(set,selected);
   const row=el('li',{class:'song'+(selected?' is-on':''),tabindex:'0',role:'button',style:`--sc:${COURSES[top.course].color}`},
     el('div',{class:'song-t'},el('span',null,set.title)),
     el('div',{class:'song-a'},el('span',null,set.artist||'—')),
-    el('div',{class:'chips'},songChips(set)),
+    chips.length?el('div',{class:'chips'},chips):null,
     el('button',{class:'fav'+(fav?' on':''),'aria-label':fav?'お気に入りから外す':'お気に入りに追加','aria-pressed':String(fav),onclick:e=>{e.stopPropagation();toggleFav(set.key);}},fav?'★':'☆'));
   row.addEventListener('click',choose);
   row.addEventListener('keydown',event=>{
@@ -1673,8 +1679,8 @@ function renderSongList(){
   $('#sortSel').value=UI.sort||'added';
   if(!count){ul.append(el('li',{class:'empty'},'条件に合う曲がありません'));return;}
   const index=arcadeIndex(entries);
-  const radius=count===1?0:count<=3?1:2;
-  for(let offset=-radius;offset<=radius;offset++){
+  const visible=Math.min(7,count),above=Math.floor(visible/2);
+  for(let offset=-above;offset<visible-above;offset++){
     const entry=entries[(index+offset+count)%count],selected=offset===0;
     const choose=()=>{
       if(!selected){selectArcadeEntry(entry);return;}
@@ -1683,7 +1689,7 @@ function renderSongList(){
     };
     const row=entry.folder?folderStrip(entry.folder,selected,choose):songStrip(entry.set,selected,choose);
     // Keep each strip level. The diagonal comes from the horizontal steps.
-    row.style.setProperty('--strip-shift',offset*4+'%');
+    row.style.setProperty('--strip-shift',offset*3+'%');
     ul.append(row);
   }
 }
