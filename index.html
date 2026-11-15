@@ -185,6 +185,26 @@ input[type=range]{width:100%;accent-color:var(--gold)}
 #pads .ka{background:color-mix(in srgb,var(--ka) 22%,var(--panel));color:var(--ka)}
 #pads .don{background:color-mix(in srgb,var(--don) 22%,var(--panel));color:#ff8a72}
 #pads button:active{filter:brightness(1.5)}
+.falling-dan{flex:none;padding:5px clamp(6px,2vw,20px) 8px;background:#18182e;border-top:1px solid var(--line-2);font-variant-numeric:tabular-nums}
+.falling-dan-head,.falling-dan-grid{max-width:1180px;margin-inline:auto}
+.falling-dan-head{display:flex;align-items:center;gap:9px;margin-bottom:4px;color:var(--mute);font-size:12px}
+.falling-dan-head strong{color:#ffe0a0;font-size:14px}
+#stage .falling-dan-head .stage-quit{position:static;margin-left:auto;min-height:32px}
+.falling-dan-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,136px),1fr));gap:4px}
+.falling-dan-card{min-width:0;padding:4px 7px;background:#21243e;border:1px solid #444866;border-radius:7px;line-height:1.25}
+.falling-dan-value{display:flex;justify-content:space-between;align-items:baseline;gap:4px;font-size:12px;color:#e7e4f2}
+.falling-dan-value span,.falling-dan-value b{white-space:nowrap}
+.falling-dan-value b{font-size:15px;color:white}
+.falling-dan-goals{display:flex;flex-wrap:wrap;gap:2px 8px;margin-top:2px;font-size:11px}
+.falling-dan-goals span{white-space:nowrap;color:#ffc6bb}
+.falling-dan-goals .gold{color:#ffe096}
+.falling-dan-goals .met{color:#a2edbf}
+.falling-dan-goals .missed{color:#ff968b;text-decoration:line-through}
+@media (max-height:500px) and (orientation:landscape){
+  .falling-dan{padding-block:2px 4px}
+  #stage .falling-dan-head .stage-quit{min-height:26px}
+  .falling-dan-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,104px),1fr))}
+}
 .overlay{position:absolute;inset:0;background:rgba(10,13,30,.82);display:grid;place-items:center;padding:24px max(16px,env(safe-area-inset-left,0px));overflow:auto}
 .ov-card{background:var(--panel);border:1px solid var(--line-2);border-radius:16px;padding:24px;width:min(640px,100%);display:grid;gap:16px}
 .ov-card h2{font-family:var(--f-display);font-size:26px}
@@ -1065,6 +1085,10 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
   <div id="pads" hidden>
     <button class="ka" data-role="kaL">カ</button><button class="don" data-role="donL">ドン</button><button class="don" data-role="donR">ドン</button><button class="ka" data-role="kaR">カ</button>
   </div>
+  <section class="falling-dan" id="fallingDan" hidden aria-label="段位の合格条件">
+    <div class="falling-dan-head"><strong id="fallingDanRank"></strong><span id="fallingDanSong"></span></div>
+    <div class="falling-dan-grid" id="fallingDanGrid"></div>
+  </section>
   <div class="overlay" id="pause" hidden><div class="ov-card"><h2>一時停止</h2><div class="ov-btns" id="pauseBtns"></div></div></div>
   <div class="overlay" id="result" hidden><div class="ov-card" id="resultCard"></div></div>
 </div>
@@ -2538,8 +2562,55 @@ function checkDanFail(){if(!D||!G||G.failed)return;
   for(const c of D.conds){const r=evalTier(c,'red',D.st,D.tot);if(r&&r.fail){G.failed=true;G.failAt=performance.now();D.failCond=c;fadeMusic(1.8);fxStamp('danfail');break;}}}
 
 /* ---------- 進行 ---------- */
-function openStage(){stopPreview();$('#stage').hidden=false;$('#stage').classList.toggle('touch',UI.touch);document.body.classList.add('playing');$('#result').hidden=true;$('#pause').hidden=true;$('#pads').hidden=libraryWait||!UI.touch||S.falling===true;layoutStage();startLoop();}
-function closeStage(){songLoad++;libraryWait=false;cancelAnimationFrame(rafId);rafId=0;stopSong();G=null;D=null;$('#stage').hidden=true;document.body.classList.remove('playing');refreshAll();}
+const fallingDanHud={panel:$('#fallingDan'),rank:$('#fallingDanRank'),song:$('#fallingDanSong'),grid:$('#fallingDanGrid'),cards:[],lastUpdate:-Infinity};
+function setupFallingDanHud(){
+  const hud=fallingDanHud,menu=$('#stageMenu');
+  hud.panel.hidden=!(D&&S.falling===true);
+  if(hud.panel.hidden){
+    if(menu.parentNode!==cv.parentNode)cv.after(menu);
+    hud.cards=[];
+    hud.grid.replaceChildren();
+    return;
+  }
+  hud.rank.textContent=D.dan.name;
+  hud.panel.firstElementChild.append(menu);
+  hud.cards=D.conds.map(cond=>{
+    const value=el('b');
+    const tiers=['red','gold'].flatMap(tier=>{
+      const target=condTarget(cond,tier,D.tot);
+      if(!target)return[];
+      const limit=target.gauge?`${target.v}%`:fmtNum(target.count);
+      const goal=el('span',{class:tier},`${tier==='red'?'合格':'金合格'} ${limit}${cond.op==='<='?'以下':'以上'}`);
+      return [{tier,goal}];
+    });
+    const card=el('div',{class:'falling-dan-card'},
+      el('div',{class:'falling-dan-value'},el('span',null,cond.rate?'黄色連打':COND[cond.key].jp),value),
+      el('div',{class:'falling-dan-goals'},tiers.map(({goal})=>goal)));
+    return {cond,value,tiers,card};
+  });
+  hud.grid.replaceChildren(...hud.cards.map(({card})=>card));
+  hud.lastUpdate=-Infinity;
+  updateFallingDanHud(performance.now());
+}
+function updateFallingDanHud(now){
+  const hud=fallingDanHud;
+  if(hud.panel.hidden||now-hud.lastUpdate<80)return;
+  hud.lastUpdate=now;
+  const song=`${G?.finished?D.results.length:D.idx+1}曲目 / ${D.dan.songs.length}`;
+  if(hud.song.textContent!==song)hud.song.textContent=song;
+  for(const {cond,value,tiers} of hud.cards){
+    const current=statValue(cond,D.st);
+    const label=cond.key==='gauge'?`${current.toFixed(1)}%`:fmtNum(current);
+    if(value.textContent!==label)value.textContent=label;
+    for(const {tier,goal} of tiers){
+      const state=evalTier(cond,tier,D.st,D.tot);
+      goal.classList.toggle('met',cond.op!=='<='&&state.ok);
+      goal.classList.toggle('missed',state.fail);
+    }
+  }
+}
+function openStage(){stopPreview();$('#stage').hidden=false;$('#stage').classList.toggle('touch',UI.touch);document.body.classList.add('playing');$('#result').hidden=true;$('#pause').hidden=true;$('#pads').hidden=libraryWait||!UI.touch||S.falling===true;setupFallingDanHud();layoutStage();startLoop();}
+function closeStage(){songLoad++;libraryWait=false;cancelAnimationFrame(rafId);rafId=0;stopSong();G=null;D=null;$('#stage').hidden=true;setupFallingDanHud();document.body.classList.remove('playing');refreshAll();}
 function startLoop(){if(!rafId)rafId=requestAnimationFrame(frame);}
 function stopSong(){if(G&&G.src){try{G.src.stop();}catch(e){}G.src=null;}}
 function fadeMusic(sec){if(!G||!G.gain||!AC)return;try{const g=G.gain.gain;g.cancelScheduledValues(AC.currentTime);g.setValueAtTime(g.value,AC.currentTime);g.linearRampToValueAtTime(0,AC.currentTime+sec);G.src.stop(AC.currentTime+sec+.05);}catch(e){}}
@@ -2856,28 +2927,32 @@ function fxStamp(kind){if(!G)return;const pn=performance.now();G.fx.stamp={kind,
     for(let k=0;k<110;k++)G.fx.parts.push({x:Math.random()*view.W,y:-20-Math.random()*120,vx:(Math.random()-.5)*.08,vy:.08+Math.random()*.12,grav:.00008,t:pn+Math.random()*300,life:2600,col:cols[k%cols.length],sz:3+Math.random()*3,conf:true,rot:Math.random()*TAU,vr:(Math.random()-.5)*.012});}}
 
 /* ---- 毎フレーム ---- */
-function frame(){rafId=requestAnimationFrame(frame);
+function frame(now){rafId=requestAnimationFrame(frame);
+  if(G&&!G.paused){syncClock();G.now=songTime(performance.now());if(!G.finished)update(G.now);}
+  updateFallingDanHud(now);
   if(!G){if(D&&D.interlude)drawInterlude();else drawLoading();return;}
-  if(!G.paused){syncClock();G.now=songTime(performance.now());if(!G.finished)update(G.now);}
   draw(G.now);}
 function drawLoading(){const c=ctx,W=view.W,H=view.H,pn=performance.now();drawBackdrop(pn,0,0);
   for(let i=0;i<3;i++){const b=Math.max(0,Math.sin(pn*.008-i*.8));drawNote(c,W/2-36+i*36,H/2-12-b*14,12,i===1?'k':'d');}
   c.fillStyle='#a2a8ca';c.font=`500 14px ${FB}`;c.textAlign='center';c.fillText(UI.loading||'読み込み中…',W/2,H/2+30);c.textAlign='left';}
 function drawInterlude(){const c=ctx,W=view.W,H=view.H,pn=performance.now(),it=D.interlude,ch=it.chart;
   const stacked=ch.stats.chords>0;drawBackdrop(pn,.5+.5*Math.sin(pn*.004),stacked ? .5 : 0);
-  const a=easeOut(clamp((pn-it.t0)/500,0,1)),cx=W/2;let y=Math.max(56,H/2-230);
+  const falling=!fallingDanHud.panel.hidden,compact=falling&&H<320;
+  const titleSize=Math.min(64,W*.13,compact?H*.17:64);
+  const a=easeOut(clamp((pn-it.t0)/500,0,1)),cx=W/2;let y=compact?24:Math.max(56,H/2-(falling?140:230));
   c.save();c.globalAlpha=a;c.textAlign='center';
   c.font=`700 14px ${FB}`;c.fillStyle='#f2bc3d';c.fillText(D.dan.name,cx,y);y+=38;
   const sx=cx-80;c.textBaseline='middle';
   for(let i=0;i<3;i++){const x=sx+i*80;if(i<2){c.fillStyle=i<it.idx?'#f2bc3d':'#3c4784';c.fillRect(x,y-2,80,4);}}
   for(let i=0;i<3;i++){const x=sx+i*80,cur=i===it.idx;c.beginPath();c.arc(x,y,cur?14:10,0,TAU);c.fillStyle=i<it.idx?'#f2bc3d':cur?(stacked?'#f2bc3d':'#f2ecdc'):'#262c4e';c.fill();
     c.fillStyle=i<=it.idx?'#15101a':'#6f769e';c.font=`${cur?15:11}px ${FD}`;c.fillText(String(i+1),x,y+1);}
-  c.textBaseline='alphabetic';y+=Math.min(64,W*.13)+30;const off=(1-a)*30;
-  c.font=`${Math.min(64,W*.13)}px ${FD}`;c.lineWidth=7;c.lineJoin='round';c.strokeStyle='#0a0d1e';c.strokeText(`${it.idx+1}曲目`,cx,y+off);c.fillStyle=stacked?'#f2bc3d':'#f2ecdc';c.fillText(`${it.idx+1}曲目`,cx,y+off);y+=Math.min(48,W*.1);
-  c.font=`700 ${Math.min(26,W*.06)}px ${FB}`;c.fillStyle='#f2ecdc';c.fillText(fit(c,ch.set.title,W-40),cx,y);y+=34;
+  c.textBaseline='alphabetic';y+=titleSize+(compact?18:30);const off=(1-a)*30;
+  c.font=`${titleSize}px ${FD}`;c.lineWidth=7;c.lineJoin='round';c.strokeStyle='#0a0d1e';c.strokeText(`${it.idx+1}曲目`,cx,y+off);c.fillStyle=stacked?'#f2bc3d':'#f2ecdc';c.fillText(`${it.idx+1}曲目`,cx,y+off);y+=Math.min(compact?29:48,W*.1);
+  c.font=`700 ${Math.min(compact?20:26,W*.06)}px ${FB}`;c.fillStyle='#f2ecdc';c.fillText(fit(c,ch.set.title,W-40),cx,y);y+=compact?27:34;
   const C=COURSES[ch.course];c.font=`700 14px ${FB}`;const lab=`${C.jp} ${levelText(ch)}`+(ch.stats.chords?` ・ 最大${ch.stats.maxLanes}レーン`:'');const lw=c.measureText(lab).width+28;
-  rr(c,cx-lw/2,y-18,lw,28,14);c.fillStyle=C.color;c.fill();c.fillStyle='#15101a';c.fillText(lab,cx,y+1);y+=40;
-  if(stacked){c.font=`700 13px ${FB}`;c.fillStyle='#f2bc3d';c.fillText('縦に並んだノーツは、数と色をそろえて同時押し',cx,y);y+=30;}
+  rr(c,cx-lw/2,y-18,lw,28,14);c.fillStyle=C.color;c.fill();c.fillStyle='#15101a';c.fillText(lab,cx,y+1);y+=compact?24:40;
+  if(stacked){c.font=`700 13px ${FB}`;c.fillStyle='#f2bc3d';c.fillText(falling?'同じ高さのノーツは同時押し':'縦に並んだノーツは、数と色をそろえて同時押し',cx,y);y+=30;}
+  if(falling){c.restore();return;}
   c.font=`500 13px ${FB}`;
   for(const cond of D.conds.slice(0,7)){const dd=condDesc(cond,'red',D.tot);let line=`${COND[cond.key].jp}　${dd.main}`;
     if(it.idx>0&&cond.key!=='gauge'){const e=evalTier(cond,'red',D.st,D.tot);if(e&&e.remain!=null&&cond.op==='<=')line+=`　あと${e.remain}個まで`;else if(e&&e.need>0)line+=`　あと${fmtNum(e.need)}`;}
