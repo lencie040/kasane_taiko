@@ -955,7 +955,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
   <section class="pane" id="tab-medley" hidden>
     <div>
       <h2 class="h-sec">作業用BGMメドレー</h2>
-      <p class="lead">デモ曲を除く全譜面をオート再生します。未解禁の重譜面も含み、全譜面を流し終えると繰り返します。</p>
+      <p class="lead">デモ曲を除く全譜面を打音つきでオート再生します。未解禁の重譜面も含み、全譜面を流し終えると繰り返します。</p>
     </div>
     <div class="medley-player">
       <div class="medley-options">
@@ -1747,6 +1747,45 @@ function medleyQueue(charts,shuffle,previous){
   return queue;
 }
 
+function medleyNoteIndex(targets,time){
+  let lo=0,hi=targets.length;
+  while(lo<hi){const mid=(lo+hi)>>1;if(targets[mid].t<time)lo=mid+1;else hi=mid;}
+  return lo;
+}
+
+function buildMedleyHits(chart,duration){
+  const {targets,rolls,length:limit}=chart,rate=AC.sampleRate;
+  const samples={don:SE.don.getChannelData(0),ka:SE.ka.getChannelData(0),pop:SE.pop.getChannelData(0)};
+  let buffer,mixed;
+  // 譜面の打音を1本にまとめて、描画やタイマーの頻度に頼らず鳴らす。
+  const mix=(kind,time)=>{
+    if(!buffer){buffer=AC.createBuffer(1,Math.ceil((duration+.002)*rate)+SE.don.length,rate);mixed=buffer.getChannelData(0);}
+    const hit=samples[kind],start=Math.round(time*rate/1000);
+    for(let i=0;i<hit.length;i++)mixed[start+i]+=hit[i];
+  };
+  for(const target of targets){
+    if(target.t<0)continue;
+    if(target.t>limit)break;
+    for(const note of target.notes||[target]){
+      const kind=note.color==='d'?'don':'ka';
+      mix(kind,target.t);
+      if(note.big&&!note.noise)mix(kind,target.t+(target.type==='single'?1:0));
+    }
+  }
+  const rollGuard=(chart.course==='easy'||chart.course==='normal'?WIN_SOFT:WIN_HARD).bad+10;
+  for(const roll of rolls){
+    const start=Math.max(0,roll.t),end=Math.min(roll.end,limit),balloon=roll.type==='balloon';
+    let index=medleyNoteIndex(targets,start),hits=0;
+    for(let time=start;time<=end;time+=balloon?45:50){
+      while(index<targets.length&&targets[index].t<=time)index++;
+      if(time+rollGuard>(targets[index]?.t??Infinity))continue;
+      mix('don',time);
+      if(balloon&&++hits>=roll.hits){mix('pop',time);break;}
+    }
+  }
+  return buffer;
+}
+
 async function loadMedleyTrack(session){
   while(medley===session&&session.unreadable.size<session.charts.length){
     if(session.index===session.queue.length){
@@ -1755,10 +1794,15 @@ async function loadMedleyTrack(session){
     }
     const chart=session.queue[session.index++];
     if(session.unreadable.has(chart))continue;
-    let buffer;
-    try{buffer=await getAudio(chart);}catch(error){session.unreadable.add(chart);continue;}
+    const duration=Math.max(.05,chart.length/1000);
+    let buffer,hits;
+    try{
+      buffer=await getAudio(chart);
+      if(medley!==session)return null;
+      loadNoise(chart);hits=buildMedleyHits(chart,duration);
+    }catch(error){session.unreadable.add(chart);continue;}
     const speed=chart.segs.reduce((min,seg)=>Math.min(min,seg.sv/(4*seg.bl)),Infinity);
-    return {chart,position:session.index,buffer,duration:Math.max(.05,chart.length/1000),offset:0,ahead:1.2/speed};
+    return {chart,position:session.index,buffer,hits,duration,offset:0,ahead:1.2/speed};
   }
   return null;
 }
@@ -1772,8 +1816,13 @@ function releaseMedleyTrack(track,stop=true){
   track.source=track.clock=null;
 }
 
+function stopMedleyHits(session){
+  for(const source of session.hitSources){source.onended=null;source.stop();source.disconnect();}
+  session.hitSources.clear();
+}
+
 function scheduleMedleyTrack(session,track,when){
-  const {offset,buffer,duration}=track;
+  const {offset,buffer,hits,duration}=track;
   track.startAt=when-offset;
   track.endAt=when+(duration-offset);
   if(offset<buffer.duration&&offset<duration){
@@ -1787,6 +1836,13 @@ function scheduleMedleyTrack(session,track,when){
   else{
     track.clock=AC.createConstantSource();track.clock.offset.value=0;
     track.clock.connect(AC.destination);track.clock.start(when);track.clock.stop(track.endAt);
+  }
+  if(hits&&offset<hits.duration){
+    const source=AC.createBufferSource();
+    source.buffer=hits;source.connect(seGain);session.hitSources.add(source);
+    source.onended=()=>{source.disconnect();session.hitSources.delete(source);};
+    // 最後のノーツも、曲の切り替えと同時に鳴らす。
+    source.start(when,offset);
   }
   track.clock.onended=()=>{
     if(medley!==session||session.current!==track)return;
@@ -1814,7 +1870,6 @@ async function activateMedleyTrack(session,pending){
   if(!track){stopMedley();medleyView.status.textContent='再生できる音源がありませんでした。';return;}
   session.current=track;session.next=null;
   if(!track.clock&&!session.paused)scheduleMedleyTrack(session,track,AC.currentTime);
-  loadNoise(track.chart);
   session.pending=loadMedleyTrack(session);
   session.pending.then(next=>{
     if(medley!==session||session.current!==track)return;
@@ -1829,7 +1884,7 @@ function toggleMedley(){
     const charts=medleyCharts();if(!charts.length)return;
     UI.gesture=true;ensureAudio();stopPreview();
     const shuffle=medleyView.order.value==='shuffle';
-    const session=medley={charts,shuffle,queue:medleyQueue(charts,shuffle),index:0,unreadable:new Set(),paused:false,current:null,next:null};
+    const session=medley={charts,shuffle,queue:medleyQueue(charts,shuffle),index:0,unreadable:new Set(),hitSources:new Set(),paused:false,current:null,next:null};
     renderMedley();activateMedleyTrack(session,loadMedleyTrack(session));
     return;
   }
@@ -1837,7 +1892,7 @@ function toggleMedley(){
   if(!track)return;
   session.paused=!session.paused;
   if(session.paused){
-    track.offset=medleyElapsed(track);releaseMedleyTrack(track);releaseMedleyTrack(session.next);
+    track.offset=medleyElapsed(track);releaseMedleyTrack(track);releaseMedleyTrack(session.next);stopMedleyHits(session);
   }else{
     ensureAudio();scheduleMedleyTrack(session,track,AC.currentTime);scheduleMedleyNext(session);
   }
@@ -1847,7 +1902,7 @@ function toggleMedley(){
 function stopMedley(){
   if(!medley)return;
   const session=medley;medley=null;
-  releaseMedleyTrack(session.current);releaseMedleyTrack(session.next);
+  releaseMedleyTrack(session.current);releaseMedleyTrack(session.next);stopMedleyHits(session);
   renderMedley();
 }
 
@@ -1902,9 +1957,7 @@ function drawMedleyTimeline(){
     rr(c,x-r,top+dy*.5-r,length+r*2,r*2,r);c.fillStyle=roll.type==='roll'?'#ffd260':'#f3a06e';c.fill();
   }
   const targets=track.chart.targets;
-  let lo=0,hi=targets.length;
-  while(lo<hi){const mid=(lo+hi)>>1;if(targets[mid].t<now)lo=mid+1;else hi=mid;}
-  for(let i=lo;i<targets.length&&targets[i].t<=until;i++){
+  for(let i=medleyNoteIndex(targets,now);i<targets.length&&targets[i].t<=until;i++){
     const t=targets[i],x=xAt(t.t,t.speed);if(x>w+r*2)continue;
     for(const note of t.notes||[t]){
       const y=top+((note.lane??0)+.5)*dy,size=note.big?r*1.35:r;
@@ -1919,7 +1972,7 @@ medleyView.play.addEventListener('click',toggleMedley);
 medleyView.stop.addEventListener('click',stopMedley);
 medleyView.next.addEventListener('click',()=>{
   if(!medley?.current)return;
-  releaseMedleyTrack(medley.current);releaseMedleyTrack(medley.next);advanceMedley(medley);
+  releaseMedleyTrack(medley.current);releaseMedleyTrack(medley.next);stopMedleyHits(medley);advanceMedley(medley);
 });
 medleyView.show.addEventListener('change',renderMedley);
 document.addEventListener('visibilitychange',()=>{
