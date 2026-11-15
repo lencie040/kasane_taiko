@@ -588,17 +588,8 @@ body{
   .crs-list{padding-inline:10px}.crs .lv{font-size:16px}
   .ts-in{gap:10px}
 }
-.arcade-player{display:none}
 .arcade-cta{margin:0 14px 12px;padding:8px;justify-content:center;background:#fff0c4;border:2px solid #bd7356;border-radius:12px}
 .arcade-cta .primary{min-width:min(215px,100%)}
-@media(min-width:1120px){
-  .arcade-player{display:block;position:absolute;left:0;bottom:6px;width:15%;max-width:175px;text-align:center}
-  .arcade-drum{position:relative;margin:0 auto 9px;width:85%;aspect-ratio:1.25;background:#51b8c7;border:5px solid #342337;border-radius:45% 48% 47% 43%;box-shadow:inset 8px 0 #d6f5e8,0 4px #b94c63}
-  .arcade-drum i{position:absolute;right:-5px;top:-6%;height:112%;aspect-ratio:1;border-radius:50%;border:4px solid #352334;background:radial-gradient(circle at 35% 42%,#2e1f2e 0 5%,transparent 6%),radial-gradient(circle at 66% 42%,#2e1f2e 0 5%,transparent 6%),radial-gradient(circle,#ff674b 0 51%,#fff4d6 52% 67%,#49333b 68%)}
-  .arcade-drum i::after{content:'';position:absolute;left:39%;top:52%;width:22%;height:16%;border:3px solid #382034;border-top:0;border-radius:0 0 18px 18px;background:#a12b3c}
-  .arcade-nameplate{border:3px solid #342337;border-radius:999px;background:#fff4dd;color:#321d34;font-weight:900;padding:2px 5px}
-  .arcade-nameplate b{background:#f45246;color:white;border-radius:99px;padding:1px 6px}
-}
 @media(max-height:500px){.title-screen .ts-drum{display:none}.ts-in{gap:6px}.ts-logo{font-size:clamp(38px,10vh,60px)}}
 
 /* Printed panels, lacquered frames and the player cursor. */
@@ -668,6 +659,28 @@ body{
   .crs .k{width:32px;height:32px;min-height:32px}
   #detail .hero{padding:10px 14px}
 }
+
+html,body{min-height:100%}
+body{min-height:100dvh;animation:arcade-wallpaper 12s linear infinite}
+@keyframes arcade-wallpaper{to{background-position:80px 80px,-80px 80px,0 0}}
+#tab-select{min-height:calc(100dvh - 165px)}
+#songlist{max-height:none;overflow:hidden;touch-action:pan-x}
+#songlist>li{translate:var(--strip-shift,0) 0}
+#songlist>li:not(.empty){transform:rotate(var(--strip-angle,0deg))}
+#songlist .song .chips{display:flex;margin-top:4px}
+#songlist .song:not(.is-on) .chips{display:none}
+#songlist .chip.is-missing{opacity:.53;background:#ded0cd}
+.crs:disabled{filter:saturate(.3) brightness(.76);cursor:default}
+.crs.is-on:disabled::after{display:none}
+.course-rims{justify-content:center;margin:5px 14px 10px}
+.course-rims .btn{touch-action:none;min-width:92px}
+.course-progress{min-width:5em;text-align:center;color:#613145;font-weight:800}
+.course-variants{justify-content:center;margin:0 14px 8px}
+@media(max-width:650px){
+  #songlist>li:not(.empty){translate:calc(var(--strip-shift,0px) * .4) 0}
+  .crs-list{grid-template-columns:repeat(5,minmax(64px,1fr));gap:6px;padding-inline:9px}
+  .crs .nm strong{font-size:10px;white-space:nowrap}.crs .nm small{font-size:10px}
+}
 </style>
 
 <header class="top">
@@ -690,7 +703,6 @@ body{
   <section class="pane" id="tab-select">
     <div class="select-grid">
       <div class="arcade-menu" id="arcadeMenu">
-        <div class="arcade-player" aria-hidden="true"><div class="arcade-drum"><i></i></div><div class="arcade-nameplate"><b>1P</b> 重ね太鼓</div></div>
         <div class="arcade-heading"><h2>曲をえらぶ</h2><span class="list-count num" id="listCount"></span></div>
         <details class="arcade-catalog"><summary>検索・並び順・絞り込み</summary>
         <div class="list-head"><input id="filter" type="search" placeholder="曲名・アーティストで検索" aria-label="曲を検索"><button class="btn" id="randomBtn" title="表示中の曲からランダムに選びます">おまかせ</button></div>
@@ -1083,7 +1095,7 @@ function parseOsu(text){
   const bpms=reds.filter((r,i)=>r.time<=lastT||i===0).map(r=>Math.round(60000/r.bl*10)/10);
   let bg=null;for(const e of lists.Events){const m=/^0\s*,\s*[-\d.]+\s*,\s*"?([^",]+)"?/.exec(e);if(m){bg=m[1].trim();break;}}
   return{meta:{title:M.Title||'',titleU:M.TitleUnicode||'',artist:M.Artist||'',artistU:M.ArtistUnicode||'',creator:M.Creator||'',version:M.Version||'',setId:parseInt(M.BeatmapSetID)||0},
-    audio:G.AudioFilename||'',preview:parseInt(G.PreviewTime)||-1,mode,od,segs,targets,rolls,bars,bg,length:lastT,firstT:isFinite(firstT)?firstT:0,
+    audio:G.AudioFilename||'',preview:Number.isFinite(parseInt(G.PreviewTime))?parseInt(G.PreviewTime):-1,mode,od,segs,targets,rolls,bars,bg,length:lastT,firstT:isFinite(firstT)?firstT:0,
     bpm:[Math.min(...bpms),Math.max(...bpms)],stats:{notes:total,chords,chordNotes,maxLanes:Math.min(4,maxLanes),trimmed}};
 }
 function guessCourse(c){const v=norm(c.meta.version);
@@ -1378,16 +1390,17 @@ function getAudio(chart){const set=chart.set,key=set.key+'|'+(set.repoHash||'')+
   audioCache.set(key,p);p.catch(()=>audioCache.delete(key));
   while(audioCache.size>4)audioCache.delete(audioCache.keys().next().value);return p;}
 let preview=null;
-async function playPreview(chart){stopPreview();if(!UI.gesture)return;const tk={};preview=tk;
+async function playPreview(chart){stopPreview();if(!UI.gesture||UI.tab!=='select')return;const tk={};preview=tk;
   try{const buf=await getAudio(chart);if(preview!==tk||!$('#stage').hidden)return;
     const src=AC.createBufferSource();src.buffer=buf;const g=AC.createGain();g.gain.setValueAtTime(0,AC.currentTime);g.gain.linearRampToValueAtTime(.85,AC.currentTime+.6);
-    src.connect(g);g.connect(musicGain);let at=(chart.set.preview>0?chart.set.preview:buf.duration*400)/1000;if(at>buf.duration-4)at=0;src.start(0,at);tk.src=src;tk.g=g;
+    src.connect(g);g.connect(musicGain);let at=(chart.set.preview>=0?chart.set.preview:buf.duration*400)/1000;if(at>buf.duration-4)at=0;src.loop=true;src.loopStart=at;src.loopEnd=Math.min(buf.duration,at+22);
+    src.start(0,at);tk.src=src;tk.g=g;
     UI.previewKey=chart.set.key;showEq();src.onended=()=>{if(preview===tk){UI.previewKey=null;showEq();}};}catch(e){}}
 function showEq(){const eq=$('#detail .eq');if(eq)eq.hidden=UI.previewKey!==UI.selSet;}
 function stopPreview(){const p=preview;preview=null;UI.previewKey=null;showEq();if(p&&p.src&&AC){try{p.g.gain.cancelScheduledValues(AC.currentTime);p.g.gain.setValueAtTime(p.g.gain.value,AC.currentTime);p.g.gain.linearRampToValueAtTime(0,AC.currentTime+.25);p.src.stop(AC.currentTime+.3);}catch(e){}}}
 
 /* ================= 画面: 共通 ================= */
-function setTab(t){if(t!=='select')UI.chooseCourse=false;UI.tab=t;for(const b of document.querySelectorAll('.tab'))b.classList.toggle('is-on',b.dataset.tab===t);
+function setTab(t){if(t!=='select'){UI.chooseCourse=false;resetRimSequence();stopPreview();}UI.tab=t;for(const b of document.querySelectorAll('.tab'))b.classList.toggle('is-on',b.dataset.tab===t);
   for(const id of['select','dan','records','load','settings'])$('#tab-'+id).hidden=id!==t;refreshAll();}
 function refreshAll(){renderSongList();renderDetail();renderDans();renderRecords();renderLoad();renderSettings();}
 function crownBadge(k){return k?el('span',{class:'crown '+k},CROWN[k]):el('span',{class:'crown none'},'—');}
@@ -1484,9 +1497,9 @@ function effectiveFolders(){
 }
 function songFolder(set,folders){return folders.assignments[set.key]||UNASSIGNED;}
 function changeFolder(id){
-  UI.chooseCourse=false;UI.folder=id;UI.selSet=null;UI.selChart=null;UI.folderCursor=0;
+  resetRimSequence();UI.chooseCourse=false;UI.folder=id;UI.selSet=null;UI.selChart=null;UI.folderCursor=0;
   stopPreview();renderSongList();renderDetail();
-  $('#songlist').scrollTop=0;
+
 }
 function folderTrail(data,id){
   const names=[];
@@ -1540,12 +1553,17 @@ function saveFolders(data){
   try{localStorage.setItem('kt.folders',JSON.stringify(data));return true;}
   catch{toast('フォルダ設定を保存できませんでした','err');return false;}
 }
-function renderFolderRows(ul,data){
+function visibleFolders(data){
+  if(!data.folders.length||$('#filter').value.trim())return [];
   const folders=data.folders.filter(f=>f.parent===(UI.folder||''));
   if(!UI.folder)folders.push({id:UNASSIGNED,name:'未設定'});
-  folders.forEach((folder,i)=>ul.append(el('li',null,
-    el('button',{style:`--folder:hsl(${hashHue(folder.name)} 69% 60%)`,class:'folder-entry'+((UI.folderCursor??(!UI.selSet?0:-1))===i?' is-on':''),onclick:()=>changeFolder(folder.id)},
-      el('span',{class:'folder-icon','aria-hidden':'true'}),el('strong',null,folder.name),el('span',{'aria-hidden':'true'},'›')))));
+  return folders;
+}
+function folderStrip(folder,selected,select){
+  return el('li',null,el('button',{
+    style:`--folder:hsl(${hashHue(folder.name)} 69% 60%)`,
+    class:'folder-entry'+(selected?' is-on':''),onclick:select},
+    el('span',{class:'folder-icon','aria-hidden':'true'}),el('strong',null,folder.name),el('span',{'aria-hidden':'true'},'›')));
 }
 function folderMoveControl(set){
   if(!S.noiseEdit)return null;
@@ -1580,78 +1598,167 @@ function pickRandom(){const sets=visibleSets();if(!sets.length){toast('表示中
   const pool=sets.length>1?sets.filter(s=>s.key!==UI.selSet):sets,s=pool[Math.floor(Math.random()*pool.length)];
   const cur=Lib.charts.find(c=>c.uid===UI.selChart),cs=sortCharts(s.charts).filter(c=>!isLocked(c));
   const same=cur&&cs.find(c=>c.course===cur.course);UI.selChart=(same||cs[cs.length-1]||s.charts[0]).uid;playSE('don');selectSet(s.key,true);
-  const li=$('#songlist .song.is-on');if(li){alignSongStrips(true);li.classList.add('picked');}}
+  const li=$('#songlist .song.is-on');if(li)li.classList.add('picked');}
 function hashHue(s){let h=0;for(const ch of String(s))h=(h*31+ch.codePointAt(0))>>>0;return h%360;}
-function alignSongStrips(center=false){
-  const list=$('#songlist'),rows=[...list.children];
-  const index=rows.findIndex(row=>row.matches('.is-on')||row.querySelector('.folder-entry.is-on'));
-  for(const [i,row] of rows.entries()){
-    const distance=index<0?0:Math.min(4,Math.abs(index-i));
-    row.style.setProperty('--strip-width',index===i?'98%':(92-distance*2)+'%');
-  }
-  if(center&&index>=0){
-    const row=rows[index];
-    list.scrollTop+=row.getBoundingClientRect().top-list.getBoundingClientRect().top-(list.clientHeight-row.offsetHeight)/2;
-  }
+const BASE_COURSES=['easy','normal','hard','oni'];
+const ONI_COURSES=['oni','ura','kasane'];
+function currentSet(){return Lib.sets.find(set=>set.key===UI.selSet);}
+function chartForSlot(set,course){
+  const charts=set.charts.filter(c=>c.course===course);
+  return charts.find(c=>c.uid===UI.selChart)||charts.find(c=>!isLocked(c))||charts[0];
+}
+function visibleCourses(set){
+  const selected=set.charts.find(c=>c.uid===UI.selChart);
+  const oni=UI.oniCourse||(ONI_COURSES.includes(selected?.course)?selected.course:'oni');
+  return [...BASE_COURSES.slice(0,3),oni];
+}
+function songChips(set){
+  return BASE_COURSES.map(course=>{
+    const c=chartForSlot(set,course), C=COURSES[course];
+    return c?chip(c):el('span',{class:'chip is-missing',style:`--cc:${C.color}`},C.jp,el('b',null,'–'));
+  });
+}
+function arcadeEntries(){
+  return [...visibleFolders(effectiveFolders()).map((folder,index)=>({folder,index})),...visibleSets().map(set=>({set}))];
+}
+function arcadeIndex(entries){
+  const index=entries.findIndex(entry=>entry.folder?entry.index===UI.folderCursor:UI.folderCursor==null&&entry.set.key===UI.selSet);
+  return index<0?0:index;
+}
+function selectArcadeEntry(entry){
+  if(entry.folder){
+    UI.folderCursor=entry.index;UI.selSet=null;UI.selChart=null;stopPreview();renderSongList();
+  }else selectSet(entry.set.key,true);
+}
+function songStrip(set,selected,choose){
+  const top=sortCharts(set.charts).filter(c=>!isLocked(c)).pop()||set.charts[0],fav=!!Lib.fav[set.key];
+  const row=el('li',{class:'song'+(selected?' is-on':''),tabindex:'0',role:'button',style:`--sc:${COURSES[top.course].color}`},
+    el('div',{class:'song-t'},el('span',null,set.title)),
+    el('div',{class:'song-a'},el('span',null,set.artist||'—')),
+    el('div',{class:'chips'},songChips(set)),
+    el('button',{class:'fav'+(fav?' on':''),'aria-label':fav?'お気に入りから外す':'お気に入りに追加','aria-pressed':String(fav),onclick:e=>{e.stopPropagation();toggleFav(set.key);}},fav?'★':'☆'));
+  row.addEventListener('click',choose);
+  row.addEventListener('keydown',event=>{
+    if(event.target!==row||!['Enter',' '].includes(event.key))return;
+    event.preventDefault();choose();
+  });
+  return row;
 }
 function showCoursePicker(){
   if(waitForLibrary())return;
-  UI.chooseCourse=true;UI.courseBack=false;
+  UI.chooseCourse=true;UI.courseBack=false;resetRimSequence();
+  const selected=currentSet()?.charts.find(c=>c.uid===UI.selChart);
+  UI.oniCourse=ONI_COURSES.includes(selected?.course)?selected.course:'oni';
+  UI.courseSlot=selected?(ONI_COURSES.includes(selected.course)?3:BASE_COURSES.indexOf(selected.course)):0;
   renderDetail();window.scrollTo(0,0);focusCourseCard();
 }
 function focusCourseCard(){
   const card=$('#detail .crs.is-on');
   if(!card)return;
-  const list=card.parentElement,left=card.offsetLeft-list.offsetLeft;
+  const list=card.parentElement,left=list.scrollLeft+card.getBoundingClientRect().left-list.getBoundingClientRect().left;
   if(left<list.scrollLeft||left+card.offsetWidth>list.scrollLeft+list.clientWidth)list.scrollLeft=left-list.clientWidth/2+card.offsetWidth/2;
   card.focus({preventScroll:true});
 }
 function backToSongs(){
-  UI.chooseCourse=false;UI.courseBack=false;
-  renderSongList();renderDetail();window.scrollTo(0,0);alignSongStrips(true);
+  UI.chooseCourse=false;UI.courseBack=false;resetRimSequence();
+  renderSongList();renderDetail();window.scrollTo(0,0);
   $('#songlist .song.is-on')?.focus({preventScroll:true});
 }
 
-function renderSongList(){const ul=$('#songlist');const scroll=ul.scrollTop;ul.innerHTML='';const folders=effectiveFolders();folderToolbar(folders);const sets=visibleSets();
-  if(folders.folders.length&&!$('#filter').value.trim())renderFolderRows(ul,folders);
-  const hint=$('#navHint');if(hint)hint.textContent=`↑↓ か カ（${keyLabel(S.keys[0])}・${keyLabel(S.keys[3])}）で移動、Enter か ドン（${keyLabel(S.keys[1])}・${keyLabel(S.keys[2])}）で決定`;
-  for(const b of document.querySelectorAll('.fchips button'))b.classList.toggle('is-on',b.dataset.f===(UI.filt||'all'));
-  const ss=$('#sortSel');if(ss.value!==(UI.sort||'added'))ss.value=UI.sort||'added';
-  const cnt=$('#listCount');if(cnt)cnt.textContent=`${sets.length}曲`;
-  if(!sets.length){if(ul.childElementCount){alignSongStrips();ul.scrollTop=scroll;return;}ul.append(el('li',{class:'empty'},folders.folders.length?'このフォルダに曲はありません':$('#filter').value||UI.filt!=='all'?'条件に合う曲がありません':'右上の「.osz / CSV を追加」か、ドラッグ＆ドロップで曲を追加できます'));return;}
-  for(const s of sets){const topC=sortCharts(s.charts).filter(c=>!isLocked(c)).pop()||s.charts[0],pl=Lib.played[s.key],fav=!!Lib.fav[s.key];
-    const li=el('li',{class:'song'+(UI.selSet===s.key?' is-on':''),tabindex:'0',role:'button',style:`--sc:${COURSES[topC.course].color}`},
-      el('div',{class:'song-t'},el('span',null,s.title),s.demo?el('span',{class:'tag'},'デモ'):null),
-      el('div',{class:'song-a'},el('span',null,s.artist||'—'),pl?el('span',{class:'plays'},`${pl.n}回`):null),el('div',{class:'chips'},sortCharts(s.charts).map(chip)),
-      el('button',{class:'fav'+(fav?' on':''),'aria-label':fav?'お気に入りから外す':'お気に入りに追加','aria-pressed':String(fav),onclick:e=>{e.stopPropagation();toggleFav(s.key);}},fav?'★':'☆'));
-    li.addEventListener('click',()=>{selectSet(s.key,true);showCoursePicker();});
-    li.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();if(e.key==='Enter'&&UI.selSet===s.key)menuDecide();else{selectSet(s.key,true);showCoursePicker();}}});ul.append(li);}
-  alignSongStrips();ul.scrollTop=scroll;}
+function renderSongList(){
+  const ul=$('#songlist'),folders=effectiveFolders();
+  ul.replaceChildren();folderToolbar(folders);
+  const entries=arcadeEntries(),count=entries.length;
+  $('#listCount').textContent=`${entries.filter(entry=>entry.set).length}曲`;
+  $('#navHint').textContent=`カ（${keyLabel(S.keys[0])}・${keyLabel(S.keys[3])}）で移動、ドンで決定`;
+  for(const button of document.querySelectorAll('.fchips button'))button.classList.toggle('is-on',button.dataset.f===(UI.filt||'all'));
+  $('#sortSel').value=UI.sort||'added';
+  if(!count){ul.append(el('li',{class:'empty'},'条件に合う曲がありません'));return;}
+  const index=arcadeIndex(entries);
+  const radius=count===1?0:count<=3?1:2;
+  for(let offset=-radius;offset<=radius;offset++){
+    const entry=entries[(index+offset+count)%count],selected=offset===0;
+    const choose=()=>{
+      if(!selected){selectArcadeEntry(entry);return;}
+      if(entry.folder)changeFolder(entry.folder.id);
+      else{selectSet(entry.set.key,true);showCoursePicker();}
+    };
+    const row=entry.folder?folderStrip(entry.folder,selected,choose):songStrip(entry.set,selected,choose);
+    row.style.setProperty('--strip-width',selected?'96%':(93-Math.abs(offset)*4)+'%');
+    row.style.setProperty('--strip-shift',offset*9+'px');
+    row.style.setProperty('--strip-angle',offset*.85+'deg');
+    ul.append(row);
+  }
+}
 function selectSet(key,user){UI.folderCursor=null;const changed=UI.selSet!==key;UI.selSet=key;const s=Lib.sets.find(x=>x.key===key);if(!s)return;
-  if(!s.charts.some(c=>c.uid===UI.selChart)){const sc=sortCharts(s.charts);UI.selChart=(sc.filter(c=>!isLocked(c)).pop()||sc[0]).uid;}
+  if(!s.charts.some(c=>c.uid===UI.selChart)){const sc=sortCharts(s.charts);const standard=sc.filter(c=>BASE_COURSES.includes(c.course)&&!isLocked(c));UI.selChart=(standard.at(-1)||sc.find(c=>!isLocked(c))||sc[0]).uid;}
   if(user&&(changed||!preview)){UI.gesture=true;ensureAudio();playPreview(s.charts[0]);}renderSongList();renderDetail();}
 function menuMove(dSong,dCourse){
-  if(dCourse&&!UI.chooseCourse){menuMove(dCourse,0);return;}
-  const sets=visibleSets(),folders=[...document.querySelectorAll('#songlist .folder-entry')];
-  if(dSong&&folders.length&&(UI.folderCursor!=null||!sets.length)){
-    const current=UI.folderCursor??0,next=current+dSong;
-    if(next>=folders.length&&sets.length){UI.folderCursor=null;selectSet(sets[0].key,true);return;}
-    UI.folderCursor=(next+folders.length)%folders.length;renderSongList();renderDetail();
-    alignSongStrips(true);return;
+  const step=dCourse||dSong;if(!step)return;
+  resetRimSequence();
+  if(!UI.chooseCourse){
+    const entries=arcadeEntries();
+    if(!entries.length)return;
+    UI.gesture=true;ensureAudio();playSE('ka');
+    const next=(arcadeIndex(entries)+step+entries.length)%entries.length;
+    selectArcadeEntry(entries[next]);
+    return;
   }
-  if(dSong<0&&folders.length&&sets[0]?.key===UI.selSet){UI.folderCursor=folders.length-1;renderSongList();renderDetail();return;}
-  if(!sets.length)return;UI.gesture=true;ensureAudio();
-  if(dSong&&UI.chooseCourse){menuMove(0,dSong);return;}
-  if(dSong){let i=sets.findIndex(s=>s.key===UI.selSet);i=i<0?0:(i+dSong+sets.length)%sets.length;playSE('ka');selectSet(sets[i].key,true);
-    alignSongStrips(true);return;}
-  const set=sets.find(x=>x.key===UI.selSet);if(!set)return;
-  const charts=sortCharts(set.charts);
-  const current=UI.courseBack?-1:charts.findIndex(c=>c.uid===UI.selChart);
-  const next=clamp(current+dCourse,-1,charts.length-1);
-  if(next===current)return;
-  UI.courseBack=next===-1;
-  if(!UI.courseBack)UI.selChart=charts[next].uid;
-  playSE('ka');renderDetail();focusCourseCard();
+  const set=currentSet();if(!set)return;
+  const courses=visibleCourses(set);
+  for(let slot=(UI.courseBack?-1:UI.courseSlot)+step;slot>=-1&&slot<4;slot+=step){
+    const chart=slot>=0?chartForSlot(set,courses[slot]):null;
+    if(slot>=0&&!chart)continue;
+    UI.courseBack=slot===-1;UI.courseSlot=slot;
+    if(chart)UI.selChart=chart.uid;
+    playSE('ka');renderDetail();focusCourseCard();return;
+  }
+}
+let rimPending=null,rimCount=0,rimKind='';
+const RIM_PAIR_MS=100;
+function paintRimProgress(){
+  const label=$('#rimProgress');if(label)label.textContent=rimCount?`${rimKind==='ura'?'裏':'重'} ${rimCount} / 10`:'';
+}
+function resetRimSequence(){
+  if(rimPending)clearTimeout(rimPending.timer);
+  rimPending=null;rimCount=0;rimKind='';paintRimProgress();
+}
+function countOniHit(kind){
+  if(kind!==rimKind){rimKind=kind;rimCount=0;}
+  rimCount++;
+  if(rimCount<10){paintRimProgress();return;}
+  resetRimSequence();
+  const set=currentSet();if(!set)return;
+  UI.oniCourse=UI.oniCourse===kind?'oni':kind;
+  UI.selChart=chartForSlot(set,UI.oniCourse)?.uid??null;
+  renderDetail();focusCourseCard();
+}
+function hitPickerRim(side){
+  if(!UI.chooseCourse||UI.courseBack||UI.courseSlot!==3){menuMove(0,side);return;}
+  UI.gesture=true;ensureAudio();playSE('ka');
+  if(rimPending){
+    const previous=rimPending;
+    clearTimeout(previous.timer);rimPending=null;
+    if(previous.side!==side){countOniHit('kasane');return;}
+    if(previous.side===1)countOniHit('ura');
+    else{menuMove(0,-1);return;}
+  }
+  rimPending={side,timer:setTimeout(()=>{
+    rimPending=null;
+    if(!UI.chooseCourse||UI.courseBack||UI.courseSlot!==3)return;
+    if(side===1)countOniHit('ura');
+    else menuMove(0,-1);
+  },RIM_PAIR_MS)};
+}
+function pickerRimButton(side,label){
+  let held=false;
+  const button=el('button',{class:'btn',type:'button',onclick:event=>{if(event.detail===0)hitPickerRim(side);}},label);
+  button.addEventListener('pointerdown',event=>{
+    if(held||event.button!==0)return;
+    held=true;button.setPointerCapture(event.pointerId);hitPickerRim(side);
+  });
+  for(const type of ['pointerup','pointercancel','lostpointercapture'])button.addEventListener(type,()=>{held=false;});
+  return button;
 }
 function adjSpeed(d){S.speed=Math.round(clamp(S.speed+d,.5,4)*10)/10;saveS();renderDetail();renderSettings();}
 function optRow(){const o=S.opt;const set=(fn)=>()=>{fn();saveS();UI.gesture=true;ensureAudio();playSE('ka');renderDetail();};
@@ -1679,9 +1786,14 @@ function pracBlock(c,dc){const max=Math.ceil(c.length/500)*500;let P=UI.prac;if(
   det.addEventListener('toggle',()=>{UI.pracOpen=det.open;upd();});requestAnimationFrame(upd);return det;}
 async function startPractice(c,p){if(waitForLibrary())return;ensureAudio();D=null;await runSong(c,p);}
 function menuDecide(){if(UI.chooseCourse&&UI.courseBack){backToSongs();return;}if(waitForLibrary())return;
-  const folder=!UI.chooseCourse&&($('#songlist .folder-entry.is-on')||(!visibleSets().length&&$('#songlist .folder-entry')));if(folder){folder.click();return;}
-  const visible=visibleSets();if(!visible.some(s=>s.key===UI.selSet)){const first=visible[0];if(!first)return;selectSet(first.key,true);}
-  if(!UI.chooseCourse){showCoursePicker();return;}const s=Lib.sets.find(x=>x.key===UI.selSet);if(!s)return;const c=s.charts.find(x=>x.uid===UI.selChart);if(!c)return;
+  if(!UI.chooseCourse){
+    const entries=arcadeEntries(),entry=entries[arcadeIndex(entries)];
+    if(!entry)return;
+    if(entry.folder){changeFolder(entry.folder.id);return;}
+    selectSet(entry.set.key,true);showCoursePicker();return;
+  }
+  resetRimSequence();
+  const c=currentSet()?.charts.find(x=>x.uid===UI.selChart);if(!c)return;
   UI.gesture=true;ensureAudio();playSE('don');if(isLocked(c)){UI.danMode='kasane';setTab('dan');}else startNormal(c);}
 function drawDensity(cvd,c,sel){if(!cvd.isConnected)return;const r=cvd.getBoundingClientRect();const w=Math.max(10,r.width),h=Math.max(10,r.height),dpr=Math.min(2,devicePixelRatio||1);
   cvd.width=Math.round(w*dpr);cvd.height=Math.round(h*dpr);const x=cvd.getContext('2d');x.scale(dpr,dpr);
@@ -1774,19 +1886,40 @@ function renderDetail(){const d=$('#detail');$('#arcadeMenu').hidden=!!UI.choose
   const hero=el('div',{class:'hero'+(s.bgUrl?'':' gen'),style:`--hue:${hashHue(s.title)}`},el('span',{class:'eq',hidden:UI.previewKey!==s.key||null,title:'試聴中','aria-label':'試聴中'},el('i'),el('i'),el('i'),el('i')),el('div',{class:'eyebrow'},s.demo?'デモ曲':'.osz'),el('h2',null,s.title),el('div',{class:'art'},s.artist||''),s.demo?null:el('div',{class:'file'},s.file+'.osz'));
   if(s.bgUrl)hero.style.setProperty('--bgimg',`url("${s.bgUrl}")`);d.append(hero);
   const folderControl=folderMoveControl(s);if(folderControl)d.append(folderControl);
-  const charts=sortCharts(s.charts);
-  const list=el('div',{class:'crs-list',role:'group','aria-label':'コース',style:`--course-count:${charts.length+1}`});
+  const courses=visibleCourses(s);
+  const list=el('div',{class:'crs-list',role:'group','aria-label':'コース',style:'--course-count:5'});
   list.append(el('button',{class:'crs crs-back'+(UI.courseBack?' is-on':''),onclick:backToSongs},
     el('span',{class:'k','aria-hidden':'true'},'↶'),el('span',{class:'nm'},el('strong',null,'もどる'))));
-  for(const c of charts){const C=COURSES[c.course],locked=isLocked(c);
-    const b=el('button',{class:'crs'+(!UI.courseBack&&c.uid===UI.selChart?' is-on':'')+(locked?' locked':''),style:`--cc:${C.color}`,'aria-pressed':String(!UI.courseBack&&c.uid===UI.selChart)},
-      el('span',{class:'k'},C.k),el('span',{class:'nm'},el('strong',null,C.jp+(locked?'（封印中）':''),' ',sealBadge(c)),el('small',null,c.meta.version+(c.stats.chords?` ・ 最大${c.stats.maxLanes}レーン`:'')),
-        el('span',{class:'pips','aria-hidden':'true'},Array.from({length:Math.max(10,Math.floor(c.level||0))},(_,i)=>el('i',{class:i<(c.level||0)?'on':''})))),
-      el('span',{class:'lv'},levelText(c),el('small',null,crownOf(c)||(Lib.best[c.uid]?fmtNum(Lib.best[c.uid].score):''))));
-    b.addEventListener('click',()=>{if(!UI.courseBack&&UI.selChart===c.uid){menuDecide();return;}UI.gesture=true;ensureAudio();playSE('ka');UI.courseBack=false;UI.selChart=c.uid;renderDetail();focusCourseCard();});list.append(b);}
+  for(const [slot,course] of courses.entries()){
+    const c=chartForSlot(s,course),C=COURSES[course],locked=c&&isLocked(c);
+    const active=!!c&&!UI.courseBack&&UI.courseSlot===slot;
+    const b=el('button',{class:'crs'+(active?' is-on':'')+(locked?' locked':''),disabled:!c,style:`--cc:${C.color}`,'aria-pressed':String(active)},
+      el('span',{class:'k'},C.k),
+      el('span',{class:'nm'},el('strong',null,C.jp),c?sealBadge(c):null,
+        el('small',null,locked?'封印中':c?.meta.version),
+        c?el('span',{class:'pips','aria-hidden':'true'},Array.from({length:Math.max(10,Math.floor(c.level||0))},(_,i)=>el('i',{class:i<(c.level||0)?'on':''}))):null),
+      el('span',{class:'lv'},c?levelText(c):'–',c?el('small',null,crownOf(c)||(Lib.best[c.uid]?fmtNum(Lib.best[c.uid].score):'')):null));
+    b.addEventListener('click',()=>{
+      if(active){menuDecide();return;}
+      resetRimSequence();UI.gesture=true;ensureAudio();playSE('ka');
+      UI.courseBack=false;UI.courseSlot=slot;UI.selChart=c.uid;renderDetail();focusCourseCard();
+    });
+    list.append(b);
+  }
   d.append(list);
+  const hint=el('span',{class:'course-progress',id:'rimProgress','aria-live':'polite'});
+  d.append(el('div',{class:'row course-rims'},pickerRimButton(-1,'◀ 左カツ'),hint,pickerRimButton(1,'右カツ ▶')));
+  paintRimProgress();
   if(UI.courseBack)return;
   const c=s.charts.find(x=>x.uid===UI.selChart);if(!c)return;
+  const alternatives=s.charts.filter(chart=>chart.course===c.course);
+  if(alternatives.length>1){
+    const select=el('select',{'aria-label':'譜面'},alternatives.map(chart=>el('option',{value:chart.uid},`${chart.meta.version} ・ ${levelText(chart)}`)));
+    select.value=c.uid;
+    select.addEventListener('change',()=>{UI.selChart=select.value;renderDetail();});
+    d.append(el('label',{class:'row course-variants'},'譜面',select));
+  }
+  if(UI.courseSlot===3)d.append(el('p',{class:'opt-note course-variants'},'右カツ10回で裏、左右のカツ同時押し10回で重。もう一度でおにに戻ります。'));
   const actions=el('div',{class:'play-row arcade-cta'});d.append(actions);
   const bpm=c.bpm[0]===c.bpm[1]?`${c.bpm[0]}`:`${c.bpm[0]}–${c.bpm[1]}`;
   d.append(el('dl',{class:'stats'},
@@ -2811,6 +2944,7 @@ function renderGuide(){const b=$('#howtoBody');b.innerHTML='';const K=S.keys.map
         el('tr',null,el('td',null,el('b',null,'可')),el('td',{class:'num'},`±${WIN_HARD.ok}ms`),el('td',{class:'num'},`±${WIN_SOFT.ok}ms`)),
         el('tr',null,el('td',null,el('b',{style:'color:#8ea0e0'},'不可')),el('td',{colspan:'2'},'それより外れたとき、叩かなかったとき、上のミスになる押し方をしたとき')))))),
     sec('重譜面の解禁',el('p',null,'重の譜面は最初は封印されています。「段位道場」で3曲を続けて叩き、合格すると3曲目の重譜面が通常プレイで遊べるようになります。条件は「不可 2%以下」「特良 70%以上」のような割合で決まり、演奏中は下のバーで残りの許容数が分かります。')),
+    sec('曲とむずかしさをえらぶ',el('p',null,'カツや矢印で曲を移動し、ドンで決定します。難易度のおに枠では、右カツを10回でおに裏、左右のカツを同時に10回で重に切り替わります。同じ操作をもう一度行うとおにに戻ります。')),
     sec('4レーン落下モード',el('p',null,'設定の「演奏画面」で4レーン落下（2D／3D）を選ぶと音符が上から落ちてきます。3Dでは奥から手前に向かってレーンが広がります。サドプラで上側を隠す量を調整できます。下の判定線に重なったときに、表示されたレーンのキーを押すか画面をタップしてください。横線でつながった音符は同時押しです。封印ノーツは使える手のレーンに表示されます。')),
     sec('練習とオプション',el('p',null,'曲の詳細にある「練習モード」で、区間をしぼってスローで何度でも練習できます。あべこべ・きまぐれ・でたらめ・ドロンなどのオプションもあります（段位道場では使われません）。音と叩くタイミングがずれるときは「設定」のタイミング調整を使ってください。')));}
 $('#guideBtn').addEventListener('click',openGuide);
@@ -2827,6 +2961,27 @@ $('#sortSel').addEventListener('change',e=>{UI.sort=e.target.value;saveUIPrefs()
 for(const b of document.querySelectorAll('.fchips button'))b.addEventListener('click',()=>{UI.filt=b.dataset.f;saveUIPrefs();renderSongList();renderDetail();});
 $('#arcadePrev').addEventListener('click',()=>menuMove(-1,0));
 $('#arcadeNext').addEventListener('click',()=>menuMove(1,0));
+const arcadeList=$('#songlist');let arcadeWheelAt=0,arcadeTouch=null,arcadeSwipedAt=0;
+arcadeList.addEventListener('wheel',event=>{
+  const delta=Math.abs(event.deltaY)>=Math.abs(event.deltaX)?event.deltaY:event.deltaX;
+  if(!delta||event.ctrlKey)return;
+  event.preventDefault();
+  if(performance.now()-arcadeWheelAt<135)return;
+  arcadeWheelAt=performance.now();menuMove(Math.sign(delta),0);
+},{passive:false});
+arcadeList.addEventListener('touchstart',event=>{
+  if(event.touches.length===1)arcadeTouch=event.touches[0].clientY;
+},{passive:true});
+arcadeList.addEventListener('touchend',event=>{
+  if(arcadeTouch==null)return;
+  const distance=arcadeTouch-event.changedTouches[0].clientY;arcadeTouch=null;
+  if(Math.abs(distance)<25)return;
+  arcadeSwipedAt=performance.now();menuMove(Math.sign(distance),0);
+},{passive:true});
+arcadeList.addEventListener('touchcancel',()=>{arcadeTouch=null;});
+arcadeList.addEventListener('click',event=>{
+  if(performance.now()-arcadeSwipedAt<280&&arcadeSwipedAt){event.stopPropagation();event.preventDefault();}
+},true);
 $('#randomBtn').addEventListener('click',pickRandom);
 $('#fileIn').addEventListener('change',e=>{addFiles([...e.target.files]);e.target.value='';});
 async function addFiles(files){libraryImports++;try{let added=0;
@@ -2881,6 +3036,11 @@ window.addEventListener('keydown',e=>{
   const ki=S.keys.indexOf(e.code);
   if((e.key==='Escape'||e.key==='Backspace')&&UI.chooseCourse){e.preventDefault();backToSongs();return;}
   if((e.key==='Escape'||e.key==='Backspace')&&UI.folder){e.preventDefault();changeFolder(effectiveFolders().folders.find(f=>f.id===UI.folder)?.parent||'');return;}
+  if(UI.chooseCourse&&(ki===0||ki===3||e.key==='ArrowLeft'||e.key==='ArrowRight')){
+    e.preventDefault();
+    if(!e.repeat)hitPickerRim(ki===0||e.key==='ArrowLeft'?-1:1);
+    return;
+  }
   if(e.key==='ArrowUp'||ki===0){e.preventDefault();menuMove(-1,0);}
   else if(e.key==='ArrowDown'||ki===3){e.preventDefault();menuMove(1,0);}
   else if(e.key==='ArrowLeft'){e.preventDefault();menuMove(0,-1);}
