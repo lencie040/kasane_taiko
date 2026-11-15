@@ -527,7 +527,7 @@ body{
 .arcade-catalog .list-tools{margin:2px 0}
 .arcade-catalog .list-head{margin:4px 0}
 #songlist{display:block;max-height:clamp(300px,62dvh,690px);padding:10px clamp(8px,2vw,24px);background:none;border:0;box-shadow:none;scrollbar-width:thin;overscroll-behavior:contain}
-#songlist>li{margin:0 auto 11px;position:relative;width:var(--strip-width,91%)}
+#songlist>li{margin:0 auto 11px;position:relative;width:84%}
 #songlist>li.empty{background:#fff4d7;border-radius:14px;padding:18px}
 #songlist .song,.folder-entry{
   --strip:var(--sc,#42c6ce);
@@ -665,8 +665,7 @@ body{min-height:100dvh;animation:arcade-wallpaper 12s linear infinite}
 @keyframes arcade-wallpaper{to{background-position:80px 80px,-80px 80px,0 0}}
 #tab-select{min-height:calc(100dvh - 165px)}
 #songlist{max-height:none;overflow:hidden;touch-action:pan-x}
-#songlist>li{translate:var(--strip-shift,0) 0}
-#songlist>li:not(.empty){transform:rotate(var(--strip-angle,0deg))}
+#songlist>li:not(.empty){translate:var(--strip-shift,0%) 0}
 #songlist .song .chips{display:flex;margin-top:4px}
 #songlist .song:not(.is-on) .chips{display:none}
 #songlist .chip.is-missing{opacity:.53;background:#ded0cd}
@@ -677,7 +676,6 @@ body{min-height:100dvh;animation:arcade-wallpaper 12s linear infinite}
 .course-progress{min-width:5em;text-align:center;color:#613145;font-weight:800}
 .course-variants{justify-content:center;margin:0 14px 8px}
 @media(max-width:650px){
-  #songlist>li:not(.empty){translate:calc(var(--strip-shift,0px) * .4) 0}
   .crs-list{grid-template-columns:repeat(5,minmax(64px,1fr));gap:6px;padding-inline:9px}
   .crs .nm strong{font-size:10px;white-space:nowrap}.crs .nm small{font-size:10px}
 }
@@ -1684,9 +1682,8 @@ function renderSongList(){
       else{selectSet(entry.set.key,true);showCoursePicker();}
     };
     const row=entry.folder?folderStrip(entry.folder,selected,choose):songStrip(entry.set,selected,choose);
-    row.style.setProperty('--strip-width',selected?'96%':(93-Math.abs(offset)*4)+'%');
-    row.style.setProperty('--strip-shift',offset*9+'px');
-    row.style.setProperty('--strip-angle',offset*.85+'deg');
+    // Keep each strip level. The diagonal comes from the horizontal steps.
+    row.style.setProperty('--strip-shift',offset*4+'%');
     ul.append(row);
   }
 }
@@ -2270,16 +2267,6 @@ function noteSprite(col,R){const key=col+'|'+Math.round(R*4);let s=spriteCache.g
   const rim=x.createLinearGradient(0,cy-R,0,cy+R);rim.addColorStop(0,'#fffbf2');rim.addColorStop(1,'#d8ccb2');x.beginPath();x.arc(cx,cy,R*1.05,0,TAU);x.fillStyle=rim;x.fill();
   const g=x.createRadialGradient(cx-R*.28,cy-R*.32,R*.08,cx,cy,R*.9);g.addColorStop(0,hi);g.addColorStop(.6,mid);g.addColorStop(1,lo);x.beginPath();x.arc(cx,cy,R*.86,0,TAU);x.fillStyle=g;x.fill();
   x.beginPath();x.ellipse(cx-R*.14,cy-R*.42,R*.46,R*.19,-.22,0,TAU);x.fillStyle='rgba(255,255,255,.3)';x.fill();
-  if(col==='d'||col==='k'){
-    x.fillStyle='#301a2b';
-    for(const eye of [-1,1]){
-      x.beginPath();x.ellipse(cx+eye*R*.30,cy-R*.09,R*.093,R*.113,0,0,TAU);x.fill();
-    }
-    x.beginPath();x.moveTo(cx-R*.28,cy+R*.12);
-    x.quadraticCurveTo(cx,cy+R*.24,cx+R*.28,cy+R*.12);
-    x.quadraticCurveTo(cx,cy+R*.64,cx-R*.28,cy+R*.12);
-    x.fill();
-  }
   s={c:cc,pad};spriteCache.set(key,s);return s;}
 function drawNote(c,x,y,R,col,alpha){const s=noteSprite(col,R);if(alpha!=null&&alpha<1)c.globalAlpha=alpha;c.drawImage(s.c,x-s.pad,y-s.pad,s.pad*2,s.pad*2);if(alpha!=null&&alpha<1)c.globalAlpha=1;}
 function drawRoll(c,x1,x2,y,R){x2=Math.max(x1,x2);c.save();c.lineCap='round';
