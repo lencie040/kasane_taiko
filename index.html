@@ -215,6 +215,13 @@ body:has(#tab-medley:not([hidden])){animation:none}
 #medleyLane{display:block;width:100%;height:clamp(100px,18vw,148px);border-radius:8px;background:#1b192a}
 .medley-time{display:flex;align-items:center;gap:10px;color:var(--mute);font-size:13px}
 .medley-time progress{flex:1;min-width:0;height:8px;accent-color:var(--don)}
+.medley-tones{border-top:1px solid var(--line);padding-top:10px}
+.medley-tones summary{cursor:pointer;font-weight:800}
+.medley-tones p{margin:6px 0 10px;color:var(--mute);font-size:13px}
+.medley-tone{display:grid;grid-template-columns:3em minmax(0,1fr) auto;align-items:center;gap:6px 10px;padding-block:6px}
+.medley-tone output{overflow-wrap:anywhere;font-size:13px;color:var(--mute)}
+.medley-tone-actions{display:flex;flex-wrap:wrap;gap:6px}
+@media(max-width:610px){.medley-tone-actions{grid-column:2}}
 .overlay{position:absolute;inset:0;background:rgba(10,13,30,.82);display:grid;place-items:center;padding:24px max(16px,env(safe-area-inset-left,0px));overflow:auto}
 .ov-card{background:var(--panel);border:1px solid var(--line-2);border-radius:16px;padding:24px;width:min(640px,100%);display:grid;gap:16px}
 .ov-card h2{font-family:var(--f-display);font-size:26px}
@@ -973,6 +980,11 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
         <button class="btn" id="medleyNext" disabled>次の譜面</button>
         <button class="btn" id="medleyStop" disabled>停止</button>
       </div>
+      <details class="medley-tones">
+        <summary>ドン・カツの音色</summary>
+        <p>音声ファイルを選んで試聴できます。再生中の変更は次の譜面から反映されます。長い音声は打音が重なると途中で短くなります。</p>
+        <div id="medleyTones"></div><p id="medleyToneStatus" role="status" hidden></p>
+      </details>
     </div>
   </section>
 
@@ -1402,7 +1414,7 @@ function removeSet(set,persist=true){Lib.sets=Lib.sets.filter(s=>s!==set);Lib.ch
 
 /* ================= IndexedDB ================= */
 const IDB={db:null,
-  open(){return new Promise(res=>{try{const r=indexedDB.open('kasane-taiko',2);r.onupgradeneeded=()=>{for(const key of ['osz','repository'])if(!r.result.objectStoreNames.contains(key))r.result.createObjectStore(key);};r.onsuccess=()=>{IDB.db=r.result;res(true);};r.onerror=()=>res(false);r.onblocked=()=>res(false);}catch(e){res(false);}});},
+  open(){return new Promise(res=>{try{const r=indexedDB.open('kasane-taiko',3);r.onupgradeneeded=()=>{for(const key of ['osz','repository','medleyTones'])if(!r.result.objectStoreNames.contains(key))r.result.createObjectStore(key);};r.onsuccess=()=>{IDB.db=r.result;IDB.db.onversionchange=()=>{IDB.db.close();IDB.db=null;};res(true);};r.onerror=()=>res(false);r.onblocked=()=>res(false);}catch(e){res(false);}});},
   tx(mode,fn,name='osz'){return new Promise(res=>{if(!IDB.db)return res(null);try{const t=IDB.db.transaction(name,mode);const st=t.objectStore(name);const r=fn(st);t.oncomplete=()=>res(r&&r.result);t.onerror=()=>res(null);}catch(e){res(null);}});},
   put(k,v){return IDB.tx('readwrite',s=>s.put(v,k));},del(k){return IDB.tx('readwrite',s=>s.delete(k));},clear(){return IDB.tx('readwrite',s=>s.clear());},
   async all(){if(!IDB.db)return[];const keys=await IDB.tx('readonly',s=>s.getAllKeys())||[];const out=[];for(const k of keys){const v=await IDB.tx('readonly',s=>s.get(k));if(v)out.push({name:k,data:v});}return out;}};
@@ -1712,13 +1724,14 @@ function playJingle(kind){if(!AC)return;const t0=AC.currentTime+.05,g=AC.createG
   if(kind==='danpass'){drum(0);drum(.25);}
   for(const[m,at,d]of seq){N(hz(m),at,d||.22,'triangle',.3);N(hz(m+12),at,(d||.22)*.7,'sine',.12);}
   if(kind==='zenryo'||kind==='fc'){for(let i=0;i<5;i++)N(hz(96+(i%3)*4),.6+i*.07,.15,'sine',.08);}}
-function playSE(n){if(!AC||!SE[n])return;const s=AC.createBufferSource();s.buffer=SE[n];s.connect(seGain);s.start();}
+function playSE(n,sample=SE[n]){if(!AC||!sample)return;const s=AC.createBufferSource();s.buffer=sample;s.connect(seGain);s.start();return s;}
+function decodeGameAudio(ab){return new Promise((res,rej)=>{const r=AC.decodeAudioData(ab,res,()=>rej(new Error('音源を再生できない形式でした')));if(r&&r.catch)r.catch(()=>{});});}
 const audioCache=new Map();
 function getAudio(chart){const set=chart.set,key=set.key+'|'+(set.repoHash||'')+'|'+(chart.audio||'');
   if(audioCache.has(key))return audioCache.get(key);
   const p=(async()=>{ensureAudio();if(set.demo)return await renderDemo(set.demo);
     const f=findFile(set,chart.audio,chart.dir,'audio');if(!f)throw new Error(`音源「${chart.audio}」が .osz の中に見つかりません`);
-    const ab=await f.async('arraybuffer');return await new Promise((res,rej)=>{const r=AC.decodeAudioData(ab,res,()=>rej(new Error('音源を再生できない形式でした')));if(r&&r.catch)r.catch(()=>{});});})();
+    return await decodeGameAudio(await f.async('arraybuffer'));})();
   audioCache.set(key,p);p.catch(()=>audioCache.delete(key));
   while(audioCache.size>4)audioCache.delete(audioCache.keys().next().value);return p;}
 let preview=null;
@@ -1736,6 +1749,92 @@ const medleyView={title:$('#medleyTitle'),status:$('#medleyStatus'),order:$('#me
   progress:$('#medleyProgress'),time:$('#medleyTime'),play:$('#medleyPlay'),next:$('#medleyNext'),stop:$('#medleyStop')};
 const medleyContext=medleyView.lane.getContext('2d');
 let medley=null,medleyFrame=0,medleyTimer=0,medleyDrawAt=0;
+let medleyTonesReady=false,medleyTonePreview=null,medleyPreviewTicket=0,medleyToneRevision=0;
+const medleyTones=Object.fromEntries([['don','ドン'],['ka','カツ']].map(([kind,label])=>{
+  const fileInput=el('input',{type:'file',accept:'audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,.opus,.webm,.aiff',hidden:true});
+  const choose=el('button',{class:'btn small',type:'button','aria-label':`${label}の音声ファイルを選ぶ`,onclick:()=>fileInput.click()},'ファイルを選ぶ');
+  const listen=el('button',{class:'btn small',type:'button','aria-label':`${label}を試聴`,title:'先頭2秒を試聴',onclick:()=>previewMedleyTone(kind)},'試聴');
+  const reset=el('button',{class:'btn small',type:'button','aria-label':`${label}を標準音に戻す`,onclick:()=>changeMedleyTone(kind,null)},'標準に戻す');
+  const name=el('output',null,'標準音');
+  fileInput.addEventListener('change',()=>{const file=fileInput.files[0];fileInput.value='';if(file)changeMedleyTone(kind,file);});
+  $('#medleyTones').append(el('div',{class:'medley-tone'},el('strong',null,label),name,
+    el('div',{class:'medley-tone-actions'},choose,listen,reset,fileInput)));
+  return [kind,{label,file:null,buffer:null,loading:null,busy:false,name,choose,listen,reset}];
+}));
+
+function renderMedleyTones(message=''){
+  for(const tone of Object.values(medleyTones)){
+    tone.name.textContent=tone.busy?'読み込み中…':tone.file?.name??'標準音';
+    tone.choose.disabled=tone.listen.disabled=!medleyTonesReady||tone.busy;
+    tone.reset.disabled=tone.choose.disabled||!tone.file;
+  }
+  const status=$('#medleyToneStatus');status.textContent=message;status.hidden=!message;
+}
+renderMedleyTones();
+
+async function restoreMedleyTones(){
+  await Promise.all(Object.entries(medleyTones).map(async([kind,tone])=>{
+    const file=await IDB.tx('readonly',store=>store.get(kind),'medleyTones');
+    if(file instanceof Blob)tone.file=file;
+  }));
+  medleyTonesReady=true;renderMedleyTones();
+}
+
+async function decodeMedleyTone(file){
+  const audio=await decodeGameAudio(await file.arrayBuffer());
+  if(audio.numberOfChannels<=2)return audio;
+  const mixer=new OfflineAudioContext(2,audio.length,audio.sampleRate),source=mixer.createBufferSource();
+  source.buffer=audio;source.connect(mixer.destination);source.start();
+  return await mixer.startRendering();
+}
+
+function prepareMedleyTone(tone){
+  if(!tone.file||tone.buffer)return;
+  const file=tone.file;
+  if(tone.loading?.file===file)return tone.loading.promise;
+  const loading={file};tone.loading=loading;
+  loading.promise=decodeMedleyTone(file).then(audio=>{
+    if(tone.file===file)tone.buffer=audio;
+  }).catch(()=>{
+    if(tone.file===file)renderMedleyTones(`${tone.label}の保存済みファイルを再生できないため、標準音を使います。`);
+  }).finally(()=>{if(tone.loading===loading)tone.loading=null;});
+  return loading.promise;
+}
+
+async function changeMedleyTone(kind,file){
+  const tone=medleyTones[kind];
+  if(tone.busy)return;
+  tone.busy=true;renderMedleyTones();
+  const previous={file:tone.file,buffer:tone.buffer};
+  let message='';
+  try{
+    if(file)ensureAudio();
+    const buffer=file?await decodeMedleyTone(file):null;
+    tone.file=file;tone.buffer=buffer;medleyToneRevision++;
+    if(medley)refreshMedleyTrackHits(medley,medley.next);
+    const saved=await IDB.tx('readwrite',store=>file?store.put(file,kind):store.delete(kind),'medleyTones');
+    if(saved===null)message='音色をブラウザに保存できませんでした。このページを開いている間は変更が反映されます。';
+  }catch(error){
+    if(tone.file===file){Object.assign(tone,previous);medleyToneRevision++;}
+    message=`${tone.label}の音声を読み込めませんでした。ブラウザが再生できる音声ファイルを選んでください。`;
+  }
+  tone.busy=false;renderMedleyTones(message);
+}
+
+function stopMedleyTonePreview(){
+  medleyPreviewTicket++;
+  if(!medleyTonePreview)return;
+  medleyTonePreview.onended=null;medleyTonePreview.stop();medleyTonePreview.disconnect();medleyTonePreview=null;
+}
+async function previewMedleyTone(kind){
+  ensureAudio();stopMedleyTonePreview();
+  const ticket=medleyPreviewTicket,tone=medleyTones[kind];
+  await prepareMedleyTone(tone);
+  if(ticket!==medleyPreviewTicket||UI.tab!=='medley')return;
+  const source=playSE(kind,tone.buffer??SE[kind]);medleyTonePreview=source;
+  source.stop(AC.currentTime+2);
+  source.onended=()=>{source.disconnect();if(medleyTonePreview===source)medleyTonePreview=null;};
+}
 
 function medleyCharts(){return Lib.charts.filter(chart=>!chart.set.demo);}
 function medleyQueue(charts,shuffle,previous){
@@ -1755,21 +1854,14 @@ function medleyNoteIndex(targets,time){
 
 function buildMedleyHits(chart,duration){
   const {targets,rolls,length:limit}=chart,rate=AC.sampleRate;
-  const samples={don:SE.don.getChannelData(0),ka:SE.ka.getChannelData(0),pop:SE.pop.getChannelData(0)};
-  let buffer,mixed;
-  // 譜面の打音を1本にまとめて、描画やタイマーの頻度に頼らず鳴らす。
-  const mix=(kind,time)=>{
-    if(!buffer){buffer=AC.createBuffer(1,Math.ceil((duration+.002)*rate)+SE.don.length,rate);mixed=buffer.getChannelData(0);}
-    const hit=samples[kind],start=Math.round(time*rate/1000);
-    for(let i=0;i<hit.length;i++)mixed[start+i]+=hit[i];
-  };
+  const times={don:[],ka:[],pop:[]};
   for(const target of targets){
     if(target.t<0)continue;
     if(target.t>limit)break;
     for(const note of target.notes||[target]){
       const kind=note.color==='d'?'don':'ka';
-      mix(kind,target.t);
-      if(note.big&&!note.noise)mix(kind,target.t+(target.type==='single'?1:0));
+      times[kind].push(target.t);
+      if(note.big&&!note.noise)times[kind].push(target.t+(target.type==='single'?1:0));
     }
   }
   const rollGuard=(chart.course==='easy'||chart.course==='normal'?WIN_SOFT:WIN_HARD).bad+10;
@@ -1779,8 +1871,28 @@ function buildMedleyHits(chart,duration){
     for(let time=start;time<=end;time+=balloon?45:50){
       while(index<targets.length&&targets[index].t<=time)index++;
       if(time+rollGuard>(targets[index]?.t??Infinity))continue;
-      mix('don',time);
-      if(balloon&&++hits>=roll.hits){mix('pop',time);break;}
+      times.don.push(time);
+      if(balloon&&++hits>=roll.hits){times.pop.push(time);break;}
+    }
+  }
+  if(!Object.values(times).some(list=>list.length))return;
+  const kit={don:medleyTones.don.buffer??SE.don,ka:medleyTones.ka.buffer??SE.ka,pop:SE.pop};
+  const channels=Math.max(kit.don.numberOfChannels,kit.ka.numberOfChannels);
+  const buffer=AC.createBuffer(channels,Math.ceil((duration+.002)*rate)+SE.don.length,rate);
+  // カスタム音は同じ音色の重なりを2音ぶんに抑え、長いファイルでもミックスを軽くする。
+  for(const [kind,list] of Object.entries(times)){
+    const sample=kit[kind],custom=sample!==SE[kind];
+    if(custom)list.sort((a,b)=>a-b);
+    for(let ch=0;ch<channels;ch++){
+      const input=sample.getChannelData(Math.min(ch,sample.numberOfChannels-1)),mixed=buffer.getChannelData(ch);
+      for(let i=0;i<list.length;i++){
+        const start=Math.round(list[i]*rate/1000);
+        const end=custom&&i+2<list.length?Math.round(list[i+2]*rate/1000):mixed.length;
+        const count=Math.min(input.length,end-start,mixed.length-start);
+        const fade=custom&&count<input.length?Math.min(count,Math.round(rate*.005)):0;
+        for(let j=0;j<count-fade;j++)mixed[start+j]+=input[j];
+        for(let j=count-fade;j<count;j++)mixed[start+j]+=input[j]*(count-j-1)/fade;
+      }
     }
   }
   return buffer;
@@ -1802,7 +1914,7 @@ async function loadMedleyTrack(session){
       loadNoise(chart);hits=buildMedleyHits(chart,duration);
     }catch(error){session.unreadable.add(chart);continue;}
     const speed=chart.segs.reduce((min,seg)=>Math.min(min,seg.sv/(4*seg.bl)),Infinity);
-    return {chart,position:session.index,buffer,hits,duration,offset:0,ahead:1.2/speed};
+    return {chart,position:session.index,buffer,hits,duration,toneRevision:medleyToneRevision,offset:0,ahead:1.2/speed};
   }
   return null;
 }
@@ -1816,13 +1928,36 @@ function releaseMedleyTrack(track,stop=true){
   track.source=track.clock=null;
 }
 
+function stopMedleyHitSource(session,source){
+  if(!session.hitSources.delete(source))return;
+  source.onended=null;source.stop();source.disconnect();
+}
 function stopMedleyHits(session){
-  for(const source of session.hitSources){source.onended=null;source.stop();source.disconnect();}
-  session.hitSources.clear();
+  for(const source of session.hitSources)stopMedleyHitSource(session,source);
 }
 
+function scheduleMedleyHits(session,track,when){
+  const {hits,offset}=track;
+  if(!hits||offset>=hits.duration)return;
+  const source=AC.createBufferSource();
+  source.buffer=hits;source.connect(seGain);session.hitSources.add(source);track.hitSource=source;
+  source.onended=()=>{source.disconnect();session.hitSources.delete(source);track.hitSource=null;};
+  // 最後のノーツも、曲の切り替えと同時に鳴らす。
+  source.start(when,offset);
+}
+
+function refreshMedleyTrackHits(session,track){
+  if(!track||track.toneRevision===medleyToneRevision||(track.clock&&AC.currentTime>=track.startAt))return;
+  const hits=buildMedleyHits(track.chart,track.duration);
+  if(track.clock&&AC.currentTime>=track.startAt)return;
+  track.hits=hits;track.toneRevision=medleyToneRevision;
+  if(track.clock){
+    stopMedleyHitSource(session,track.hitSource);
+    scheduleMedleyHits(session,track,track.startAt);
+  }
+}
 function scheduleMedleyTrack(session,track,when){
-  const {offset,buffer,hits,duration}=track;
+  const {offset,buffer,duration}=track;
   track.startAt=when-offset;
   track.endAt=when+(duration-offset);
   if(offset<buffer.duration&&offset<duration){
@@ -1837,13 +1972,7 @@ function scheduleMedleyTrack(session,track,when){
     track.clock=AC.createConstantSource();track.clock.offset.value=0;
     track.clock.connect(AC.destination);track.clock.start(when);track.clock.stop(track.endAt);
   }
-  if(hits&&offset<hits.duration){
-    const source=AC.createBufferSource();
-    source.buffer=hits;source.connect(seGain);session.hitSources.add(source);
-    source.onended=()=>{source.disconnect();session.hitSources.delete(source);};
-    // 最後のノーツも、曲の切り替えと同時に鳴らす。
-    source.start(when,offset);
-  }
+  scheduleMedleyHits(session,track,when);
   track.clock.onended=()=>{
     if(medley!==session||session.current!==track)return;
     releaseMedleyTrack(track,false);
@@ -1869,11 +1998,12 @@ async function activateMedleyTrack(session,pending){
   if(medley!==session)return;
   if(!track){stopMedley();medleyView.status.textContent='再生できる音源がありませんでした。';return;}
   session.current=track;session.next=null;
+  refreshMedleyTrackHits(session,track);
   if(!track.clock&&!session.paused)scheduleMedleyTrack(session,track,AC.currentTime);
   session.pending=loadMedleyTrack(session);
   session.pending.then(next=>{
     if(medley!==session||session.current!==track)return;
-    session.next=next;scheduleMedleyNext(session);
+    session.next=next;refreshMedleyTrackHits(session,next);scheduleMedleyNext(session);
   });
   renderMedley();
 }
@@ -1885,7 +2015,9 @@ function toggleMedley(){
     UI.gesture=true;ensureAudio();stopPreview();
     const shuffle=medleyView.order.value==='shuffle';
     const session=medley={charts,shuffle,queue:medleyQueue(charts,shuffle),index:0,unreadable:new Set(),hitSources:new Set(),paused:false,current:null,next:null};
-    renderMedley();activateMedleyTrack(session,loadMedleyTrack(session));
+    renderMedley();
+    const tonesReady=Promise.all(Object.values(medleyTones).map(prepareMedleyTone));
+    activateMedleyTrack(session,tonesReady.then(()=>loadMedleyTrack(session)));
     return;
   }
   const session=medley,track=session.current;
@@ -1900,6 +2032,7 @@ function toggleMedley(){
 }
 
 function stopMedley(){
+  stopMedleyTonePreview();
   if(!medley)return;
   const session=medley;medley=null;
   releaseMedleyTrack(session.current);releaseMedleyTrack(session.next);stopMedleyHits(session);
@@ -3970,7 +4103,8 @@ $('#fetchGithub').addEventListener('click',()=>loadRepositorySongs(true));
 /* ================= 起動 ================= */
 (async function boot(){
   addDemos();resolveAll();UI.selSet='demo-kasane';refreshAll();renderTitleStat();
-  if(await IDB.open()){const saved=await IDB.all();let n=0;
+  const hasStorage=await IDB.open();await restoreMedleyTones();
+  if(hasStorage){const saved=await IDB.all();let n=0;
     for(const{name,data}of saved){try{const s=await loadOsz(name,data);s.storeName=name;n++;}catch(e){Lib.loadWarn.push(`${name}: ${e.message}`);}}
     if(n){resolveAll();const first=Lib.sets.find(s=>!s.demo);if(first)UI.selSet=first.key;UI.selChart=null;}}
   try{await loadRepositorySongs();}finally{libraryBooting=false;finishLibraryWait();}
