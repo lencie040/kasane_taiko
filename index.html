@@ -737,6 +737,134 @@ body{min-height:100dvh;animation:arcade-wallpaper 12s linear infinite}
   .dtile.dx .dv{min-width:44px}
   .dtile.dx .dv b{font-size:19px}
 }
+
+/* Dojo rank rail, hanging banner and parchment */
+main:has(#tab-dan:not([hidden])){max-width:1520px}
+#tab-dan{gap:12px}
+.dojo-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.dojo-help{border:2px solid #876245;border-radius:10px;background:#fff6df;padding:6px 12px}
+.dojo-help summary{cursor:pointer;font-weight:800}
+.dojo-help .dan-rule{margin:12px 0 6px}
+.dojo-room{
+  position:relative;isolation:isolate;overflow:hidden;padding:clamp(12px,2.3vw,32px);
+  border:4px solid #35242b;border-radius:18px;box-shadow:0 5px #a34b4d;
+  background:
+    linear-gradient(180deg,#1e183f 0%,#2b2b57 18%,transparent 37%),
+    repeating-linear-gradient(90deg,#2b1926 0 3px,transparent 3px 54px),
+    linear-gradient(180deg,#6b4b4e 0%,#99603b 49%,#b48855 80%,#68444e 80%,#4b5d62 100%);
+}
+.dojo-room::before,.dojo-room::after{content:'';position:absolute;z-index:-1;pointer-events:none}
+.dojo-room::before{
+  inset:0;
+  background:
+    radial-gradient(circle at 3% 4%,#fff5ba 0 22px,#f8f3aa48 23px,transparent 58px),
+    radial-gradient(ellipse at 1% 48%,#ffe38c8c,transparent 23%),
+    radial-gradient(ellipse at 99% 48%,#ffe38c8c,transparent 23%),
+    repeating-linear-gradient(90deg,#2318276c 0 12px,transparent 12px 13%);
+}
+.dojo-room::after{
+  bottom:0;left:0;right:0;height:18%;
+  background:repeating-linear-gradient(0deg,#08193435 0 2px,transparent 2px 13px),linear-gradient(#506365,#829288);
+  border-top:3px solid #3b3337;
+}
+.dojo-rank-window{display:flex;gap:5px;padding:5px 5px 14px;overflow-x:auto;scrollbar-width:thin;scrollbar-color:#af8770 #362638}
+.dojo-rank-button{
+  --rank-color:#f8cb75;--rank-ink:#281d24;
+  flex:1 0 42px;min-width:0;min-height:102px;position:relative;isolation:isolate;
+  display:grid;align-content:center;justify-items:center;gap:3px;padding:4px 3px;
+  background:#23202a;border:0;border-radius:9px;color:var(--rank-ink);
+  box-shadow:0 3px #13121a;
+}
+.dojo-rank-button::before{
+  content:'';position:absolute;z-index:-1;inset:3px;
+  clip-path:polygon(12% 0,88% 0,100% 7%,100% 92%,87% 100%,13% 100%,0 92%,0 7%);
+  background:linear-gradient(138deg,#fff7 0 14%,transparent 15% 75%,#4b233f34 76%),var(--rank-color);
+  box-shadow:inset 0 0 0 2px #fff7,inset 0 -5px #492d4160;
+}
+.dojo-rank-button.is-on{z-index:2;outline:3px solid #fff5ba;transform:translateY(5px);box-shadow:0 4px 0 #75324e,0 0 14px #fdd375b0}
+.dojo-seal{
+  display:grid;place-items:center;width:25px;height:25px;border:1.5px solid currentColor;border-radius:50%;
+  color:inherit;opacity:.7;font-size:17px;line-height:1;
+}
+.dojo-rank-name{font:900 19px/1.04 var(--f-body);writing-mode:vertical-rl;letter-spacing:.02em}
+.dojo-rank-button.long .dojo-rank-name{writing-mode:horizontal-tb;font-size:11px;max-width:100%;overflow-wrap:anywhere}
+.dojo-passed{position:absolute;top:1px;right:-3px;transform:rotate(7deg);background:#d94932;color:white;border:2px solid #fff5d4;border-radius:99px;padding:0 4px;font-size:10px;font-weight:900;box-shadow:0 1px #381c2e;white-space:nowrap}
+.dojo-passed.gold{background:#ffcf57;color:#362423}
+.dojo-card{
+  display:grid;grid-template-columns:clamp(110px,15vw,200px) minmax(0,1fr);
+  min-width:0;align-items:start;gap:clamp(7px,1vw,16px);margin:0;background:none;border:0;box-shadow:none;
+}
+.dojo-banner{
+  display:grid;justify-items:center;gap:12px;text-align:center;position:relative;padding:19px 8px 34px;
+  background:#221c28;color:var(--rank-ink);isolation:isolate;
+  clip-path:polygon(0 0,44% 2%,55% 0,100% 2%,97% 96%,76% 100%,49% 96%,21% 100%,3% 96%);
+}
+.dojo-banner::before{
+  content:'';position:absolute;inset:5px;z-index:-1;
+  clip-path:inherit;
+  background:repeating-linear-gradient(118deg,#fff2 0 2px,transparent 2px 15px),linear-gradient(90deg,#381f3b46,transparent 20% 80%,#37243848),var(--rank-color);
+}
+.dojo-banner strong{
+  writing-mode:vertical-rl;font:900 clamp(32px,6.2vw,78px)/1.05 var(--f-body);
+  color:#fff7e5;text-shadow:0 4px #1b1b26;
+  -webkit-text-stroke:7px #211c27;paint-order:stroke fill;overflow-wrap:anywhere;
+}
+.dojo-banner.long strong{font-size:clamp(20px,3.1vw,38px)}
+.dojo-banner small{color:var(--rank-ink);font-weight:800;max-width:100%;overflow-wrap:anywhere}
+.dojo-paper{
+  display:grid;gap:10px;min-width:0;padding:clamp(9px,1.4vw,18px);
+  border:5px solid #261f2b;border-inline-width:clamp(10px,2vw,25px);border-inline-color:var(--rank-color);
+  box-shadow:0 5px #1b1726b0,0 0 0 2px #211a26;
+  background:#f9efda;color:#32252b;border-radius:6px;
+}
+.dojo-paper .dan-songs{gap:6px;padding:0;margin:0}
+.dojo-paper .dan-songs li{
+  grid-template-columns:clamp(36px,6vw,61px) auto minmax(0,1fr);gap:clamp(5px,1.2vw,12px);
+  padding:5px 10px;background:linear-gradient(100deg,#fffdfa,#faf4e7);border:1px solid #e4d8c2;border-radius:40px;outline:none;
+}
+.dojo-order{
+  aspect-ratio:1;border:2px solid #fff;display:grid;place-items:center;border-radius:100%;
+  background:#b4e878;color:#325221;font-size:clamp(12px,2vw,23px);font-weight:900;line-height:1;
+}
+.dojo-paper li:nth-child(2) .dojo-order{background:#9be0f4;color:#164780}
+.dojo-paper li:nth-child(3) .dojo-order{background:#ffc0bb;color:#803439}
+.dojo-paper .dan-songs .tt{font-size:clamp(14px,2.2vw,27px);font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dojo-paper .dan-songs .tt small{display:block;font:700 10px/1.25 var(--f-body);color:#71544b}
+.dojo-paper .dan-songs .chip{display:grid;justify-items:center;gap:0;border-radius:8px;padding:3px 7px;line-height:1.2;min-width:54px}
+.dojo-conditions{margin:0;min-width:0;border:1.6px solid #825e4d;border-radius:12px;padding:8px 8px 10px}
+.dojo-conditions legend{color:white;background:#594333;border-radius:9px 9px 0 0;font-weight:900;padding:2px 18px}
+.dojo-windows{display:grid;gap:7px}
+.dojo-windows.has-gauge{grid-template-columns:minmax(105px,1fr) minmax(0,3fr);align-items:start}
+.dojo-window-stack{display:grid;gap:7px}
+.dojo-condition{min-width:0;border:1px solid #a88064;border-radius:10px;background:#fff8e7;overflow:hidden}
+.dojo-condition h4{margin:0;padding:2px 8px;background:#f2d4a1;color:#573b30;font-size:13px}
+.dojo-tiers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;padding:5px}
+.dojo-tier{display:grid;align-content:start;padding:2px 5px;border-radius:6px;background:linear-gradient(90deg,#ffdfc7,#fffaf0);line-height:1.25}
+.dojo-tier.gold{background:linear-gradient(90deg,#ffe396,#fffaf0)}
+.dojo-tier strong{font-size:clamp(13px,1.65vw,20px);overflow-wrap:anywhere}
+.dojo-tier small,.dojo-tier span{font-size:11px;color:#714b42}
+.dojo-windows.has-gauge>.dojo-condition .dojo-tiers{grid-template-columns:1fr}
+.dojo-side{display:grid;gap:12px;min-width:0}
+.dojo-side .dan-foot{display:grid;justify-items:stretch;text-align:center;gap:7px;margin:0}
+.dojo-side .dan-foot .btn{font-size:clamp(12px,1.6vw,17px);padding-inline:7px}
+.dojo-side .dan-foot .state{background:#fff6e0;color:#51323a;border:1px solid #55333f}
+.dojo-side .dan-foot .state.gold{background:#ffda69}
+.dojo-room .empty{background:#fff6de}
+@media(max-width:650px){
+  .dojo-room{padding:9px;border-width:3px}
+  .dojo-rank-button{flex-basis:38px;min-height:77px}
+  .dojo-rank-name{font-size:15px}.dojo-seal{width:18px;height:18px;font-size:12px}
+  .dojo-card{grid-template-columns:minmax(0,1fr);gap:6px}
+  .dojo-banner{display:flex;align-items:center;justify-content:center;padding:12px 6px 14px;gap:10px}
+  .dojo-banner strong{writing-mode:horizontal-tb;font-size:clamp(24px,7vw,37px);-webkit-text-stroke:4px #211c27}
+  .dojo-banner small{font-size:11px}
+  .dojo-paper{padding:7px;border-inline-width:7px}
+  .dojo-side{gap:5px}
+  .dojo-side .dan-foot{display:flex;justify-content:space-between;align-items:center}
+  .dojo-paper .dan-songs .tt{white-space:normal;overflow-wrap:anywhere}
+  .dojo-windows.has-gauge{grid-template-columns:1fr}
+  .dojo-windows.has-gauge>.dojo-condition .dojo-tiers{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
 </style>
 
 <header class="top">
@@ -780,18 +908,16 @@ body{min-height:100dvh;animation:arcade-wallpaper 12s linear infinite}
   </section>
 
   <section class="pane" id="tab-dan" hidden>
-    <div>
+    <div class="dojo-heading">
       <h2 class="h-sec">段位道場</h2>
-      <p class="lead" id="kasaneIntro">1曲目と2曲目は通常の譜面、3曲目に重譜面が来ます。合格すると、その重譜面が通常プレイでも遊べるようになります。段位の重さは3曲目の重レベル（I〜X）で決まり、I でも本家の六段相当です。</p>
+      <div class="dan-switch" aria-label="段位の種類"><button class="btn" id="danMonthly">月替わり段位</button><button class="btn" id="danKasane">重段位</button></div>
     </div>
-    <div class="dan-rule" id="kasaneRules">
-      <div class="rule"><h4>重なったノーツ</h4><p>同じ時刻に置かれたノーツは縦に並んで流れてきます。2個なら2レーン、4個なら4レーンです。</p></div>
-      <div class="rule"><h4>数と色を揃える</h4><p>並んだドンの数・カッの数と同じだけキーを押します。多くても少なくても、その列はすべて不可です。</p></div>
-      <div class="rule"><h4>特良</h4><p>同時押しの全キーが ±18ms 以内に揃うと特良。良より厳しい判定で、段位の合格条件に使われます。</p></div>
-      <div class="rule"><h4>許容の割合</h4><p>条件は「不可 1%以下」「特良 85%以上」のように割合でも書けます。何個まで落とせるかを常に表示します。</p></div>
-    </div>
-    <div class="dan-switch" aria-label="段位の種類"><button class="btn" id="danMonthly">月替わり段位</button><button class="btn" id="danKasane">重段位</button></div>
-    <div class="danlist" id="danlist"></div>
+    <div class="dojo-room" id="danlist"></div>
+    <details class="dojo-help" id="kasaneHelp" hidden>
+      <summary>重段位の遊び方</summary>
+      <p class="lead">1曲目と2曲目は通常の譜面、3曲目に重譜面が来ます。合格すると、その重譜面が通常プレイでも遊べます。</p>
+      <p>縦に重なった音符はドン・カツの数を合わせて同時に叩きます。全キーが ±18ms 以内に揃うと特良になります。</p>
+    </details>
   </section>
 
   <section class="pane" id="tab-records" hidden>
@@ -1994,7 +2120,7 @@ function menuDecide(){if(UI.chooseCourse&&UI.courseBack){backToSongs();return;}i
   }
   resetRimSequence();
   const set=currentSet(),c=set&&chartForSlot(set,visibleCourses(set)[UI.courseSlot]);if(!c)return;
-  UI.gesture=true;ensureAudio();playSE('don');if(isLocked(c)){UI.danMode='kasane';setTab('dan');}else startNormal(c);}
+  UI.gesture=true;ensureAudio();playSE('don');if(isLocked(c)){UI.danMode='kasane';dojoSelection.kasane=danForChart(c)?.key??null;setTab('dan');}else startNormal(c);}
 function drawDensity(cvd,c,sel){if(!cvd.isConnected)return;const r=cvd.getBoundingClientRect();const w=Math.max(10,r.width),h=Math.max(10,r.height),dpr=Math.min(2,devicePixelRatio||1);
   cvd.width=Math.round(w*dpr);cvd.height=Math.round(h*dpr);const x=cvd.getContext('2d');x.scale(dpr,dpr);
   const len=Math.max(1000,c.length),nb=clamp(Math.floor(w/4),20,160),bw=w/nb,all=new Array(nb).fill(0),ch=new Array(nb).fill(0),sealed=new Set();
@@ -2136,7 +2262,7 @@ function renderDetail(){const d=$('#detail');$('#arcadeMenu').hidden=!!UI.choose
   const best=Lib.best[c.uid];
   if(isLocked(c)){const dan=danForChart(c);
     d.append(el('div',{class:'notice'},`この重譜面は「${dan?dan.name:'重段位'}」に合格すると通常プレイで遊べます。`));
-    actions.append(el('button',{class:'btn gold',onclick:()=>{UI.danMode='kasane';setTab('dan');}},'段位道場へ'));return;}
+    actions.append(el('button',{class:'btn gold',onclick:()=>{UI.danMode='kasane';dojoSelection.kasane=dan?.key??null;setTab('dan');}},'段位道場へ'));return;}
   if(c.course==='kasane')d.append(el('div',{class:'notice'},`縦に並んだノーツは、並んだ数と色どおりにキーを同時押し。数が合わないとその列は全部不可です。±${TOKU_WIN}ms で揃うと特良。`));
   if(S.auto)d.append(el('div',{class:'notice'},'オート演奏がオンです（記録されません）。'));
   actions.append(el('button',{class:'btn primary',id:'playBtn',onclick:()=>{UI.gesture=true;startNormal(c);}},'演奏開始'),
@@ -2146,36 +2272,103 @@ function renderDetail(){const d=$('#detail');$('#arcadeMenu').hidden=!!UI.choose
 function hideMonthlySong(d,index){
   return d.src==='monthly'&&(d.rank===TATSUJIN||(d.rank>=TENTH_DAN&&index===2));
 }
-function renderDans(){const box=$('#danlist');if(!box)return;box.innerHTML='';
+function dojoPalette(d){
+  if(d.src!=='monthly')return ['#b277dc','#24172e'];
+  if(d.rank<FIRST_DAN)return ['#ffce73','#322027'];
+  if(d.rank<10)return ['#62c5db','#18282f'];
+  if(d.rank<KUROUTO)return ['#fc7454','#322027'];
+  if(d.rank===TATSUJIN)return ['#ebbd53','#322027'];
+  return ['#657288','#fff2dc'];
+}
+function dojoColor(d){
+  const [color,ink]=dojoPalette(d);
+  return `--rank-color:${color};--rank-ink:${ink}`;
+}
+function dojoCondition(cond,total){
+  const makeTier=(key,label)=>{
+    const desc=condDesc(cond,key,total);
+    return desc?el('div',{class:'dojo-tier '+key},el('small',null,label),el('strong',null,desc.main),
+      desc.sub?el('span',null,desc.sub):null):null;
+  };
+  return el('div',{class:'dojo-condition'},el('h4',null,COND[cond.key].jp),
+    el('div',{class:'dojo-tiers'},makeTier('red','合格'),makeTier('gold','金合格')));
+}
+function dojoCard(d,period){
+  const record=Lib.danBest[d.key],monthly=d.src==='monthly';
+  const songs=el('ol',{class:'dan-songs','aria-label':'課題曲'});
+  for(let i=0;i<3;i++){
+    const chart=d.songs[i],ref=d.refs[i],hidden=hideMonthlySong(d,i);
+    songs.append(el('li',null,
+      el('span',{class:'dojo-order','aria-label':`${i+1}曲目`},['1st','2nd','3rd'][i]),
+      chart?chipFor(chart,hidden):el('span',{'aria-hidden':'true'},'—'),
+      el('span',{class:'tt'+(!chart?' missing':'')},
+        chart?(hidden?'？？？':chart.set.title):ref?`未読込: ${ref.file} / ${ref.version}`:'未設定',
+        monthly?el('small',null,MONTHLY_ROLES[i]):null)));
+  }
+  const gauge=d.conds.find(c=>c.key==='gauge');
+  const rest=d.conds.filter(c=>c!==gauge);
+  const conditions=d.ready&&d.conds.length?el('fieldset',{class:'dojo-conditions'},el('legend',null,'クリア条件'),
+    el('div',{class:'dojo-windows'+(gauge?' has-gauge':'')},gauge?dojoCondition(gauge,d.tot):null,
+      rest.length?el('div',{class:'dojo-window-stack'},rest.map(c=>dojoCondition(c,d.tot))):null)):null;
+  const status=record==='gold'?'金合格':record==='red'?'合格':'未合格';
+  const name=monthly?d.name:d.level?ROMAN[d.level]:d.name;
+  return el('article',{class:'dan dojo-card',style:dojoColor(d),'aria-label':d.name},
+    el('aside',{class:'dojo-side'},
+      el('div',{class:'dojo-banner'+(name.length>4?' long':'')},el('span',{class:'dojo-seal','aria-hidden':'true'},'◎'),
+        el('strong',null,name),el('small',null,monthly?period.replace('-','年')+'月':d.name!==name?d.name:'重段位')),
+      el('div',{class:'dan-foot'},el('span',{class:'state '+(record||'')},status),
+        el('button',{class:'btn primary',disabled:!d.ready,onclick:()=>{UI.gesture=true;startDan(d);}},'挑戦する'))),
+    el('div',{class:'dojo-paper'},songs,conditions,
+      !d.ready?el('p',{class:'notice'},d.note||'曲がそろっていません'):null,
+      d.ready&&!conditions?el('p',{class:'notice'},'3曲を最後まで遊べば合格'):null,
+      d.warn?el('p',{class:'notice'},d.warn):null));
+}
+
+const dojoSelection={monthly:null,kasane:null};
+function renderDans(focus=false){
+  const box=$('#danlist');
+  if(!box||$('#tab-dan').hidden)return;
   const period=monthlyPeriod();
   if(Lib.monthlyPeriod!==period||Lib.monthlyDirty)refreshMonthlyDans();
-  const monthly=UI.danMode!=='kasane';
-  $('#kasaneIntro').hidden=$('#kasaneRules').hidden=monthly;
-  $('#danMonthly').setAttribute('aria-pressed',String(monthly));$('#danKasane').setAttribute('aria-pressed',String(!monthly));
+  const monthly=UI.danMode!=='kasane',mode=monthly?'monthly':'kasane';
+  $('#kasaneHelp').hidden=monthly;
+  $('#danMonthly').setAttribute('aria-pressed',String(monthly));
+  $('#danKasane').setAttribute('aria-pressed',String(!monthly));
   const list=Lib.dans.filter(d=>(d.src==='monthly')===monthly);
-  if(monthly)box.append(el('p',{class:'lead'},monthlyPeriod().replace('-','年')+'月の課題曲（日本時間）'));
-  if(!list.length){box.append(el('div',{class:'empty'},monthly?'条件に合う譜面が3つそろうと段位が表示されます':'重譜面を読み込むと段位が表示されます'));return;}
-  for(const d of list){const rec=Lib.danBest[d.key];
-    const state=rec==='gold'?el('span',{class:'state gold'},'金合格'):rec==='red'?el('span',{class:'state red'},'合格'):el('span',{class:'state'},'未合格');
-    const songs=el('ol',{class:'dan-songs'});
-    for(let i=0;i<3;i++){const c=d.songs[i],ref=d.refs[i],hidden=hideMonthlySong(d,i);
-      songs.append(el('li',{class:i===2?'last':''},el('span',{class:'no'},`${i+1}曲目`,d.src==='monthly'?el('small',null,MONTHLY_ROLES[i]):null),
-        c?el('span',{class:'tt'},hidden?'？？？':c.set.title):el('span',{class:'tt missing'},ref?`未読込: ${ref.file} / ${ref.version}`:'未設定'),
-        c?chipFor(c,hidden):null));}
-    const card=el('article',{class:'dan'+(rec?' passed-'+rec:'')},
-      el('div',{class:'dan-head'},el('div',{class:'dan-rank',style:d.level?`--dl:${DAN_COL[d.level-1]}`:null},d.src==='monthly'?'月':d.level?ROMAN[d.level]:'?'),
-        el('div',{class:'dan-name'},el('h3',null,d.name),el('p',null,d.ready?`全${fmtNum(d.tot.notes)}ノーツ ・ 同時押し${fmtNum(d.tot.chordNotes)}個`:(d.note||'曲がそろっていません'))),state),songs);
-    if(d.conds.length&&d.ready){const tb=el('tbody');
-      for(const c of d.conds){const r=condDesc(c,'red',d.tot),g=condDesc(c,'gold',d.tot);
-        tb.append(el('tr',null,el('td',{class:'cond-name'},COND[c.key].jp),
-          el('td',{class:'red-c'},el('span',{class:'main'},r.main),r.sub?el('span',{class:'sub'},r.sub):null),
-          el('td',{class:'gold-c'},g?el('span',{class:'main'},g.main):el('span',{class:'sub'},'—'),g&&g.sub?el('span',{class:'sub'},g.sub):null)));}
-      card.append(el('div',{class:'tbl-wrap'},el('table',null,el('thead',null,el('tr',null,el('th',null,'条件'),el('th',null,'合格'),el('th',null,'金合格'))),tb)));}
-    else if(d.ready)card.append(el('p',{class:'src'},'合格条件がありません（3曲を最後まで遊べば合格）'));
-    if(d.warn)card.append(el('div',{class:'notice',style:'margin:0'},d.warn));
-    card.append(el('div',{class:'dan-foot'},el('span',{class:'src'},d.src==='monthly'?'月替わり':d.src==='auto'?'自動で組んだ段位（dan.csv で上書きできます）':`dan.csv の「${d.id}」`),
-      el('button',{class:'btn primary',disabled:!d.ready||null,onclick:()=>{UI.gesture=true;startDan(d);}},'挑戦する')));
-    box.append(card);}}
+  if(!list.length){
+    box.replaceChildren(el('div',{class:'empty'},monthly?'条件に合う譜面が3つそろうと段位が表示されます':'重譜面を読み込むと段位が表示されます'));
+    return;
+  }
+  const active=list.find(d=>d.key===dojoSelection[mode])||list[0];
+  dojoSelection[mode]=active.key;
+  const panel=el('div',{id:'dojoPanel'},dojoCard(active,period));
+  const rail=el('div',{class:'dojo-rank-window',role:'group','aria-label':'挑戦する段位'});
+  const choose=(d,focusRank)=>{
+    dojoSelection[mode]=d.key;
+    renderDans(focusRank);
+  };
+  list.forEach((d,index)=>{
+    const selected=d===active,record=Lib.danBest[d.key];
+    const name=monthly?d.name:d.level?ROMAN[d.level]:d.name;
+    const button=el('button',{type:'button',class:'dojo-rank-button'+(selected?' is-on':'')+(name.length>4?' long':''),
+      style:dojoColor(d),title:d.name,'aria-pressed':String(selected),'aria-controls':panel.id,onclick:()=>choose(d,true)},
+      el('span',{class:'dojo-seal','aria-hidden':'true'},'◎'),el('span',{class:'dojo-rank-name'},name),
+      record?el('span',{class:'dojo-passed '+record},record==='gold'?'金合格':'合格'):null);
+    button.addEventListener('keydown',event=>{
+      const target={ArrowLeft:index-1,ArrowRight:index+1,Home:0,End:list.length-1}[event.key];
+      if(target===undefined)return;
+      event.preventDefault();
+      choose(list[clamp(target,0,list.length-1)],true);
+    });
+    rail.append(button);
+  });
+  box.replaceChildren(rail,panel);
+  const selected=rail.querySelector('.is-on');
+  if(selected){
+    rail.scrollLeft=selected.offsetLeft-rail.offsetLeft-(rail.clientWidth-selected.offsetWidth)/2;
+    if(focus)selected.focus({preventScroll:true});
+  }
+}
 function chipFor(c,hideDecimal=false){
   const C=COURSES[c.course];
   const rating=hideDecimal&&c.level!=null?'★'+Math.floor(c.level):levelText(c);
