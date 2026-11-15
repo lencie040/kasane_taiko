@@ -667,8 +667,6 @@ body{min-height:100dvh;animation:arcade-wallpaper 12s linear infinite}
 #songlist{max-height:none;overflow:hidden;touch-action:pan-x}
 #songlist>li:not(.empty){translate:var(--strip-shift,0%) 0}
 #songlist .song .chips{display:flex;margin-top:4px}
-#songlist .song:not(.is-on) .chips{margin-top:3px}
-#songlist .song:not(.is-on) .chips .chip{font-size:10px;line-height:1.3}
 #songlist .chips .chip:not(.is-missing){border-color:var(--cc)}
 #songlist .chip.is-missing{opacity:.53;background:#ded0cd}
 .crs:disabled{filter:saturate(.3) brightness(.76);cursor:default}
@@ -1612,9 +1610,8 @@ function visibleCourses(set){
   const oni=UI.oniCourse||(ONI_COURSES.includes(selected?.course)?selected.course:'oni');
   return [...BASE_COURSES.slice(0,3),oni];
 }
-function songChips(set,selected){
+function songChips(set){
   const special=['ura','kasane'].map(course=>chartForSlot(set,course)).filter(Boolean).map(chip);
-  if(!selected)return special;
   const standard=BASE_COURSES.map(course=>{
     const c=chartForSlot(set,course), C=COURSES[course];
     return c?chip(c):el('span',{class:'chip is-missing',style:`--cc:${C.color}`},C.jp,el('b',null,'–'));
@@ -1635,11 +1632,10 @@ function selectArcadeEntry(entry){
 }
 function songStrip(set,selected,choose){
   const top=sortCharts(set.charts).filter(c=>!isLocked(c)).pop()||set.charts[0],fav=!!Lib.fav[set.key];
-  const chips=songChips(set,selected);
   const row=el('li',{class:'song'+(selected?' is-on':''),tabindex:'0',role:'button',style:`--sc:${COURSES[top.course].color}`},
     el('div',{class:'song-t'},el('span',null,set.title)),
     el('div',{class:'song-a'},el('span',null,set.artist||'—')),
-    chips.length?el('div',{class:'chips'},chips):null,
+    selected?el('div',{class:'chips'},songChips(set)):null,
     el('button',{class:'fav'+(fav?' on':''),'aria-label':fav?'お気に入りから外す':'お気に入りに追加','aria-pressed':String(fav),onclick:e=>{e.stopPropagation();toggleFav(set.key);}},fav?'★':'☆'));
   row.addEventListener('click',choose);
   row.addEventListener('keydown',event=>{
