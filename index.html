@@ -1437,24 +1437,25 @@ function monthlyConditions(rank,songs){
   const notes=songs.reduce((total,chart)=>total+chart.stats.notes,0);
   if(rank<FIRST_DAN){
     const roll=(speed)=>songs.reduce((total,chart)=>total+estimateDrumroll(chart,speed),0);
-    const hits=tier('hits','>=',Math.floor(notes*([.82,.85,.88,.91,.93][rank])+roll(5.5)),
-      Math.ceil(notes*.98+roll(7)),false);
-    return rank===0?[hits]:[tier('bad','<=',[0,16,12,9,7][rank],[0,9,7,5,3][rank]),hits];
+    const hits=tier('hits','>=',Math.floor(notes*([.76,.79,.82,.85,.88][rank])+roll(4)),
+      Math.ceil(notes*.94+roll(5.5)),false);
+    return rank===0?[hits]:[tier('bad','<=',[0,20,16,12,10][rank],[0,12,10,8,6][rank]),hits];
   }
   const rolls=(speed)=>Math.max(1,songs.reduce((total,chart)=>total+estimateDrumroll(chart,speed),0));
-  const speed=6.5+(rank-FIRST_DAN)*.42;
-  const gauge=tier('gauge','>=',rank<10?98:100,100);
+  const speed=(rank===TATSUJIN?6.5:5.3)+(rank-FIRST_DAN)*.42;
+  const [redGauge,goldGauge]=rank===TATSUJIN?[100,100]:rank<10?[92,96]:rank<TENTH_DAN?[96,98]:[98,99];
+  const gauge=tier('gauge','>=',redGauge,goldGauge);
   const drumroll=tier('roll','>=',rolls(speed),rolls(speed+1.5),false);
   if(rank===TATSUJIN)return [gauge,{key:'ok',op:'<=',red:{v:7,pct:false},gold:{v:0,pct:true}},
     {key:'bad',op:'<=',red:{v:2,pct:false},gold:{v:0,pct:true}},drumroll];
   if(rank>=TENTH_DAN){
     const i=rank-TENTH_DAN;
-    return [gauge,tier('ok','<=',[3.2,2,1.25,.65][i],[1.6,1,.6,.28][i]),
-      tier('bad','<=',[.35,.25,.18,.12][i],[.17,.12,.08,.04][i]),drumroll];
+    return [gauge,tier('ok','<=',[4.2,3,2,1.2][i],[2.2,1.6,1,.55][i]),
+      tier('bad','<=',[.65,.55,.45,.35][i],[.4,.32,.25,.18][i]),drumroll];
   }
   const i=rank-FIRST_DAN;
-  return [gauge,tier('good','>=',[61,65,70,74,78,82,85,88,91][i],[70,74,78,82,86,89,92,94,96][i]),
-    tier('bad','<=',[2.8,2.6,2.3,2,1.7,1.4,1.15,.9,.65][i],[1.6,1.45,1.25,1.05,.9,.7,.55,.42,.30][i]),drumroll];
+  return [gauge,tier('good','>=',[55,59,64,68,72,76,80,83,86][i],[64,68,72,76,80,84,87,90,92][i]),
+    tier('bad','<=',[4,3.6,3.2,2.8,2.4,2,1.7,1.35,1][i],[2.6,2.3,2,1.75,1.5,1.25,1,.8,.6][i]),drumroll];
 }
 function monthlyDans(charts,period){
   const random=mulberry32(Number(period.replace('-','')));
