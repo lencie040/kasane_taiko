@@ -829,7 +829,6 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 .dojo-paper li:nth-child(2) .dojo-order{background:#9be0f4;color:#164780}
 .dojo-paper li:nth-child(3) .dojo-order{background:#ffc0bb;color:#803439}
 .dojo-paper .dan-songs .tt{font-size:clamp(14px,2.2vw,27px);font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dojo-paper .dan-songs .tt small{display:block;font:700 10px/1.25 var(--f-body);color:#71544b}
 .dojo-paper .dan-songs .chip{display:grid;justify-items:center;gap:0;border-radius:8px;padding:3px 7px;line-height:1.2;min-width:54px}
 .dojo-conditions{margin:0;min-width:0;border:1.6px solid #825e4d;border-radius:12px;padding:8px 8px 10px}
 .dojo-conditions legend{color:white;background:#594333;border-radius:9px 9px 0 0;font-weight:900;padding:2px 18px}
@@ -850,6 +849,8 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 .dojo-side .dan-foot .state{background:#fff6e0;color:#51323a;border:1px solid #55333f}
 .dojo-side .dan-foot .state.gold{background:#ffda69}
 .dojo-room .empty{background:#fff6de}
+.dojo-keys{margin:10px 0 0;text-align:center;font-size:12px;font-weight:800;color:#fff6dc;text-shadow:0 1px 3px #251826}
+@media(pointer:coarse){.dojo-keys{display:none}}
 @media(max-width:650px){
   .dojo-room{padding:9px;border-width:3px}
   .dojo-rank-button{flex-basis:38px;min-height:77px}
@@ -1395,7 +1396,6 @@ const MONTHLY_LEVELS=[
   ['玄人',10.6,11.3],['名人',10.9,11.4],['超人',11.1,11.5],['達人',11.3,11.5]
 ];
 const FIRST_DAN=5,TENTH_DAN=14,KUROUTO=15,TATSUJIN=18;
-const MONTHLY_ROLES=['物量','リズム・技術','総合'];
 const chartProfiles=new WeakMap();
 function chartProfile(chart){
   if(chartProfiles.has(chart))return chartProfiles.get(chart);
@@ -1485,7 +1485,7 @@ function monthlyDans(charts,period){
       return [c.chart,[density-.14*tech+noise,tech-.12*density+noise,
         .46*Math.min(density,tech)+.28*(density+tech)/2+.35*level+noise]];
     }));
-    const ordered=MONTHLY_ROLES.map((_,role)=>[...candidates].sort((a,b)=>scores.get(b.chart)[role]-scores.get(a.chart)[role]));
+    const ordered=[0,1,2].map(role=>[...candidates].sort((a,b)=>scores.get(b.chart)[role]-scores.get(a.chart)[role]));
     let best=null;
     for(let anchor=0;anchor<3;anchor++){
       const slots=ordered.map((list,index)=>({candidates:list.filter(c=>index!==anchor||c.drumroll).map(c=>c.chart)}));
@@ -2302,8 +2302,7 @@ function dojoCard(d,period){
       el('span',{class:'dojo-order','aria-label':`${i+1}曲目`},['1st','2nd','3rd'][i]),
       chart?chipFor(chart,hidden):el('span',{'aria-hidden':'true'},'—'),
       el('span',{class:'tt'+(!chart?' missing':'')},
-        chart?(hidden?'？？？':chart.set.title):ref?`未読込: ${ref.file} / ${ref.version}`:'未設定',
-        monthly?el('small',null,MONTHLY_ROLES[i]):null)));
+        chart?(hidden?'？？？':chart.set.title):ref?`未読込: ${ref.file} / ${ref.version}`:'未設定')));
   }
   const gauge=d.conds.find(c=>c.key==='gauge');
   const rest=d.conds.filter(c=>c!==gauge);
@@ -2362,7 +2361,8 @@ function renderDans(focus=false){
     });
     rail.append(button);
   });
-  box.replaceChildren(rail,panel);
+  box.replaceChildren(rail,panel,el('p',{class:'dojo-keys'},
+    `カツ（${keyLabel(S.keys[0])}・${keyLabel(S.keys[3])}）で段位を選ぶ　ドン（${keyLabel(S.keys[1])}・${keyLabel(S.keys[2])}）で挑戦`));
   const selected=rail.querySelector('.is-on');
   if(selected){
     rail.scrollLeft=selected.offsetLeft-rail.offsetLeft-(rail.clientWidth-selected.offsetWidth)/2;
@@ -3422,9 +3422,25 @@ window.addEventListener('keydown',e=>{
     if(e.code==='Escape'){e.preventDefault();if(G&&G.paused)resumeGame();else if(G&&!G.finished)pauseGame();else if((G&&G.prac)||(!G&&!D))closeStage();return;}
     const i=S.keys.indexOf(e.code);if(i>=0){e.preventDefault();if(e.repeat)return;if(G&&!G.paused&&!G.auto)press(ROLES[i],songTime(e.timeStamp>1e12?performance.now():e.timeStamp));}
     return;}
-  if(e.defaultPrevented||UI.tab!=='select'||e.ctrlKey||e.metaKey||e.altKey)return;
-  const ae=document.activeElement,tag=ae?ae.tagName:'';if(/^(INPUT|TEXTAREA|SELECT)$/.test(tag))return;
+  if(e.defaultPrevented||e.ctrlKey||e.metaKey||e.altKey)return;
+  const ae=document.activeElement,tag=ae?ae.tagName:'';
+  if(ae?.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(tag))return;
   const ki=S.keys.indexOf(e.code);
+  if(UI.tab==='dan'){
+    if(ki<0)return;
+    e.preventDefault();
+    if(e.repeat)return;
+    if(ki===1||ki===2){
+      const challenge=$('#dojoPanel .dan-foot button');
+      if(challenge&&!challenge.disabled){UI.gesture=true;ensureAudio();playSE('don');challenge.click();}
+    }else{
+      const rank=$('#danlist .dojo-rank-button.is-on');
+      const next=ki===0?rank?.previousElementSibling:rank?.nextElementSibling;
+      if(next){UI.gesture=true;ensureAudio();playSE('ka');next.click();}
+    }
+    return;
+  }
+  if(UI.tab!=='select')return;
   if((e.key==='Escape'||e.key==='Backspace')&&UI.chooseCourse){e.preventDefault();backToSongs();return;}
   if((e.key==='Escape'||e.key==='Backspace')&&UI.folder){e.preventDefault();changeFolder(effectiveFolders().folders.find(f=>f.id===UI.folder)?.parent||'');return;}
   if(UI.chooseCourse&&(ki===0||ki===3||e.key==='ArrowLeft'||e.key==='ArrowRight')){
