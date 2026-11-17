@@ -2357,8 +2357,14 @@ function songChips(set){
 }
 function arcadeEntries(){
   const data=effectiveFolders(),folders=visibleFolders(data);
-  if(data.folders.length&&UI.folder)folders.unshift({id:parentFolder(data),name:'もどる',back:true});
-  return [...folders.map((folder,index)=>({folder,index})),...visibleSets().map(set=>({set}))];
+  const back=data.folders.length&&UI.folder?{id:parentFolder(data),name:'もどる',back:true}:null;
+  if(back)folders.unshift(back);
+  const entries=folders.map((folder,index)=>({folder,index}));
+  visibleSets().forEach((set,index)=>{
+    if(back&&index>0&&index%7===0)entries.push({folder:back,index:entries.length});
+    entries.push({set});
+  });
+  return entries;
 }
 function arcadeIndex(entries){
   const index=entries.findIndex(entry=>entry.folder?entry.index===UI.folderCursor:UI.folderCursor==null&&entry.set.key===UI.selSet);
@@ -2433,7 +2439,7 @@ function renderSongList(){
     const row=entry.folder?folderStrip(entry.folder,selected,choose):songStrip(entry.set,selected,choose);
     // Keep each strip level. The diagonal comes from the horizontal steps.
     row.style.setProperty('--strip-shift',offset*3+'%');
-    row.dataset.entry=entry.folder?.back?'back:'+UI.folder:entry.folder?'folder:'+entry.folder.id:'song:'+entry.set.key;
+    row.dataset.entry=entry.folder?.back?`back:${UI.folder}:${entry.index}`:entry.folder?'folder:'+entry.folder.id:'song:'+entry.set.key;
     ul.append(row);
   }
   if(previous.length)animateSongStrips(ul,previous,priorExit?.dataset.departed,priorBounds);
