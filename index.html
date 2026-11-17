@@ -750,6 +750,7 @@ body{min-height:100dvh;animation:arcade-wallpaper 12s linear infinite}
 .crs.is-missing.is-on{filter:none}.crs.is-missing.is-on .k{opacity:.74}
 .course-rims{justify-content:center;margin:5px 14px 10px}
 .course-rims .btn{touch-action:none;min-width:92px}
+.course-rims .auto-all{min-width:0;white-space:nowrap}
 .course-progress{min-width:5em;text-align:center;color:#613145;font-weight:800}
 .course-variants{justify-content:center;margin:0 14px 8px}
 @media(max-width:650px){
@@ -2730,7 +2731,8 @@ function renderDetail(){const d=$('#detail');$('#arcadeMenu').hidden=!!UI.choose
   }
   d.append(list);
   const hint=el('span',{class:'course-progress',id:'rimProgress','aria-live':'polite'});
-  d.append(el('div',{class:'row course-rims'},pickerRimButton(-1,'◀ 左カツ'),hint,pickerRimButton(1,'右カツ ▶')));
+  d.append(el('div',{class:'row course-rims'},pickerRimButton(-1,'◀ 左カツ'),hint,pickerRimButton(1,'右カツ ▶'),
+    S.auto&&autoAllCharts(s).length?el('button',{class:'btn auto-all',type:'button',title:'重譜面以外の全難易度をオート演奏で続けて再生します（記録されません）',onclick:()=>{UI.gesture=true;startAutoAll(s);}},'▶ 全難易度再生'):null));
   paintRimProgress();
   if(UI.courseBack)return;
   const c=chartForSlot(s,courses[UI.courseSlot]);if(!c)return;
@@ -3060,11 +3062,15 @@ function updateFallingDanHud(now){
   }
 }
 function openStage(){stopPreview();$('#stage').hidden=false;$('#stage').classList.toggle('touch',UI.touch);document.body.classList.add('playing');$('#result').hidden=true;$('#pause').hidden=true;$('#pads').hidden=libraryWait||!UI.touch||S.falling===true;setupFallingDanHud();layoutStage();startLoop();}
-function closeStage(){songLoad++;libraryWait=false;cancelAnimationFrame(rafId);rafId=0;stopSong();G=null;D=null;$('#stage').hidden=true;setupFallingDanHud();document.body.classList.remove('playing');refreshAll();}
+function closeStage(){AUTOALL=null;songLoad++;libraryWait=false;cancelAnimationFrame(rafId);rafId=0;stopSong();G=null;D=null;$('#stage').hidden=true;setupFallingDanHud();document.body.classList.remove('playing');refreshAll();}
 function startLoop(){if(!rafId)rafId=requestAnimationFrame(frame);}
 function stopSong(){if(G&&G.src){try{G.src.stop();}catch(e){}G.src=null;}}
 function fadeMusic(sec){if(!G||!G.gain||!AC)return;try{const g=G.gain.gain;g.cancelScheduledValues(AC.currentTime);g.setValueAtTime(g.value,AC.currentTime);g.linearRampToValueAtTime(0,AC.currentTime+sec);G.src.stop(AC.currentTime+sec+.05);}catch(e){}}
-async function startNormal(chart){if(waitForLibrary())return;ensureAudio();D=null;await runSong(chart);}
+async function startNormal(chart){if(waitForLibrary())return;ensureAudio();D=null;AUTOALL=null;await runSong(chart);}
+// オート演奏ON時のみ：この曲の重以外の全難易度を、易しい順に続けてオート再生する。
+let AUTOALL=null;
+function autoAllCharts(set){return COURSE_ORDER.filter(k=>k!=='kasane').flatMap(k=>set.charts.filter(c=>c.course===k&&!isLocked(c)));}
+async function startAutoAll(set){if(waitForLibrary())return;const q=autoAllCharts(set);if(!q.length)return;ensureAudio();D=null;AUTOALL={queue:q.slice(1)};await runSong(q[0]);}
 async function startDan(dan){if(waitForLibrary())return;ensureAudio();D={dan,idx:0,conds:dan.conds,tot:dan.tot,st:newStats(dan.tot.notes,dan.tot.chordNotes,'kasane'),results:[],auto:S.auto};openStage();await danInterlude();}
 async function danInterlude(){const chart=D.dan.songs[D.idx];G=null;D.interlude={t0:performance.now(),idx:D.idx,chart};startLoop();
   const p=getAudio(chart);await Promise.all([p.catch(()=>null),wait(2800)]);if(!D)return;D.interlude=null;await runSong(chart);}
@@ -3088,7 +3094,8 @@ function finishSong(){if(!G||G.finished)return;G.finished=true;if(!G.failed)fade
   if(!G.failed){const st=G.st,ch=G.chart;if(D){stamp=crownFor(st,cs,true);if(stamp==='clear')stamp=null;}else stamp=crownFor(st,cs,st.gauge>=CLEAR[ch.course])||'fail';}
   if(stamp)fxStamp(stamp);const delay=stamp?2400:900;
   if(D){D.results.push(res);if(G.failed||D.idx>=2)setTimeout(()=>{if(alive())showDanResult();},delay);else{D.idx++;setTimeout(()=>{if(D&&alive())danInterlude();},delay);}}
-  else setTimeout(()=>{if(alive())showResult(res);},delay);}
+  else if(AUTOALL&&G.auto&&!G.failed&&AUTOALL.queue.length){const next=AUTOALL.queue.shift();setTimeout(()=>{if(alive()&&AUTOALL)runSong(next);},delay);}
+  else{AUTOALL=null;setTimeout(()=>{if(alive())showResult(res);},delay);}}
 function pauseGame(){if(!G||G.paused||G.finished||!AC)return;G.paused=true;G.pauseAt=performance.now();AC.suspend();
   const pb=$('#pauseBtns');pb.innerHTML='';
   pb.append(el('button',{class:'btn primary',onclick:resumeGame},'続ける'));
