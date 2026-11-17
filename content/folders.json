@@ -10,6 +10,11 @@
       "id": "b37d09db-72c5-4a77-b511-85ced5ac433e",
       "name": "国際列車チャイム",
       "parent": ""
+    },
+    {
+      "id": "44aee889-13ef-465c-bdfe-e51ecb7e0e54",
+      "name": "松電キャラクターズテーマ",
+      "parent": ""
     }
   ],
   "assignments": {
@@ -63,6 +68,8 @@
     "u:yume_ak - 湖と夕焼けの空": "b37d09db-72c5-4a77-b511-85ced5ac433e",
     "u:yume_ak - 奇跡の記憶": "b37d09db-72c5-4a77-b511-85ced5ac433e",
     "u:yume_ak - 希望のaquarium": "b37d09db-72c5-4a77-b511-85ced5ac433e",
-    "u:yume_ak - 花誘ふ": "b37d09db-72c5-4a77-b511-85ced5ac433e"
+    "u:yume_ak - 花誘ふ": "b37d09db-72c5-4a77-b511-85ced5ac433e",
+    "u:yume_ak - 私の話を聞いてください!!!!": "44aee889-13ef-465c-bdfe-e51ecb7e0e54",
+    "u:yume_ak - 夢の最果て、隣で手を伸ばすあなたへ": "44aee889-13ef-465c-bdfe-e51ecb7e0e54"
   }
 }
