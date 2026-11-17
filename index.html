@@ -511,6 +511,7 @@ body{background-color:var(--ink);background-image:repeating-linear-gradient(135d
 .folder-entry.is-on,.folder-entry:hover{background:#ffd04d;outline:2px solid #a03a43;outline-offset:-3px}
 .folder-icon{width:24px;height:16px;background:#d56e23;border:2px solid #9a492c;border-radius:3px;position:relative}
 .folder-icon::before{content:'';position:absolute;left:-2px;top:-7px;width:11px;height:6px;background:#d56e23;border:2px solid #9a492c;border-bottom:0;border-radius:3px 3px 0 0}
+.folder-back-icon{text-align:center;font-size:22px;font-weight:900;line-height:1}
 .folder-move{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin:12px 16px}
 .folder-move select{max-width:100%}
 .title-screen{background:radial-gradient(ellipse at 50% 45%,#ac2b50 5%,#65173b 66%),#65173b;border-top:8px solid #ffc643}
@@ -2215,8 +2216,9 @@ function effectiveFolders(){
   try{return local?parseFolders(local):repoFolders;}catch{return repoFolders;}
 }
 function songFolder(set,folders){return folders.assignments[set.key]||UNASSIGNED;}
+function parentFolder(data){return data.folders.find(folder=>folder.id===UI.folder)?.parent||'';}
 function changeFolder(id){
-  resetRimSequence();UI.chooseCourse=false;UI.folder=id;UI.selSet=null;UI.selChart=null;UI.folderCursor=0;
+  resetRimSequence();UI.chooseCourse=false;UI.folder=id;UI.selSet=null;UI.selChart=null;UI.folderCursor=null;
   stopPreview();renderSongList();renderDetail();
 
 }
@@ -2231,7 +2233,6 @@ function folderToolbar(data){
   const bar=$('#folderTools');bar.replaceChildren();
   if(data.folders.length){
     bar.append(el('b',{class:'folder-path'},folderTrail(data,UI.folder)||'曲フォルダ'));
-    if(UI.folder)bar.append(el('button',{class:'btn small',onclick:()=>changeFolder(folder?.parent||'')},'↶ もどる'));
   }
   if(!S.noiseEdit)return;
   if(folder){
@@ -2280,9 +2281,11 @@ function visibleFolders(data){
 }
 function folderStrip(folder,selected,select){
   return el('li',null,el('button',{
-    style:`--folder:hsl(${hashHue(folder.name)} 69% 60%)`,
+    style:`--folder:${folder.back?'#b2b9e8':`hsl(${hashHue(folder.name)} 69% 60%)`}`,
+    'aria-label':folder.back?'親フォルダへもどる':null,
     class:'folder-entry'+(selected?' is-on':''),onclick:select},
-    el('span',{class:'folder-icon','aria-hidden':'true'}),el('strong',null,folder.name),el('span',{'aria-hidden':'true'},'›')));
+    el('span',{class:folder.back?'folder-back-icon':'folder-icon','aria-hidden':'true'},folder.back?'↶':null),
+    el('strong',null,folder.name),el('span',{'aria-hidden':'true'},folder.back?'‹':'›')));
 }
 function folderMoveControl(set){
   if(!S.noiseEdit)return null;
@@ -2353,11 +2356,14 @@ function songChips(set){
   return [...standard,...special];
 }
 function arcadeEntries(){
-  return [...visibleFolders(effectiveFolders()).map((folder,index)=>({folder,index})),...visibleSets().map(set=>({set}))];
+  const data=effectiveFolders(),folders=visibleFolders(data);
+  if(data.folders.length&&UI.folder)folders.unshift({id:parentFolder(data),name:'もどる',back:true});
+  return [...folders.map((folder,index)=>({folder,index})),...visibleSets().map(set=>({set}))];
 }
 function arcadeIndex(entries){
   const index=entries.findIndex(entry=>entry.folder?entry.index===UI.folderCursor:UI.folderCursor==null&&entry.set.key===UI.selSet);
-  return index<0?0:index;
+  if(index>=0)return index;
+  return Math.max(0,entries.findIndex(entry=>!entry.folder?.back));
 }
 function selectArcadeEntry(entry){
   if(entry.folder){
@@ -2419,6 +2425,7 @@ function renderSongList(){
   for(let offset=-above;offset<visible-above;offset++){
     const entry=entries[(index+offset+count)%count],selected=offset===0;
     const choose=()=>{
+      if(entry.folder?.back){changeFolder(entry.folder.id);return;}
       if(!selected){selectArcadeEntry(entry);return;}
       if(entry.folder)changeFolder(entry.folder.id);
       else{selectSet(entry.set.key,true);showCoursePicker();}
@@ -2426,7 +2433,7 @@ function renderSongList(){
     const row=entry.folder?folderStrip(entry.folder,selected,choose):songStrip(entry.set,selected,choose);
     // Keep each strip level. The diagonal comes from the horizontal steps.
     row.style.setProperty('--strip-shift',offset*3+'%');
-    row.dataset.entry=entry.folder?'folder:'+entry.folder.id:'song:'+entry.set.key;
+    row.dataset.entry=entry.folder?.back?'back:'+UI.folder:entry.folder?'folder:'+entry.folder.id:'song:'+entry.set.key;
     ul.append(row);
   }
   if(previous.length)animateSongStrips(ul,previous,priorExit?.dataset.departed,priorBounds);
@@ -3958,7 +3965,7 @@ window.addEventListener('keydown',e=>{
   }
   if(UI.tab!=='select')return;
   if((e.key==='Escape'||e.key==='Backspace')&&UI.chooseCourse){e.preventDefault();backToSongs();return;}
-  if((e.key==='Escape'||e.key==='Backspace')&&UI.folder){e.preventDefault();changeFolder(effectiveFolders().folders.find(f=>f.id===UI.folder)?.parent||'');return;}
+  if((e.key==='Escape'||e.key==='Backspace')&&UI.folder){e.preventDefault();changeFolder(parentFolder(effectiveFolders()));return;}
   if(UI.chooseCourse&&(ki===0||ki===3||e.key==='ArrowLeft'||e.key==='ArrowRight')){
     e.preventDefault();
     if(!e.repeat)hitPickerRim(ki===0||e.key==='ArrowLeft'?-1:1);
