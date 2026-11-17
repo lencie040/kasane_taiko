@@ -512,8 +512,10 @@ body{background-color:var(--ink);background-image:repeating-linear-gradient(135d
 .folder-icon{width:24px;height:16px;background:#d56e23;border:2px solid #9a492c;border-radius:3px;position:relative}
 .folder-icon::before{content:'';position:absolute;left:-2px;top:-7px;width:11px;height:6px;background:#d56e23;border:2px solid #9a492c;border-bottom:0;border-radius:3px 3px 0 0}
 .folder-back-icon{text-align:center;font-size:22px;font-weight:900;line-height:1}
-.folder-move{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin:12px 16px}
-.folder-move select{max-width:100%}
+.folder-assign{margin:12px 16px}
+.folder-assign summary{cursor:pointer;font-weight:700}
+.folder-assign form{display:grid;justify-items:start;gap:6px;margin-top:8px}
+.folder-assign label{display:flex;align-items:baseline;gap:7px;overflow-wrap:anywhere;min-width:0}
 .title-screen{background:radial-gradient(ellipse at 50% 45%,#ac2b50 5%,#65173b 66%),#65173b;border-top:8px solid #ffc643}
 .title-screen .ts-logo,.title-screen .ts-sub,.title-screen .ts-hint,.title-screen .ts-stat,.title-screen .ts-guide{color:#fff5db}
 .title-screen .ts-lane{border-color:#ffe4a3}
@@ -2159,7 +2161,7 @@ function renderRecords(){
     for(const c of charts.slice(recordPage*size,(recordPage+1)*size)){
       const best=Lib.best[c.uid],rank=rankOf(best?.score||0);
       list.append(el('button',{class:'record-row',onclick:()=>{
-        UI.folder=songFolder(c.set,effectiveFolders());UI.filt='all';$('#filter').value='';
+        UI.folder=preferredSongFolder(c.set,effectiveFolders());UI.filt='all';$('#filter').value='';
         setTab('select');UI.selChart=c.uid;selectSet(c.set.key,false);showCoursePicker();
       }},el('span',{class:'record-title'},el('strong',null,c.set.title),el('small',null,c.meta.version)),
         el('span',null,chipFor(c),' ',crownBadge(best?.crown)),
@@ -2208,14 +2210,25 @@ function parseFolders(source){
     while(parent&&byId.has(parent)&&!visited.has(parent)){visited.add(parent);parent=byId.get(parent).parent;}
     if(parent)folder.parent='';
   }
-  for(const [key,id] of Object.entries(source.assignments||{}))if(ids.has(id))result.assignments[key]=id;
+  for(const [key,value] of Object.entries(source.assignments||{})){
+    const assigned=Array.isArray(value)?value:[value];
+    const valid=[...new Set(assigned.filter(id=>ids.has(id)))];
+    if(valid.length)result.assignments[key]=valid;
+  }
   return result;
 }
 function effectiveFolders(){
   const local=store.get('kt.folders',null);
   try{return local?parseFolders(local):repoFolders;}catch{return repoFolders;}
 }
-function songFolder(set,folders){return folders.assignments[set.key]||UNASSIGNED;}
+function songInFolder(set,data,id){
+  const assigned=data.assignments[set.key];
+  return id===UNASSIGNED?!assigned?.length:!!assigned?.includes(id);
+}
+function preferredSongFolder(set,data){
+  const assigned=data.assignments[set.key];
+  return assigned?.includes(UI.folder)?UI.folder:assigned?.[0]??UNASSIGNED;
+}
 function parentFolder(data){return data.folders.find(folder=>folder.id===UI.folder)?.parent||'';}
 function changeFolder(id){
   resetRimSequence();UI.chooseCourse=false;UI.folder=id;UI.selSet=null;UI.selChart=null;UI.folderCursor=null;
@@ -2236,14 +2249,14 @@ function folderToolbar(data){
   }
   if(!S.noiseEdit)return;
   if(folder){
-    const candidates=playableSets().filter(set=>songFolder(set,data)!==folder.id)
+    const candidates=playableSets().filter(set=>!songInFolder(set,data,folder.id))
       .sort((a,b)=>a.title.localeCompare(b.title,'ja'));
     if(candidates.length){
       const pick=el('select',{'aria-label':'フォルダに入れる曲'},el('option',{value:''},'曲を選ぶ'),
         candidates.map(set=>el('option',{value:set.key},set.title+' · '+set.file)));
       bar.append(el('form',{class:'row',onsubmit:e=>{
         e.preventDefault();if(!pick.value)return;
-        data.assignments[pick.value]=folder.id;
+        data.assignments[pick.value]=[...(data.assignments[pick.value]||[]),folder.id];
         if(saveFolders(data)){const key=pick.value;selectSet(key,false);}
       }},pick,el('button',{class:'btn small',type:'submit'},'このフォルダに入れる')));
     }
@@ -2287,18 +2300,23 @@ function folderStrip(folder,selected,select){
     el('span',{class:folder.back?'folder-back-icon':'folder-icon','aria-hidden':'true'},folder.back?'↶':null),
     el('strong',null,folder.name),el('span',{'aria-hidden':'true'},folder.back?'‹':'›')));
 }
-function folderMoveControl(set){
+function folderAssignmentControl(set){
   if(!S.noiseEdit)return null;
   const data=effectiveFolders();
   if(!data.folders.length)return null;
-  const select=el('select',{'aria-label':'曲のフォルダ'},el('option',{value:UNASSIGNED},'未設定'),
-    data.folders.map(f=>el('option',{value:f.id},folderTrail(data,f.id))));
-  select.value=songFolder(set,data);
-  select.addEventListener('change',()=>{
-    if(select.value===UNASSIGNED)delete data.assignments[set.key];else data.assignments[set.key]=select.value;
-    if(saveFolders(data)){UI.folder=select.value;renderSongList();renderDetail();}
-  });
-  return el('label',{class:'folder-move'},'曲のフォルダ ',select);
+  const choices=data.folders.map(folder=>el('label',null,
+    el('input',{type:'checkbox',name:'genre',value:folder.id,checked:songInFolder(set,data,folder.id)}),
+    el('span',null,folderTrail(data,folder.id))));
+  const form=el('form',{onsubmit:event=>{
+    event.preventDefault();
+    const assigned=new FormData(form).getAll('genre');
+    if(assigned.length)data.assignments[set.key]=assigned;else delete data.assignments[set.key];
+    if(saveFolders(data)){
+      UI.folder=preferredSongFolder(set,data);
+      renderSongList();renderDetail();toast('ジャンルを保存しました');
+    }
+  }},choices,el('button',{class:'btn small',type:'submit'},'ジャンルを保存'));
+  return el('details',{class:'folder-assign'},el('summary',null,'曲のジャンル'),form);
 }
 
 function playableSets(){
@@ -2311,7 +2329,7 @@ function visibleSets(){const q=norm($('#filter').value),f=UI.filt||'all',srt=UI.
   else if(f==='unclear')list=list.filter(hasUnclear);
   else if(f==='fav')list=list.filter(s=>Lib.fav[s.key]);
   const folders=effectiveFolders();
-  if(folders.folders.length&&!q)list=list.filter(s=>UI.folder&&songFolder(s,folders)===UI.folder);
+  if(folders.folders.length&&!q)list=list.filter(s=>UI.folder&&songInFolder(s,folders,UI.folder));
   const order=new Map(Lib.sets.map((s,i)=>[s,i])),pl=s=>Lib.played[s.key]||{t:0,n:0},col=new Intl.Collator('ja');
   const cmp={added:(a,b)=>(!!a.demo-!!b.demo)||order.get(a)-order.get(b),title:(a,b)=>col.compare(a.title,b.title),artist:(a,b)=>col.compare(a.artist||'',b.artist||'')||col.compare(a.title,b.title),
     lvDesc:(a,b)=>lvKey(b)-lvKey(a),lvAsc:(a,b)=>lvKey(a)-lvKey(b),bpm:(a,b)=>b.charts[0].bpm[1]-a.charts[0].bpm[1],len:(a,b)=>b.charts[0].length-a.charts[0].length,
@@ -2689,7 +2707,7 @@ function renderDetail(){const d=$('#detail');$('#arcadeMenu').hidden=!!UI.choose
   d.append(el('div',{class:'course-top'},el('h2',null,'むずかしさをえらぶ')));
   const hero=el('div',{class:'hero'+(s.bgUrl?'':' gen'),style:`--hue:${hashHue(s.title)}`},el('span',{class:'eq',hidden:UI.previewKey!==s.key||null,title:'試聴中','aria-label':'試聴中'},el('i'),el('i'),el('i'),el('i')),el('div',{class:'eyebrow'},s.demo?'デモ曲':'.osz'),el('h2',null,s.title),el('div',{class:'art'},s.artist||''),s.demo?null:el('div',{class:'file'},s.file+'.osz'));
   if(s.bgUrl)hero.style.setProperty('--bgimg',`url("${s.bgUrl}")`);d.append(hero);
-  const folderControl=folderMoveControl(s);if(folderControl)d.append(folderControl);
+  const folderControl=folderAssignmentControl(s);if(folderControl)d.append(folderControl);
   const courses=visibleCourses(s);
   const list=el('div',{class:'crs-list',role:'group','aria-label':'コース',style:'--course-count:5'});
   list.append(el('button',{class:'crs crs-back'+(UI.courseBack?' is-on':''),onclick:backToSongs},
@@ -3160,7 +3178,7 @@ function showDanResult(){cancelAnimationFrame(rafId);rafId=0;if(!D)return;const 
         D.conds.length?el('div',{class:'tbl-wrap'},el('table',null,el('thead',null,el('tr',null,el('th',null,'条件'),el('th',null,'結果'),el('th',null,'合格'),el('th',null,'金合格'))),rows)):null)),
     el('div',{class:'ov-btns'},el('button',{class:'btn primary',onclick:()=>{const dd=d;$('#result').hidden=true;closeStage();startDan(dd);}},'もう一度挑戦'),
       el('button',{class:'btn',onclick:()=>{closeStage();setTab('dan');}},'段位道場へ'),
-      red&&!D.auto&&unlockC?el('button',{class:'btn gold',onclick:()=>{closeStage();UI.folder=songFolder(unlockC.set,effectiveFolders());UI.filt='all';$('#filter').value='';setTab('select');UI.selChart=unlockC.uid;selectSet(unlockC.set.key,false);showCoursePicker();}},'解禁した譜面を見る'):null));
+      red&&!D.auto&&unlockC?el('button',{class:'btn gold',onclick:()=>{closeStage();UI.folder=preferredSongFolder(unlockC.set,effectiveFolders());UI.filt='all';$('#filter').value='';setTab('select');UI.selChart=unlockC.uid;selectSet(unlockC.set.key,false);showCoursePicker();}},'解禁した譜面を見る'):null));
   $('#result').hidden=false;UI.resultAt=performance.now();countUp(scoreEl,st.score,1300);if(red)setTimeout(()=>playJingle('danpass'),350);else if(!D.failCond)setTimeout(()=>playJingle('danfail'),350);}
 
 /* ---------- 描画 ---------- */
