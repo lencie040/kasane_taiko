@@ -2376,7 +2376,7 @@ function visibleFolders(data){
   return folders;
 }
 function folderStrip(folder,selected,select){
-  return el('li',{class:(folder.back?'is-back-row':'')+(selected?' is-on-row':'')},el('button',{
+  return el('li',{class:(folder.back?'is-back-row':'')+(selected?' is-on':'')},el('button',{
     style:`--folder:${folder.back?'#b2b9e8':folderColor(folder)};--ftext:${folder.textColor||'#2d1936'}`,
     'aria-label':folder.back?'親フォルダへもどる':null,
     class:'folder-entry'+(folder.back?' is-back':'')+(folder.textColor?' has-tcolor':'')+(selected?' is-on':''),onclick:select},
