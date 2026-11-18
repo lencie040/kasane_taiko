@@ -2233,12 +2233,19 @@ function hasUnclear(s){return s.charts.some(c=>!isLocked(c)&&!(Lib.best[c.uid]&&
 const emptyFolders=()=>({version:1,folders:[],assignments:Object.create(null)});
 const UNASSIGNED='@unassigned';
 let repoFolders=emptyFolders();
+// 16進数のカラーコード（#RGB / #RRGGBB）を #rrggbb に直す。不正なら null。
+function normalizeHex(value){
+  const m=/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(value??'').trim());
+  if(!m)return null;
+  let hex=m[1].toLowerCase();if(hex.length===3)hex=[...hex].map(ch=>ch+ch).join('');
+  return '#'+hex;}
+function folderColor(folder){return folder.color||`hsl(${hashHue(folder.name)} 69% 60%)`;}
 function parseFolders(source){
   if(!source||source.version!==1||!Array.isArray(source.folders))throw new Error('フォルダ設定の形式が違います');
   const result=emptyFolders(),ids=new Set();
   for(const f of source.folders){
     if(!f||typeof f.id!=='string'||!f.id||f.id===UNASSIGNED||ids.has(f.id)||typeof f.name!=='string'||!f.name.trim())continue;
-    ids.add(f.id);result.folders.push({id:f.id,name:f.name.trim().slice(0,50),parent:typeof f.parent==='string'?f.parent:''});
+    ids.add(f.id);const color=normalizeHex(f.color);result.folders.push({id:f.id,name:f.name.trim().slice(0,50),parent:typeof f.parent==='string'?f.parent:'',...(color?{color}:{})});
   }
   const byId=new Map(result.folders.map(f=>[f.id,f]));
   for(const folder of result.folders){
@@ -2286,6 +2293,15 @@ function folderToolbar(data){
   }
   if(!S.noiseEdit)return;
   if(folder){
+    const colorInput=el('input',{type:'text',maxlength:7,value:folder.color||'',placeholder:'#RRGGBB（空で自動）','aria-label':'フォルダの色（16進数）'});
+    bar.append(el('form',{class:'row',onsubmit:e=>{
+      e.preventDefault();
+      const value=colorInput.value.trim();
+      const color=value?normalizeHex(value):null;
+      if(value&&!color){toast('色は #RRGGBB の形で入力してください','err');return;}
+      if(color)folder.color=color;else delete folder.color;
+      if(saveFolders(data)){toast('フォルダの色を変更しました');renderSongList();}
+    }},colorInput,el('button',{class:'btn small',type:'submit'},'色を変える')));
     const candidates=playableSets().filter(set=>!songInFolder(set,data,folder.id))
       .sort((a,b)=>a.title.localeCompare(b.title,'ja'));
     if(candidates.length){
@@ -2299,15 +2315,18 @@ function folderToolbar(data){
     }
   }
   const add=el('input',{type:'text',maxlength:50,placeholder:'新しいフォルダ名','aria-label':'新しいフォルダ名'});
+  const addColor=el('input',{type:'text',maxlength:7,placeholder:'#RRGGBB（任意）','aria-label':'フォルダの色（16進数）'});
   const form=el('form',{class:'row',onsubmit:e=>{
     e.preventDefault();
     const name=add.value.trim(),parent=folder?.id||'';
     if(!name||name==='未設定'||data.folders.some(f=>f.parent===parent&&f.name===name)){
       toast('別のフォルダ名を入力してください','err');return;
     }
+    const color=addColor.value.trim()?normalizeHex(addColor.value):null;
+    if(addColor.value.trim()&&!color){toast('色は #RRGGBB の形で入力してください','err');return;}
     const id=globalThis.crypto?.randomUUID?.()||Date.now().toString(36)+Math.random().toString(36).slice(2);
-    data.folders.push({id,name,parent});if(saveFolders(data))changeFolder(id);
-  }},add,el('button',{class:'btn small',type:'submit'},'フォルダ作成'));
+    data.folders.push({id,name,parent,...(color?{color}:{})});if(saveFolders(data))changeFolder(id);
+  }},add,addColor,el('button',{class:'btn small',type:'submit'},'フォルダ作成'));
   bar.append(form);
   if(data.folders.length){
     bar.append(el('button',{class:'btn small',onclick:()=>{
@@ -2331,7 +2350,7 @@ function visibleFolders(data){
 }
 function folderStrip(folder,selected,select){
   return el('li',null,el('button',{
-    style:`--folder:${folder.back?'#b2b9e8':`hsl(${hashHue(folder.name)} 69% 60%)`}`,
+    style:`--folder:${folder.back?'#b2b9e8':folderColor(folder)}`,
     'aria-label':folder.back?'親フォルダへもどる':null,
     class:'folder-entry'+(selected?' is-on':''),onclick:select},
     el('span',{class:folder.back?'folder-back-icon':'folder-icon','aria-hidden':'true'},folder.back?'↶':null),
