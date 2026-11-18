@@ -512,8 +512,8 @@ body{background-color:var(--ink);background-image:repeating-linear-gradient(135d
 .folder-entry.is-on{outline:2px solid #a03a43;outline-offset:-3px}
 /* 選択中の曲は、動いている行より前面に出す（移動中の行と重なって二重に見えないように） */
 #songlist>li.song.is-on{position:relative;z-index:2}
-/* もどるを選んだときは、曲を選んだときと同じ高さにする */
-.folder-entry.is-back.is-on{min-height:168px}
+/* フォルダ（もどるを含む）を選んだときも、曲を選んだときと同じ高さにする */
+.folder-entry.is-on{min-height:168px}
 #songlist .folder-entry strong{color:var(--ftext,#2d1936)}
 /* 文字色を指定したフォルダは、名前の下地を外してフォルダの背景色の上に文字を載せる */
 #songlist .folder-entry.has-tcolor strong{background:transparent;border-color:transparent;box-shadow:none}
