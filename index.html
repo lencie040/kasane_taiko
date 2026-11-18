@@ -510,7 +510,7 @@ body{background-color:var(--ink);background-image:repeating-linear-gradient(135d
 .folder-entry{width:100%;display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:12px;text-align:left;padding:12px 16px;background:#ffe39c;border:2px solid #aa6735;border-radius:10px;color:#422039;font-size:16px;min-height:48px}
 .folder-entry:hover{background:#ffd04d}
 .folder-entry.is-on{outline:2px solid #a03a43;outline-offset:-3px}
-.folder-entry.is-back.is-on{transform:scale(1.08);transform-origin:center;z-index:1}
+#songlist>li.is-back-row.is-on-row{scale:1.08;z-index:1}
 .folder-icon{width:24px;height:16px;background:#d56e23;border:2px solid #9a492c;border-radius:3px;position:relative}
 .folder-icon::before{content:'';position:absolute;left:-2px;top:-7px;width:11px;height:6px;background:#d56e23;border:2px solid #9a492c;border-bottom:0;border-radius:3px 3px 0 0}
 .folder-back-icon{text-align:center;font-size:22px;font-weight:900;line-height:1}
@@ -2367,7 +2367,7 @@ function visibleFolders(data){
   return folders;
 }
 function folderStrip(folder,selected,select){
-  return el('li',null,el('button',{
+  return el('li',{class:(folder.back?'is-back-row':'')+(selected?' is-on-row':'')},el('button',{
     style:`--folder:${folder.back?'#b2b9e8':folderColor(folder)}`,
     'aria-label':folder.back?'親フォルダへもどる':null,
     class:'folder-entry'+(folder.back?' is-back':'')+(selected?' is-on':''),onclick:select},
@@ -2450,8 +2450,10 @@ function songChips(set){
 function arcadeEntries(){
   const data=effectiveFolders(),folders=visibleFolders(data);
   const back=data.folders.length&&UI.folder?{id:parentFolder(data),name:'もどる',back:true}:null;
-  if(back)folders.unshift(back);
-  const entries=folders.map((folder,index)=>({folder,index}));
+  // index は一覧の中の位置そのもの。重複すると▲▼やカーソル復元がずれるので、必ず追加時の長さを使う。
+  const entries=[];
+  if(back)entries.push({folder:back,index:entries.length});
+  for(const folder of folders)entries.push({folder,index:entries.length});
   visibleSets().forEach((set,index)=>{
     if(back&&index>0&&index%7===0)entries.push({folder:back,index:entries.length});
     entries.push({set});
@@ -4119,7 +4121,7 @@ window.addEventListener('keydown',e=>{
   }
   if(UI.tab!=='select')return;
   if((e.key==='Escape'||e.key==='Backspace')&&UI.chooseCourse){e.preventDefault();backToSongs();return;}
-  if((e.key==='Escape'||e.key==='Backspace')&&UI.folder){e.preventDefault();changeFolder(parentFolder(effectiveFolders()));return;}
+  if((e.key==='Escape'||e.key==='Backspace')&&UI.folder){e.preventDefault();changeFolder(parentFolder(effectiveFolders()),UI.folder);return;}
   if(UI.chooseCourse&&(ki===0||ki===3||e.key==='ArrowLeft'||e.key==='ArrowRight')){
     e.preventDefault();
     if(!e.repeat)hitPickerRim(ki===0||e.key==='ArrowLeft'?-1:1);
