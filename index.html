@@ -510,6 +510,7 @@ body{background-color:var(--ink);background-image:repeating-linear-gradient(135d
 .folder-entry{width:100%;display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:12px;text-align:left;padding:12px 16px;background:#ffe39c;border:2px solid #aa6735;border-radius:10px;color:#422039;font-size:16px;min-height:48px}
 .folder-entry:hover{background:#ffd04d}
 .folder-entry.is-on{outline:2px solid #a03a43;outline-offset:-3px}
+.folder-entry.is-back.is-on{transform:scale(1.08);transform-origin:center;z-index:1}
 .folder-icon{width:24px;height:16px;background:#d56e23;border:2px solid #9a492c;border-radius:3px;position:relative}
 .folder-icon::before{content:'';position:absolute;left:-2px;top:-7px;width:11px;height:6px;background:#d56e23;border:2px solid #9a492c;border-bottom:0;border-radius:3px 3px 0 0}
 .folder-back-icon{text-align:center;font-size:22px;font-weight:900;line-height:1}
@@ -1231,7 +1232,7 @@ function segAt(segs,t){if(!segs.length)return null;if(t<segs[0].time)return segs
 /* ================= 設定・記録 ================= */
 const S=Object.assign({keys:['KeyD','KeyF','KeyJ','KeyK'],speed:1,offset:0,music:.8,se:.7,auto:false,noiseEdit:false,falling:false,sudden:0,unlockAll:false},store.get('kt.settings',{}));
 S.opt=Object.assign({mirror:false,rand:0,hidden:false},S.opt||{});if(!S.fx)S.fx='high';
-const LOWFX=()=>S.fx==='low';
+const LOWFX=()=>S.fx==='low'||!!(G&&G.chart&&G.chart.multiRow);
 function saveS(){store.set('kt.settings',S);}
 const Lib={sets:[],charts:[],dans:[],loadWarn:[],csvWarn:[],
   chartsCsv:store.get('kt.chartsCsv',''),danCsv:store.get('kt.danCsv',''),
@@ -2275,8 +2276,8 @@ function preferredSongFolder(set,data){
   return assigned?.includes(UI.folder)?UI.folder:assigned?.[0]??UNASSIGNED;
 }
 function parentFolder(data){return data.folders.find(folder=>folder.id===UI.folder)?.parent||'';}
-function changeFolder(id){
-  resetRimSequence();UI.chooseCourse=false;UI.folder=id;UI.selSet=null;UI.selChart=null;UI.folderCursor=null;
+function changeFolder(id,from){
+  resetRimSequence();UI.chooseCourse=false;UI.folder=id;UI.returnFolder=from||null;UI.selSet=null;UI.selChart=null;UI.folderCursor=null;
   stopPreview();renderSongList();renderDetail();
 
 }
@@ -2367,7 +2368,7 @@ function folderStrip(folder,selected,select){
   return el('li',null,el('button',{
     style:`--folder:${folder.back?'#b2b9e8':folderColor(folder)}`,
     'aria-label':folder.back?'親フォルダへもどる':null,
-    class:'folder-entry'+(selected?' is-on':''),onclick:select},
+    class:'folder-entry'+(folder.back?' is-back':'')+(selected?' is-on':''),onclick:select},
     el('span',{class:folder.back?'folder-back-icon':'folder-icon','aria-hidden':'true'},folder.back?'↶':null),
     el('strong',null,folder.name),el('span',{'aria-hidden':'true'},folder.back?'‹':'›')));
 }
@@ -2456,11 +2457,13 @@ function arcadeEntries(){
   return entries;
 }
 function arcadeIndex(entries){
+  // 「もどる」で戻ったときは、直前まで見ていたフォルダにカーソルを合わせる
+  if(UI.returnFolder){const back=entries.findIndex(entry=>entry.folder&&!entry.folder.back&&entry.folder.id===UI.returnFolder);if(back>=0)return back;}
   const index=entries.findIndex(entry=>entry.folder?entry.index===UI.folderCursor:UI.folderCursor==null&&entry.set.key===UI.selSet);
   if(index>=0)return index;
   return Math.max(0,entries.findIndex(entry=>!entry.folder?.back));
 }
-function selectArcadeEntry(entry){
+function selectArcadeEntry(entry){UI.returnFolder=null;
   if(entry.folder){
     UI.folderCursor=entry.index;UI.selSet=null;UI.selChart=null;stopPreview();renderSongList();
   }else selectSet(entry.set.key,true);
@@ -2521,7 +2524,7 @@ function renderSongList(){
   for(let offset=-above;offset<visible-above;offset++){
     const entry=entries[(index+offset+count)%count],selected=offset===0;
     const choose=()=>{
-      if(entry.folder?.back){changeFolder(entry.folder.id);return;}
+      if(entry.folder?.back){changeFolder(entry.folder.id,UI.folder);return;}
       if(!selected){selectArcadeEntry(entry);return;}
       if(entry.folder)changeFolder(entry.folder.id);
       else{selectSet(entry.set.key,true);showCoursePicker();}
@@ -3674,7 +3677,11 @@ function draw(now){const c=ctx,W=view.W,H=view.H,L=view.L,g=G;if(!L)return;const
       const tx=String(ro.hits-ro.count);c.strokeText(tx,bx,yro+1);c.fillText(tx,bx,yro+1);c.textAlign='left';c.textBaseline='alphabetic';}}
   // ノーツ
   const T=g.targets;let s0=g.cursor;while(s0>0&&now-T[s0-1].t<1500)s0--;
-  for(let i=T.length-1;i>=s0;i--){const tg=T[i];if(tg.judged&&tg.res!=='bad')continue;const x=jx+(tg.t-now)*tg.speed*sp;if(x>W+r*2||x<-r*2)continue;let al=tg.judged?.35:1;
+  // 画面の右端より先のノーツは描かないので、その手前までだけ走査する
+  if(g.minSpeed==null)g.minSpeed=T.reduce((m,t)=>Math.min(m,t.speed||m),Infinity);
+  const horizon=now+(W-jx)/(sp*Math.max(1e-3,g.minSpeed||1));
+  let hi=s0,hiEnd=T.length;while(hi<hiEnd){const mid=(hi+hiEnd)>>1;if(T[mid].t<=horizon)hi=mid+1;else hiEnd=mid;}
+  for(let i=hi-1;i>=s0;i--){const tg=T[i];if(tg.judged&&tg.res!=='bad')continue;const x=jx+(tg.t-now)*tg.speed*sp;if(x>W+r*2||x<-r*2)continue;let al=tg.judged?.35:1;
     if(g.hidden&&!tg.judged){al*=clamp((x-(jx+(W-jx)*.32))/((W-jx)*.16),0,1);if(al<=.01)continue;}
     if(tg.type==='single'){const ys1=top+lh*((tg.row??0)+.5);drawNote(c,x,ys1,tg.big?r*bigMul:r,tg.color,al);drawNoise(c,x,ys1,tg.big?r*bigMul:r,tg.noise,al,pn);continue;}
     const ys=tg.notes.map(n=>top+lh*(n.lane+.5)),yA=ys[0],yB=ys[ys.length-1];
