@@ -972,6 +972,8 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
       <div class="medley-options">
         <label>再生順 <select id="medleyOrder"><option value="ordered">収録順</option><option value="shuffle">ランダム</option></select></label>
         <label class="switch"><input id="medleyShow" type="checkbox" checked>譜面を表示</label>
+        <label>下限 ★<input id="medleyMinLevel" type="number" min="0" max="15" step="0.1" value="0" class="num" style="width:5.5em" title="この★以上の譜面だけを流します（0で制限なし）"></label>
+        <label>スクロール <input id="medleyScroll" type="range" min="0.5" max="2" step="0.1" value="1"> <output id="medleyScrollOut" class="num">×1.0</output></label>
       </div>
       <div class="medley-head">
         <h3 id="medleyTitle">停止中</h3>
@@ -1750,7 +1752,7 @@ function stopPreview(){const p=preview;preview=null;UI.previewKey=null;showEq();
 
 /* ================= 作業用BGM ================= */
 const medleyView={title:$('#medleyTitle'),status:$('#medleyStatus'),order:$('#medleyOrder'),show:$('#medleyShow'),lane:$('#medleyLane'),
-  progress:$('#medleyProgress'),time:$('#medleyTime'),play:$('#medleyPlay'),next:$('#medleyNext'),stop:$('#medleyStop')};
+  progress:$('#medleyProgress'),time:$('#medleyTime'),play:$('#medleyPlay'),next:$('#medleyNext'),stop:$('#medleyStop'),scroll:$('#medleyScroll'),scrollOut:$('#medleyScrollOut'),minLevel:$('#medleyMinLevel')};
 const medleyContext=medleyView.lane.getContext('2d');
 let medley=null,medleyFrame=0,medleyTimer=0,medleyDrawAt=0;
 let medleyTonesReady=false,medleyTonePreview=null,medleyPreviewTicket=0,medleyToneRevision=0;
@@ -1840,7 +1842,9 @@ async function previewMedleyTone(kind){
   source.onended=()=>{source.disconnect();if(medleyTonePreview===source)medleyTonePreview=null;};
 }
 
-function medleyCharts(){return Lib.charts.filter(chart=>!chart.set.demo);}
+// 下限の★以上の譜面だけを対象にする（0なら制限なし）。
+function medleyMinLevel(){const v=parseFloat(medleyView.minLevel.value);return Number.isFinite(v)&&v>0?v:0;}
+function medleyCharts(){const min=medleyMinLevel();return Lib.charts.filter(chart=>!chart.set.demo&&(min<=0||(chart.level!=null&&chart.level>=min)));}
 function medleyQueue(charts,shuffle,previous){
   const queue=charts.slice();
   if(shuffle){
@@ -1902,23 +1906,46 @@ function buildMedleyHits(chart,duration){
   return buffer;
 }
 
+function medleyScale(){return clamp(parseFloat(medleyView.scroll.value)||1,.5,2);}
+// 曲の最後のノーツの色（連打・風船で終わる場合はドン）。カツ/ドンのどちらでもない場合はnull。
+function medleyEndColor(chart){
+  const last=chart.targets[chart.targets.length-1],endRoll=chart.rolls.reduce((m,r)=>Math.max(m,r.end),-Infinity);
+  if(endRoll>(last?.t??-Infinity))return 'd';
+  return last&&last.type==='single'?last.color:null;}
+// 曲の最初のノーツの色。先頭ノーツを除外する場合はその次のノーツで判定する。
+function medleyStartColor(chart,drop){
+  const first=drop?chart.targets[1]:chart.targets[0],roll=chart.rolls[0];
+  if(roll&&(!first||roll.t<first.t))return 'd';
+  return first&&first.type==='single'?first.color:null;}
+// 前の曲の続きとして使うとき、先頭ノーツを無いものとして扱う（連続して見えるように）。
+function medleyTrackView(chart,follows){return follows?{...chart,targets:chart.targets.slice(1)}:chart;}
+// 前の曲の最後の色に合う曲を、残りの再生待ち列の先頭へ寄せる（なるべく）。
+function pickMedleyNext(session,prev){
+  const need=medleyEndColor(prev);if(!need)return;
+  for(let j=session.index;j<session.queue.length;j++){
+    if(session.unreadable.has(session.queue[j]))continue;
+    if(medleyStartColor(session.queue[j],true)===need){[session.queue[session.index],session.queue[j]]=[session.queue[j],session.queue[session.index]];return;}
+  }
+}
 async function loadMedleyTrack(session){
+  const prev=session.current?.chart;
   while(medley===session&&session.unreadable.size<session.charts.length){
     if(session.index===session.queue.length){
       session.queue=medleyQueue(session.charts,session.shuffle,session.current?.chart);
       session.index=0;
     }
+    if(prev)pickMedleyNext(session,prev);
     const chart=session.queue[session.index++];
     if(session.unreadable.has(chart))continue;
     const duration=Math.max(.05,chart.length/1000);
-    let buffer,hits;
+    let buffer,hits,view;
     try{
       buffer=await getAudio(chart);
       if(medley!==session)return null;
-      loadNoise(chart);hits=buildMedleyHits(chart,duration);
+      loadNoise(chart);view=medleyTrackView(chart,!!prev);hits=buildMedleyHits(view,duration);
     }catch(error){session.unreadable.add(chart);continue;}
     const speed=chart.segs.reduce((min,seg)=>Math.min(min,seg.sv/(4*seg.bl)),Infinity);
-    return {chart,position:session.index,buffer,hits,duration,toneRevision:medleyToneRevision,offset:0,ahead:1.2/speed};
+    return {chart,view,position:session.index,buffer,hits,duration,toneRevision:medleyToneRevision,offset:0,ahead:1.2/speed};
   }
   return null;
 }
@@ -1952,7 +1979,7 @@ function scheduleMedleyHits(session,track,when){
 
 function refreshMedleyTrackHits(session,track){
   if(!track||track.toneRevision===medleyToneRevision||(track.clock&&AC.currentTime>=track.startAt))return;
-  const hits=buildMedleyHits(track.chart,track.duration);
+  const hits=buildMedleyHits(track.view,track.duration);
   if(track.clock&&AC.currentTime>=track.startAt)return;
   track.hits=hits;track.toneRevision=medleyToneRevision;
   if(track.clock){
@@ -2053,7 +2080,7 @@ function renderMedley(){
     total?`${total}譜面${skipped}`:libraryBooting?'曲を読み込み中…':'再生できる譜面がありません。';
   v.play.textContent=session?(session.paused?'再開':'一時停止'):'再生';
   v.play.disabled=session?!track:!total;
-  v.next.disabled=!track;v.stop.disabled=!session;v.order.disabled=!!session;v.lane.hidden=!v.show.checked;
+  v.next.disabled=!track;v.stop.disabled=!session;v.order.disabled=v.minLevel.disabled=!!session;v.lane.hidden=!v.show.checked;
   cancelAnimationFrame(medleyFrame);clearInterval(medleyTimer);
   if(document.hidden)return;
   drawMedleyTimeline();
@@ -2080,22 +2107,29 @@ function drawMedleyTimeline(){
   if(v.lane.width!==width||v.lane.height!==height){v.lane.width=width;v.lane.height=height;}
   c.setTransform(dpr,0,0,dpr,0,0);
   c.clearRect(0,0,w,h);
-  const x0=Math.min(72,w*.15),lanes=track?.chart.stats.maxLanes??1,dy=Math.min(34,h/(lanes+1)),top=(h-dy*lanes)*.5;
+  const x0=Math.min(72,w*.15),next=medley?.next,lanes=Math.max(track?.chart.stats.maxLanes??1,next?.chart.stats.maxLanes??1),dy=Math.min(34,h/(lanes+1)),top=(h-dy*lanes)*.5;
   c.fillStyle='#313047';c.fillRect(x0,top,w-x0,dy*lanes);
   c.fillStyle='#e9dfa9';c.fillRect(x0-1,top,2,dy*lanes);
   for(let i=1;i<lanes;i++){c.fillStyle='#484660';c.fillRect(x0,top+i*dy,w-x0,1);}
   if(!track)return;
-  const now=elapsed*1000,until=now+track.ahead,r=dy*.29,span=w-x0,xAt=(t,speed)=>x0+(t-now)*speed*span;
-  for(const roll of track.chart.rolls){
-    if(roll.t>until)break;
-    if(roll.end<=now)continue;
-    const x=xAt(Math.max(now,roll.t),roll.speed);if(x>w+r)continue;
-    const length=roll.type==='roll'?Math.min(w+r,xAt(roll.end,roll.speed))-x:0;
+  const scale=medleyScale(),now=elapsed*1000,until=now+Math.max(track.ahead,next?.ahead??0)/scale,r=dy*.29,span=w-x0;
+  const xAt=(t,speed)=>x0+(t-now)*speed*scale*span;
+  drawMedleyEvents(c,track.view,0,now,until,xAt,w,top,dy,r);
+  // 曲の終わりを過ぎた位置に、次の曲のノーツを続けて描く
+  if(next)drawMedleyEvents(c,next.view,track.duration*1000,now,until,xAt,w,top,dy,r);
+}
+function drawMedleyEvents(c,view,offset,now,until,xAt,w,top,dy,r){
+  for(const roll of view.rolls){
+    const start=roll.t+offset,end=roll.end+offset;
+    if(start>until)break;
+    if(end<=now)continue;
+    const x=xAt(Math.max(now,start),roll.speed);if(x>w+r)continue;
+    const length=roll.type==='roll'?Math.min(w+r,xAt(end,roll.speed))-x:0;
     rr(c,x-r,top+dy*.5-r,length+r*2,r*2,r);c.fillStyle=roll.type==='roll'?'#ffd260':'#f3a06e';c.fill();
   }
-  const targets=track.chart.targets;
-  for(let i=medleyNoteIndex(targets,now);i<targets.length&&targets[i].t<=until;i++){
-    const t=targets[i],x=xAt(t.t,t.speed);if(x>w+r*2)continue;
+  const targets=view.targets;
+  for(let i=medleyNoteIndex(targets,now-offset);i<targets.length&&targets[i].t+offset<=until;i++){
+    const t=targets[i],x=xAt(t.t+offset,t.speed);if(x>w+r*2)continue;
     for(const note of t.notes||[t]){
       const y=top+((note.lane??0)+.5)*dy,size=note.big?r*1.35:r;
       c.beginPath();c.arc(x,y,size,0,TAU);c.fillStyle=note.color==='d'?'#f36a58':'#53d1df';c.fill();
@@ -2112,6 +2146,8 @@ medleyView.next.addEventListener('click',()=>{
   releaseMedleyTrack(medley.current);releaseMedleyTrack(medley.next);stopMedleyHits(medley);advanceMedley(medley);
 });
 medleyView.show.addEventListener('change',renderMedley);
+medleyView.minLevel.addEventListener('change',renderMedley);
+medleyView.scroll.addEventListener('input',()=>{medleyView.scrollOut.textContent='×'+medleyScale().toFixed(1);drawMedleyTimeline();});
 document.addEventListener('visibilitychange',()=>{
   if(!document.hidden&&medley&&!medley.paused)ensureAudio();
   renderMedley();
@@ -2925,7 +2961,7 @@ function renderSettings(){
 let G=null,D=null,rafId=0;const cv=$('#cv'),ctx=cv.getContext('2d');const view={W:0,H:0,dpr:1,L:null};
 function newStats(notes,chordNotes,course){return{notes,chordNotes,gu:10000/Math.max(1,notes*.75),badMul:BADMUL[course]||2,tokuryo:0,good:0,ok:0,bad:0,roll:0,rollDrum:0,combo:0,maxCombo:0,score:0,gauge:0,judged:0,chordJudged:0,offSum:0,offN:0,offs:[],chordHit:0,chordMiss:0,mismatch:0};}
 function newRun(chart,prac){
-  loadNoise(chart);
+  if(!chart.multiRow)loadNoise(chart);
   const tsrc=prac?chart.targets.filter(t=>(prac.from<=0||t.t>=prac.from)&&t.t<=prac.to):chart.targets,rsrc=prac?chart.rolls.filter(r=>(prac.from<=0||r.end>=prac.from)&&r.t<=prac.to):chart.rolls;
   let nN=0,nC=0;for(const t of tsrc){if(t.type==='chord'){nN+=t.notes.length;nC+=t.notes.length;}else nN++;}
   return{chart,prac:prac||null,win:(chart.course==='easy'||chart.course==='normal')?WIN_SOFT:WIN_HARD,
@@ -2993,7 +3029,7 @@ function press(role,t,auto){
   if(tg.big&&!tg.noise&&kind!=='bad')G.absorb={color,role,t,pts:kind==='ok'?Math.floor(G.base/20)*10:G.base};}
 function autoplayRows(now){const T=G.targets,played={};
   for(let i=G.cursor;i<T.length;i++){const tg=T[i];if(tg.t>now)break;if(tg.judged||tg.autoDone)continue;tg.autoDone=true;
-    G.autoSide^=1;const sd=G.autoSide,role=tg.color==='d'?(sd?'donL':'donR'):(sd?'kaL':'kaR');
+    G.autoSide^=1;const sd=G.autoSide,role=tg.noise?noiseRole(tg):(tg.color==='d'?(sd?'donL':'donR'):(sd?'kaL':'kaR'));
     G.flash[role]=performance.now();if(!played[tg.color]){played[tg.color]=1;playSE(tg.color==='d'?'don':'ka');}
     judge(tg,'good',0);}
   for(const r of G.rolls){if(r.done||now<r.t||now>r.end)continue;
@@ -3078,14 +3114,18 @@ async function startNormal(chart){if(waitForLibrary())return;ensureAudio();D=nul
 const AUTOALL_STAMP='autoall:';
 function autoAllCharts(set){return COURSE_ORDER.filter(k=>k!=='kasane').flatMap(k=>set.charts.filter(c=>c.course===k&&!isLocked(c)));}
 function mergeCharts(set,charts){
-  // 本家の1P・2P・3P…のように、難易度ごとに1レーン（row）を割り当てて同時に流す。
-  const base=charts[charts.length-1],targets=[],rolls=[];let total=0;
+  // 本家の1P・2P…のように、難易度ごとに1レーン（row）を割り当てて同時に流す。
+  const base=charts[charts.length-1],targets=[],rolls=[],barMap=new Map();let total=0;
   charts.forEach((c,row)=>{
-    for(const t of c.targets){const ns=t.type==='single'?[t]:t.notes;for(const n of ns){targets.push({type:'single',t:t.t,color:n.color,big:n.big,speed:t.speed,row});total++;}}
-    for(const r of c.rolls)rolls.push({...r,row});});
+    loadNoise(c);
+    for(const t of c.targets){const ns=t.type==='single'?[t]:t.notes;for(const n of ns){targets.push({type:'single',t:t.t,color:n.color,big:n.big,noise:n.noise,speed:t.speed,row});total++;}}
+    for(const r of c.rolls)rolls.push({...r,row});
+    // 小節線は全難易度の和集合（同じ時刻の線は1本にまとめる）
+    for(const b of c.bars){const k=Math.round(b.t);if(!barMap.has(k))barMap.set(k,b);}});
   targets.sort((a,b)=>a.t-b.t||a.row-b.row);rolls.sort((a,b)=>a.t-b.t);
+  const bars=[...barMap.values()].sort((a,b)=>a.t-b.t);
   const length=Math.max(...charts.map(c=>c.length)),firstT=Math.min(...charts.map(c=>c.firstT));
-  return {...base,uid:AUTOALL_STAMP+set.key,course:'oni',multiRow:true,rowCourses:charts.map(c=>c.course),targets,rolls,length,firstT,
+  return {...base,uid:AUTOALL_STAMP+set.key,course:'oni',multiRow:true,rowCourses:charts.map(c=>c.course),targets,rolls,bars,length,firstT,
     meta:{...base.meta,version:'全難易度同時'},stats:{notes:total,chords:0,chordNotes:0,maxLanes:Math.min(5,charts.length),trimmed:0}};}
 let AUTOALL_FALLING=null;
 async function startAutoAll(set){if(waitForLibrary())return;const q=autoAllCharts(set);if(!q.length)return;ensureAudio();D=null;
