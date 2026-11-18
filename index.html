@@ -514,7 +514,7 @@ body{background-color:var(--ink);background-image:repeating-linear-gradient(135d
 #songlist>li.song.is-on{position:relative;z-index:2}
 /* フォルダ（もどるを含む）を選んだときも、曲を選んだときと同じ高さにする */
 /* 選択中の行（曲・フォルダ・もどる）は同じ高さにする */
-:root{--sel-h:150px}
+:root{--sel-h:165px}
 #songlist>li.is-on{height:var(--sel-h);box-sizing:border-box;display:flex;flex-direction:column;justify-content:center}
 #songlist>li.is-on>.folder-entry{height:100%;box-sizing:border-box}
 /* フォルダ・もどるの左右の印は、文字の幅を縮めないよう枠の端に重ねる */
@@ -777,7 +777,7 @@ body{min-height:100dvh;animation:arcade-wallpaper 12s linear infinite}
   .crs .nm strong{font-size:10px;white-space:nowrap}.crs .nm small{font-size:10px}
 }
 @media (min-width:900px){
-  :root{--sel-h:clamp(150px,13.1vw,220px)}
+  :root{--sel-h:172px}
   main:has(#tab-select:not([hidden])){max-width:none;padding-block-start:24px}
   .arcade-menu{max-width:clamp(820px,77vw,1560px)}
   .arcade-heading h2{font-size:clamp(30px,3vw,56px)}
