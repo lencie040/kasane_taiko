@@ -513,7 +513,15 @@ body{background-color:var(--ink);background-image:repeating-linear-gradient(135d
 /* 選択中の曲は、動いている行より前面に出す（移動中の行と重なって二重に見えないように） */
 #songlist>li.song.is-on{position:relative;z-index:2}
 /* フォルダ（もどるを含む）を選んだときも、曲を選んだときと同じ高さにする */
-.folder-entry.is-on{min-height:168px}
+/* 選択中の行（曲・フォルダ・もどる）は同じ高さにする */
+:root{--sel-h:150px}
+#songlist>li.is-on{height:var(--sel-h);box-sizing:border-box;display:flex;flex-direction:column;justify-content:center}
+#songlist>li.is-on>.folder-entry{height:100%;box-sizing:border-box}
+/* フォルダ・もどるの左右の印は、文字の幅を縮めないよう枠の端に重ねる */
+#songlist .folder-entry.is-on{position:relative;grid-template-columns:minmax(0,1fr)}
+#songlist .folder-entry.is-on>span{position:absolute;top:50%;translate:0 -50%}
+#songlist .folder-entry.is-on>span:first-child{left:14px}
+#songlist .folder-entry.is-on>span:last-child{right:14px}
 #songlist .folder-entry strong{color:var(--ftext,#2d1936)}
 /* 文字色を指定したフォルダは、名前の下地を外してフォルダの背景色の上に文字を載せる */
 #songlist .folder-entry.has-tcolor strong{background:transparent;border-color:transparent;box-shadow:none}
@@ -769,21 +777,16 @@ body{min-height:100dvh;animation:arcade-wallpaper 12s linear infinite}
   .crs .nm strong{font-size:10px;white-space:nowrap}.crs .nm small{font-size:10px}
 }
 @media (min-width:900px){
+  :root{--sel-h:clamp(150px,13.1vw,220px)}
   main:has(#tab-select:not([hidden])){max-width:none;padding-block-start:24px}
   .arcade-menu{max-width:clamp(820px,77vw,1560px)}
   .arcade-heading h2{font-size:clamp(30px,3vw,56px)}
   #songlist>li{width:84%;margin-bottom:clamp(7px,.95vh,14px)}
   #songlist>li.is-on{width:89%}
   #songlist .song-t,.folder-entry strong{font-size:clamp(18px,min(2.2vw,2.75vh),42px)}
-  #songlist .song.is-on .song-t{font-size:clamp(22px,min(3vw,4.1vh),56px)}
   #songlist .song.is-on{padding-inline:clamp(16px,3vw,40px)}
   /* 選んだフォルダ・もどるの文字と余白も、選んだ曲と同じ大きさにする */
-  #songlist .folder-entry.is-on strong{font-size:clamp(22px,min(3vw,4.1vh),56px)}
-  #songlist .folder-entry.is-on{padding-inline:clamp(16px,3vw,40px);position:relative;grid-template-columns:minmax(0,1fr)}
-  /* 左右の印（フォルダ・もどる）は文字の幅を縮めないよう、枠の端に重ねる */
-  #songlist .folder-entry.is-on>span{position:absolute;top:50%;translate:0 -50%}
-  #songlist .folder-entry.is-on>span:first-child{left:14px}
-  #songlist .folder-entry.is-on>span:last-child{right:14px}
+  #songlist .folder-entry.is-on{padding-inline:clamp(16px,3vw,40px)}
   #songlist .song .chips{gap:10px}
   .dtile{min-width:0}
   .dtile.dx{min-width:64px}
