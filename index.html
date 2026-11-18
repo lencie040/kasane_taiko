@@ -973,7 +973,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
         <label>再生順 <select id="medleyOrder"><option value="ordered">収録順</option><option value="shuffle">ランダム</option></select></label>
         <label class="switch"><input id="medleyShow" type="checkbox" checked>譜面を表示</label>
         <label>下限 ★<input id="medleyMinLevel" type="number" min="0" max="15" step="0.1" value="0" class="num" style="width:5.5em" title="この★以上の譜面だけを流します（0で制限なし）"></label>
-        <label>スクロール <input id="medleyScroll" type="range" min="0.5" max="2" step="0.1" value="1"> <output id="medleyScrollOut" class="num">×1.0</output></label>
+        <label>スクロール <input id="medleyScroll" type="range" min="0.1" max="2" step="0.1" value="1"> <output id="medleyScrollOut" class="num">×1.0</output></label>
       </div>
       <div class="medley-head">
         <h3 id="medleyTitle">停止中</h3>
@@ -1906,7 +1906,7 @@ function buildMedleyHits(chart,duration){
   return buffer;
 }
 
-function medleyScale(){return clamp(parseFloat(medleyView.scroll.value)||1,.5,2);}
+function medleyScale(){return clamp(parseFloat(medleyView.scroll.value)||1,.1,2);}
 // 曲の最後のノーツの色（連打・風船で終わる場合はドン）。カツ/ドンのどちらでもない場合はnull。
 function medleyEndColor(chart){
   const last=chart.targets[chart.targets.length-1],endRoll=chart.rolls.reduce((m,r)=>Math.max(m,r.end),-Infinity);
@@ -3426,7 +3426,7 @@ function fxJudge(tg,kind,why){if(!G)return;const pn=performance.now();G.pop={kin
   if(kind==='bad'){if(why==='mismatch'||why==='color')for(const l of lanes)fx.rings.push({lane:l,t:pn,kind:'x'});return;}
   lanes.forEach((l,i)=>{const big=chord?tg.notes[i].big:tg.big,col=chord?tg.notes[i].color:tg.color,y=L.top+L.laneH*(l+.5);
     fx.rings.push({lane:l,t:pn,kind,big});
-    if(!REDUCED&&!LOWFX()){const n=kind==='tokuryo'?14:kind==='good'?9:5;
+    if(!REDUCED&&!LOWFX()&&!G.chart.multiRow){const n=kind==='tokuryo'?14:kind==='good'?9:5;
       for(let k=0;k<n;k++){const a=Math.random()*TAU,v=(kind==='tokuryo'?.42:.3)*(.45+Math.random());
         fx.parts.push({x:L.judgeX,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,t:pn,life:340+Math.random()*280,col:kind==='tokuryo'?'#ffd46b':kind==='good'?'#ffb347':'#f2ecdc',sz:1.8+Math.random()*2.4,star:kind==='tokuryo'&&k%3===0});}
       fx.flyers.push({x0:L.judgeX,y0:y,t:pn,delay:i*28,col,R:L.r*(big?1.25:1)});}});
@@ -3616,7 +3616,11 @@ function draw(now){const c=ctx,W=view.W,H=view.H,L=view.L,g=G;if(!L)return;const
   for(const role of ROLES){const dt=pn-(g.flash[role]||-1e9);if(dt>170)continue;const a=(1-dt/170)*.32,col=ROLE_COLOR[role]==='d'?'238,74,43':'60,178,219';
     const fg=c.createLinearGradient(jx-r*1.4,0,jx+(W-jx)*.6,0);fg.addColorStop(0,`rgba(${col},${a})`);fg.addColorStop(1,`rgba(${col},0)`);c.fillStyle=fg;c.fillRect(L.panelW,top,W,fh);}
   c.fillStyle='rgba(242,236,220,.07)';for(let l=1;l<N;l++)c.fillRect(L.panelW,top+l*lh-.5,W,1);
-  c.fillStyle='rgba(242,236,220,.26)';for(const b of g.chart.bars){const x=jx+(b.t-now)*b.speed*sp;if(x<L.panelW||x>W+2)continue;c.fillRect(x-.75,top,1.5,fh);}
+  c.fillStyle='rgba(242,236,220,.26)';{const BR=g.chart.bars;
+  if(g.chart.multiRow){// 小節線は時刻順。表示範囲の手前から右端まで走査し、右端を越えたら止める
+    let lo=0,hi=BR.length;const from=now-2000;while(lo<hi){const m=(lo+hi)>>1;if(BR[m].t<from)lo=m+1;else hi=m;}
+    for(let i=lo;i<BR.length;i++){const b=BR[i],x=jx+(b.t-now)*b.speed*sp;if(x>W+2)break;if(x<L.panelW)continue;c.fillRect(x-.75,top,1.5,fh);}}
+  else for(const b of BR){const x=jx+(b.t-now)*b.speed*sp;if(x<L.panelW||x>W+2)continue;c.fillRect(x-.75,top,1.5,fh);}}
   // 判定枠（拍で脈打つ・同時押しが近づくと金色に光る）
   const hot=new Array(N).fill(0);
   for(let i=g.cursor;i<g.targets.length;i++){const tg=g.targets[i];if(tg.t-now>380)break;if(tg.judged||tg.type!=='chord')continue;const a=clamp(1-(tg.t-now)/380,0,1);for(const n of tg.notes)hot[n.lane]=Math.max(hot[n.lane],a);}
