@@ -2279,7 +2279,9 @@ function parentFolder(data){return data.folders.find(folder=>folder.id===UI.fold
 function changeFolder(id,from){
   resetRimSequence();UI.chooseCourse=false;UI.folder=id;UI.returnFolder=from||null;UI.selSet=null;UI.selChart=null;UI.folderCursor=null;
   stopPreview();renderSongList();renderDetail();
-
+  // 入った先で最初に選ばれているのが曲なら、その曲のデモ再生を始める
+  const entries=arcadeEntries(),current=entries[arcadeIndex(entries)];
+  if(current?.set&&UI.tab==='select')selectSet(current.set.key,true);
 }
 function folderTrail(data,id){
   const names=[];
@@ -2543,10 +2545,13 @@ function animateSongStrips(list,previous,priorKey,priorBounds){
   const backward=length>1&&previous.length===length&&previous.slice(0,-1).every((item,i)=>item.key===keys[i+1]);
   // A two-entry list has the same order in both directions, so use the last input.
   const direction=forward&&backward?(UI.arcadeDirection||1):forward?1:backward?-1:0;
-  const outgoing=direction>0?previous[0]:direction<0?previous.at(-1):null;
-  const covering=direction>0?rows[0]:direction<0?rows.at(-1):null;
-  const entering=direction>0?rows.at(-1):direction<0?rows[0]:null;
   const positions=new Map(previous.map(item=>[item.key,item.bounds]));
+  // 行数が少ないと、同じ行が反対側へ回り込むだけで画面から消えない。消える行・現れる行だけを特別扱いする。
+  let outgoing=direction>0?previous[0]:direction<0?previous.at(-1):null;
+  if(outgoing&&keys.includes(outgoing.key))outgoing=null;
+  const covering=direction>0?rows[0]:direction<0?rows.at(-1):null;
+  let entering=direction>0?rows.at(-1):direction<0?rows[0]:null;
+  if(entering&&positions.has(entering.dataset.entry))entering=null;
   let departing=null,coverAnimation=null;
 
   if(outgoing&&covering){
