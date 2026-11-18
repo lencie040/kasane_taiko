@@ -517,6 +517,9 @@ body{background-color:var(--ink);background-image:repeating-linear-gradient(135d
 #songlist .folder-entry strong{color:var(--ftext,#2d1936)}
 /* 文字色を指定したフォルダは、名前の下地を外してフォルダの背景色の上に文字を載せる */
 #songlist .folder-entry.has-tcolor strong{background:transparent;border-color:transparent;box-shadow:none}
+/* フォルダの文字色は、その中の曲の文字にも使う */
+#songlist .song.has-tcolor .song-t,#songlist .song.has-tcolor .song-a{color:var(--ftext)}
+#songlist .song.has-tcolor .song-t{background:transparent;border-color:transparent;box-shadow:none}
 .folder-icon{width:24px;height:16px;background:#d56e23;border:2px solid #9a492c;border-radius:3px;position:relative}
 .folder-icon::before{content:'';position:absolute;left:-2px;top:-7px;width:11px;height:6px;background:#d56e23;border:2px solid #9a492c;border-bottom:0;border-radius:3px 3px 0 0}
 .folder-back-icon{text-align:center;font-size:22px;font-weight:900;line-height:1}
@@ -2490,8 +2493,9 @@ function selectArcadeEntry(entry){UI.returnFolder=null;
 }
 function songStrip(set,selected,choose){
   const top=sortCharts(set.charts).filter(c=>!isLocked(c)).pop()||set.charts[0],fav=!!Lib.fav[set.key];
-  const folderTint=effectiveFolders().folders.find(f=>f.id===UI.folder)?.color;
-  const row=el('li',{class:'song'+(selected?' is-on':''),tabindex:'0',role:'button',style:`--sc:${folderTint||COURSES[top.course].color}`},
+  const curFolder=effectiveFolders().folders.find(f=>f.id===UI.folder);
+  const folderTint=curFolder?.color,folderText=curFolder?.textColor;
+  const row=el('li',{class:'song'+(selected?' is-on':'')+(folderText?' has-tcolor':''),tabindex:'0',role:'button',style:`--sc:${folderTint||COURSES[top.course].color}`+(folderText?`;--ftext:${folderText}`:'')},
     el('div',{class:'song-t'},el('span',null,set.title)),
     el('div',{class:'song-a'},el('span',null,set.artist||'—')),
     selected?el('div',{class:'chips'},songChips(set)):null,
