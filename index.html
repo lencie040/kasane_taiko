@@ -774,6 +774,13 @@ body{min-height:100dvh;animation:arcade-wallpaper 12s linear infinite}
   #songlist .song-t,.folder-entry strong{font-size:clamp(18px,min(2.2vw,2.75vh),42px)}
   #songlist .song.is-on .song-t{font-size:clamp(22px,min(3vw,4.1vh),56px)}
   #songlist .song.is-on{padding-inline:clamp(16px,3vw,40px)}
+  /* 選んだフォルダ・もどるの文字と余白も、選んだ曲と同じ大きさにする */
+  #songlist .folder-entry.is-on strong{font-size:clamp(22px,min(3vw,4.1vh),56px)}
+  #songlist .folder-entry.is-on{padding-inline:clamp(16px,3vw,40px);position:relative;grid-template-columns:minmax(0,1fr)}
+  /* 左右の印（フォルダ・もどる）は文字の幅を縮めないよう、枠の端に重ねる */
+  #songlist .folder-entry.is-on>span{position:absolute;top:50%;translate:0 -50%}
+  #songlist .folder-entry.is-on>span:first-child{left:14px}
+  #songlist .folder-entry.is-on>span:last-child{right:14px}
   #songlist .song .chips{gap:10px}
   .dtile{min-width:0}
   .dtile.dx{min-width:64px}
@@ -3695,7 +3702,7 @@ function draw(now){const c=ctx,W=view.W,H=view.H,L=view.L,g=G;if(!L)return;const
   const T=g.targets;let s0=g.cursor;while(s0>0&&now-T[s0-1].t<1500)s0--;
   // 画面の右端より先のノーツは描かないので、その手前までだけ走査する
   if(g.minSpeed==null)g.minSpeed=T.reduce((m,t)=>Math.min(m,t.speed||m),Infinity);
-  const horizon=now+(W-jx)/(sp*Math.max(1e-3,g.minSpeed||1));
+  const horizon=now+(W-jx)/(sp*(g.minSpeed>0?g.minSpeed:1e-6));// 最小速度をそのまま使う（下限で切り上げると先読みが短くなり、音符が途中から出る）
   let hi=s0,hiEnd=T.length;while(hi<hiEnd){const mid=(hi+hiEnd)>>1;if(T[mid].t<=horizon)hi=mid+1;else hiEnd=mid;}
   for(let i=hi-1;i>=s0;i--){const tg=T[i];if(tg.judged&&tg.res!=='bad')continue;const x=jx+(tg.t-now)*tg.speed*sp;if(x>W+r*2||x<-r*2)continue;let al=tg.judged?.35:1;
     if(g.hidden&&!tg.judged){al*=clamp((x-(jx+(W-jx)*.32))/((W-jx)*.16),0,1);if(al<=.01)continue;}
