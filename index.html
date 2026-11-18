@@ -972,6 +972,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
       <div class="medley-options">
         <label>再生順 <select id="medleyOrder"><option value="ordered">収録順</option><option value="shuffle">ランダム</option></select></label>
         <label class="switch"><input id="medleyShow" type="checkbox" checked>譜面を表示</label>
+        <label>下限 ★<input id="medleyMinLevel" type="number" min="0" max="15" step="0.1" value="0" class="num" style="width:5.5em" title="この★以上の譜面だけを流します（0で制限なし）"></label>
         <label>スクロール <input id="medleyScroll" type="range" min="0.5" max="2" step="0.1" value="1"> <output id="medleyScrollOut" class="num">×1.0</output></label>
       </div>
       <div class="medley-head">
@@ -1751,7 +1752,7 @@ function stopPreview(){const p=preview;preview=null;UI.previewKey=null;showEq();
 
 /* ================= 作業用BGM ================= */
 const medleyView={title:$('#medleyTitle'),status:$('#medleyStatus'),order:$('#medleyOrder'),show:$('#medleyShow'),lane:$('#medleyLane'),
-  progress:$('#medleyProgress'),time:$('#medleyTime'),play:$('#medleyPlay'),next:$('#medleyNext'),stop:$('#medleyStop'),scroll:$('#medleyScroll'),scrollOut:$('#medleyScrollOut')};
+  progress:$('#medleyProgress'),time:$('#medleyTime'),play:$('#medleyPlay'),next:$('#medleyNext'),stop:$('#medleyStop'),scroll:$('#medleyScroll'),scrollOut:$('#medleyScrollOut'),minLevel:$('#medleyMinLevel')};
 const medleyContext=medleyView.lane.getContext('2d');
 let medley=null,medleyFrame=0,medleyTimer=0,medleyDrawAt=0;
 let medleyTonesReady=false,medleyTonePreview=null,medleyPreviewTicket=0,medleyToneRevision=0;
@@ -1841,7 +1842,9 @@ async function previewMedleyTone(kind){
   source.onended=()=>{source.disconnect();if(medleyTonePreview===source)medleyTonePreview=null;};
 }
 
-function medleyCharts(){return Lib.charts.filter(chart=>!chart.set.demo);}
+// 下限の★以上の譜面だけを対象にする（0なら制限なし）。
+function medleyMinLevel(){const v=parseFloat(medleyView.minLevel.value);return Number.isFinite(v)&&v>0?v:0;}
+function medleyCharts(){const min=medleyMinLevel();return Lib.charts.filter(chart=>!chart.set.demo&&(min<=0||(chart.level!=null&&chart.level>=min)));}
 function medleyQueue(charts,shuffle,previous){
   const queue=charts.slice();
   if(shuffle){
@@ -2077,7 +2080,7 @@ function renderMedley(){
     total?`${total}譜面${skipped}`:libraryBooting?'曲を読み込み中…':'再生できる譜面がありません。';
   v.play.textContent=session?(session.paused?'再開':'一時停止'):'再生';
   v.play.disabled=session?!track:!total;
-  v.next.disabled=!track;v.stop.disabled=!session;v.order.disabled=!!session;v.lane.hidden=!v.show.checked;
+  v.next.disabled=!track;v.stop.disabled=!session;v.order.disabled=v.minLevel.disabled=!!session;v.lane.hidden=!v.show.checked;
   cancelAnimationFrame(medleyFrame);clearInterval(medleyTimer);
   if(document.hidden)return;
   drawMedleyTimeline();
@@ -2143,6 +2146,7 @@ medleyView.next.addEventListener('click',()=>{
   releaseMedleyTrack(medley.current);releaseMedleyTrack(medley.next);stopMedleyHits(medley);advanceMedley(medley);
 });
 medleyView.show.addEventListener('change',renderMedley);
+medleyView.minLevel.addEventListener('change',renderMedley);
 medleyView.scroll.addEventListener('input',()=>{medleyView.scrollOut.textContent='×'+medleyScale().toFixed(1);drawMedleyTimeline();});
 document.addEventListener('visibilitychange',()=>{
   if(!document.hidden&&medley&&!medley.paused)ensureAudio();
