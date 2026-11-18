@@ -510,7 +510,10 @@ body{background-color:var(--ink);background-image:repeating-linear-gradient(135d
 .folder-entry{width:100%;display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:12px;text-align:left;padding:12px 16px;background:#ffe39c;border:2px solid #aa6735;border-radius:10px;color:#422039;font-size:16px;min-height:48px}
 .folder-entry:hover{background:#ffd04d}
 .folder-entry.is-on{outline:2px solid #a03a43;outline-offset:-3px}
-#songlist>li.is-back-row.is-on-row{scale:1.08;z-index:1}
+/* 選択中の曲は、動いている行より前面に出す（移動中の行と重なって二重に見えないように） */
+#songlist>li.song.is-on{position:relative;z-index:2}
+/* もどるを選んだときは、曲を選んだときと同じ高さにする */
+.folder-entry.is-back.is-on{min-height:168px}
 .folder-icon{width:24px;height:16px;background:#d56e23;border:2px solid #9a492c;border-radius:3px;position:relative}
 .folder-icon::before{content:'';position:absolute;left:-2px;top:-7px;width:11px;height:6px;background:#d56e23;border:2px solid #9a492c;border-bottom:0;border-radius:3px 3px 0 0}
 .folder-back-icon{text-align:center;font-size:22px;font-weight:900;line-height:1}
@@ -2693,7 +2696,7 @@ function menuDecide(){if(UI.chooseCourse&&UI.courseBack){backToSongs();return;}i
   if(!UI.chooseCourse){
     const entries=arcadeEntries(),entry=entries[arcadeIndex(entries)];
     if(!entry)return;
-    if(entry.folder){changeFolder(entry.folder.id);return;}
+    if(entry.folder){changeFolder(entry.folder.id,entry.folder.back?UI.folder:null);return;}
     selectSet(entry.set.key,true);showCoursePicker();return;
   }
   resetRimSequence();
