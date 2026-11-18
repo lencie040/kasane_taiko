@@ -5,7 +5,8 @@
       "id": "c5717ade-eab9-4bd7-a473-152b1c7efc88",
       "name": "失格曲",
       "parent": "",
-      "color": "#000000"
+      "color": "#000000",
+      "textColor": "#ff0000"
     },
     {
       "id": "b37d09db-72c5-4a77-b511-85ced5ac433e",
