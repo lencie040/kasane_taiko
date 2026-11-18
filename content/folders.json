@@ -40,6 +40,12 @@
       "id": "ea7eacaf-6988-45af-aa4a-a3a9e6e2f85f",
       "name": "HavIs OST/OCT",
       "parent": ""
+    },
+    {
+      "id": "4d34e92e-0c4c-47e1-b225-0238a5311c02",
+      "name": "ボーカロイド曲",
+      "parent": "",
+      "color": "#efefef"
     }
   ],
   "assignments": {
@@ -409,6 +415,10 @@
     ],
     "u:lencie - 最終問題(lencie remix)": [
       "a85597d7-ae4f-495b-8964-b01fe54f9ec3"
+    ],
+    "u:yume_ak - ごけぶりせんべいのテーマ": [
+      "4d34e92e-0c4c-47e1-b225-0238a5311c02",
+      "f6ed3e49-66e9-42ab-8650-482ed9703d09"
     ]
   }
 }
