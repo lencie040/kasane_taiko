@@ -713,6 +713,8 @@ body{
 /* 星11.0以上：文字を赤く、11個目以降の丸を赤く */
 .crs.hi-star .lv{color:#c8102e;text-shadow:0 0 1px #fff,0 0 1px #fff,1px 0 0 #fff,-1px 0 0 #fff,0 1px 0 #fff,0 -1px 0 #fff,1px 1px 0 #fff,-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff}
 .crs.hi-star .pips i.on.hi{background:#e0001b;box-shadow:0 0 0 1.5px #fff,inset 0 0 0 1px #5a0f14}
+.crs.top-star .lv{color:#8e0012}
+.dtile.top-star .dv b,.dtile.top-star .dv small{color:#ff1414}
 .dtile.hi-star .dv b,.dtile.hi-star .dv small{color:#ff5b5b;text-shadow:0 0 1px #fff,1px 0 0 #fff,-1px 0 0 #fff,0 1px 0 #fff,0 -1px 0 #fff,1px 1px 0 #fff,-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff}
 .crs-back{--cc:#e9ac53}.crs-back .nm{margin-top:auto;margin-bottom:auto}
 .crs-back .k{font-size:27px}
@@ -2464,11 +2466,12 @@ function visibleCourses(set){
 }
 const COURSE_ICON={easy:'梅',normal:'竹',hard:'松',oni:'鬼',ura:'裏',kasane:'重'};
 const isHiStar=c=>!!c&&c.course!=='kasane'&&c.level!=null&&c.level>=11;
+const isTopStar=c=>isHiStar(c)&&c.level>=12;
 function diffTile(course,c,extra){
   const C=COURSES[course],locked=c&&isLocked(c);
   const lv=!c?'–':locked?'封':levelText(c).replace(/^★/,'');
   const ck=c&&!locked?Lib.best[c.uid]?.crown:null;
-  return el('span',{class:'dtile'+(extra?' dx':'')+(!c?' is-missing':'')+(locked?' locked':'')+(isHiStar(c)&&!locked?' hi-star':''),style:`--cc:${C.color}`,title:C.jp},
+  return el('span',{class:'dtile'+(extra?' dx':'')+(!c?' is-missing':'')+(locked?' locked':'')+(isHiStar(c)&&!locked?' hi-star':'')+(isTopStar(c)&&!locked?' top-star':''),style:`--cc:${C.color}`,title:C.jp},
     el('span',{class:'dl'},el('i',{class:'di'},COURSE_ICON[course]),el('em',null,extra?(course==='ura'?'裏':'重'):C.jp)),
     el('span',{class:'dv'},(c&&!locked&&c.course!=='kasane')?el('small',null,'★'):null,el('b',null,lv)),
     ck&&CROWN[ck]?el('span',{class:'crown-outline',title:CROWN[ck],role:'img','aria-label':CROWN[ck]},el('span',{class:'crownic '+ck,'aria-hidden':'true'})):null,
@@ -2832,7 +2835,7 @@ function renderDetail(){const d=$('#detail');$('#arcadeMenu').hidden=!!UI.choose
   for(const [slot,course] of courses.entries()){
     const c=chartForSlot(s,course),C=COURSES[course],locked=c&&isLocked(c);
     const active=!UI.courseBack&&UI.courseSlot===slot;
-    const b=el('button',{class:'crs'+(active?' is-on':'')+(locked?' locked':'')+(!c?' is-missing':'')+(isHiStar(c)&&!locked?' hi-star':''),style:`--cc:${C.color}`,'aria-pressed':String(active)},
+    const b=el('button',{class:'crs'+(active?' is-on':'')+(locked?' locked':'')+(!c?' is-missing':'')+(isHiStar(c)&&!locked?' hi-star':'')+(isTopStar(c)&&!locked?' top-star':''),style:`--cc:${C.color}`,'aria-pressed':String(active)},
       el('span',{class:'k'},C.k),
       el('span',{class:'nm'},el('strong',null,C.jp),c?sealBadge(c):null,
         el('small',null,locked?'封印中':c?.meta.version),
