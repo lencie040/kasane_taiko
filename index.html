@@ -4141,7 +4141,9 @@ const padPress=(role,t)=>{dbg.inputs++;if(!(G&&!G.paused&&!G.auto)){dbg.ignored+
   if(DBG&&G.targets){let best=null;for(let i=G.cursor;i<G.targets.length&&i<G.cursor+40;i++){const x=G.targets[i];if(x.judged)continue;if(best===null||Math.abs(x.t-st)<Math.abs(best-st))best=x.t;}if(best!==null){const d=Math.round(st-best);dbg.last=d+'ms';dbg.hist.push(d);if(dbg.hist.length>12)dbg.hist.shift();}}
   press(role,st);};
 if(DBG){const box=el('div',{id:'dbgBox',style:'position:fixed;left:6px;top:6px;z-index:999;background:#000c;color:#fff;font:12px/1.4 monospace;padding:4px 6px;border-radius:6px;pointer-events:none'});document.body.append(box);
-  setInterval(()=>{box.textContent=`入力 ${dbg.inputs} / 無視 ${dbg.ignored} / 直近のずれ ms: ${dbg.hist.join(' ')||'-'}`;},200);}
+  let fLast=performance.now(),fSum=0,fN=0,fMax=0;
+  (function frameMeter(){const n=performance.now(),d=n-fLast;fLast=n;fSum+=d;fN++;if(d>fMax)fMax=d;requestAnimationFrame(frameMeter);})();
+  setInterval(()=>{const avg=fN?Math.round(fSum/fN):0;box.textContent=`入力 ${dbg.inputs} / 無視 ${dbg.ignored} / フレーム平均 ${avg}ms 最大 ${Math.round(fMax)}ms / 直近のずれ ms: ${dbg.hist.join(' ')||'-'}`;fSum=0;fN=0;fMax=0;},500);}
 for(const b of document.querySelectorAll('#pads button')){
   b.addEventListener('touchstart',e=>{e.preventDefault();const ts=e.timeStamp>1e12?performance.now():e.timeStamp;for(const tch of e.changedTouches)if(tch.target===b)padPress(b.dataset.role,ts);},{passive:false});
   b.addEventListener('touchend',e=>e.preventDefault(),{passive:false});
