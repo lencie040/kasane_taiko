@@ -1154,6 +1154,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
         <div class="setting"><label for="setSudden">サドプラ（4レーンの上側を隠す）</label><div class="inline"><input id="setSudden" type="range" min="0" max="80" step="1" value="0"><output id="outSudden" for="setSudden"></output></div></div>
         <div class="setting"><label for="setLaneW">レーンの幅（4レーン落下のとき）</label><div class="inline"><input id="setLaneW" type="range" min="40" max="300" step="1" value="100"><output id="outLaneW" for="setLaneW"></output></div></div>
         <label class="switch"><input type="checkbox" id="setLowFx"> 演出を少なくする（動作が重いとき用。花火・観客を省き、封印ノーツの粒や光を簡略化します）</label>
+        <label class="switch"><input type="checkbox" id="setBalance"> 曲とノーツSEの音量バランスを自動で整える（曲を少し下げ、ノーツSEを少し上げます）</label>
         <label class="switch"><input type="checkbox" id="setRecord"> 録画機能（演奏を録画してmp4で保存。通常の曲と全難易度同時再生が対象です）</label>
         <label class="switch"><input type="checkbox" id="setNoiseEdit"> 編集モード（封印ノーツ・曲フォルダ）</label>
         <label class="switch"><input type="checkbox" id="setAuto"> オート演奏（記録・解禁はされません）</label>
@@ -1261,7 +1262,7 @@ function diffRange(d,min,mid,max){return d>5?mid+(max-mid)*(d-5)/5:d<5?mid-(mid-
 function segAt(segs,t){if(!segs.length)return null;if(t<segs[0].time)return segs[0];let lo=0,hi=segs.length-1,a=0;while(lo<=hi){const m=(lo+hi)>>1;if(segs[m].time<=t+1){a=m;lo=m+1;}else hi=m-1;}return segs[a];}
 
 /* ================= 設定・記録 ================= */
-const S=Object.assign({keys:['KeyD','KeyF','KeyJ','KeyK'],skipKeys:['KeyL','KeyS'],speed:1,offset:0,music:.8,se:.7,auto:false,noiseEdit:false,falling:false,sudden:0,laneWidth:100,record:false,unlockAll:false},store.get('kt.settings',{}));
+const S=Object.assign({keys:['KeyD','KeyF','KeyJ','KeyK'],skipKeys:['KeyL','KeyS'],speed:1,offset:0,music:.8,se:.7,auto:false,noiseEdit:false,falling:false,sudden:0,laneWidth:100,record:false,balance:true,unlockAll:false},store.get('kt.settings',{}));
 S.opt=Object.assign({mirror:false,rand:0,hidden:false},S.opt||{});if(!S.fx)S.fx='high';
 // タッチ端末は描画の負荷が大きいとパッドの入力を取りこぼすため、自動で軽い描画にする
 const LOWFX=()=>S.fx==='low'||!!UI.touch||!!(G&&G.chart&&G.chart.multiRow);
@@ -1751,7 +1752,7 @@ function ensureAudio(){
   AC=new(window.AudioContext||window.webkitAudioContext)({latencyHint:'interactive'});
   musicGain=AC.createGain();musicGain.gain.value=S.music;musicGain.connect(AC.destination);
   seGain=AC.createGain();seGain.gain.value=S.se;seGain.connect(AC.destination);
-  recDest=AC.createMediaStreamDestination();musicGain.connect(recDest);seGain.connect(recDest);
+  recDest=AC.createMediaStreamDestination();musicGain.connect(recDest);seGain.connect(recDest);applyGains();
   const sr=AC.sampleRate,mk=(dur,fn)=>{const n=Math.floor(sr*dur),b=AC.createBuffer(1,n,sr),d=b.getChannelData(0);const st={ph:0,ph2:0};for(let i=0;i<n;i++)d[i]=fn(i/sr,st,sr);return b;};
   SE.don=mk(.3,(t,s,sr)=>{const f=58+95*Math.exp(-t*32);s.ph+=f/sr;return(Math.sin(TAU*s.ph)*Math.exp(-t*12)+(Math.random()*2-1)*Math.exp(-t*90)*.25)*.9;});
   SE.ka=mk(.12,(t,s,sr)=>{s.ph+=2350/sr;s.ph2+=3720/sr;return(Math.sin(TAU*s.ph)*.5+Math.sin(TAU*s.ph2)*.35)*Math.exp(-t*55)+(Math.random()*2-1)*Math.exp(-t*110)*.45;});
@@ -2659,6 +2660,12 @@ function menuMove(dSong,dCourse,silent){
   if(!silent)playSE('ka');
   renderDetail();focusCourseCard();
 }
+// 曲とノーツSEの音量。バランス補正がONのときは、設定の音量に固定の補正をかける（曲を少し下げ、ノーツSEを少し上げる）
+const BALANCE={music:.8,se:1.25};
+function applyGains(){
+  const on=S.balance!==false;
+  if(musicGain)musicGain.gain.value=S.music*(on?BALANCE.music:1);
+  if(seGain)seGain.gain.value=Math.min(1,S.se*(on?BALANCE.se:1));}
 // キー設定（演奏4キー＋7曲移動の2キー）。割り当てたキーが既に別の役割にあれば入れ替える
 function bindKey(i,code){
   const all=[...S.keys,...S.skipKeys],old=all.indexOf(code);
@@ -3063,6 +3070,7 @@ function renderSettings(){
   $('#setOffset').value=S.offset;$('#outOffset').textContent=(S.offset>0?'+':'')+S.offset+'ms';
   $('#setMusic').value=S.music;$('#outMusic').textContent=Math.round(S.music*100)+'%';
   $('#setSe').value=S.se;$('#outSe').textContent=Math.round(S.se*100)+'%';
+  $('#setBalance').checked=S.balance!==false;
   $('#setSudden').value=clamp(Number(S.sudden)||0,0,80);
   $('#outSudden').textContent=$('#setSudden').value+'%';
   $('#setLaneW').value=clamp(Number(S.laneWidth)||100,40,300);
@@ -4069,7 +4077,7 @@ $('#bkImport').addEventListener('click',()=>{let d;try{d=JSON.parse($('#bkText')
 $('#bkNo').addEventListener('click',()=>{bkPending=null;$('#bkConfirm').hidden=true;});
 $('#bkYes').addEventListener('click',()=>{const d=bkPending;if(!d)return;bkPending=null;$('#bkConfirm').hidden=true;
   for(const k of['best','danBest','unlocks','fav','played'])if(d[k]&&typeof d[k]==='object'){Lib[k]=d[k];store.set('kt.'+k,d[k]);}
-  if(d.settings){Object.assign(S,d.settings);S.opt=Object.assign({mirror:false,rand:0,hidden:false},S.opt||{});saveS();if(musicGain)musicGain.gain.value=S.music;if(seGain)seGain.gain.value=S.se;}
+  if(d.settings){Object.assign(S,d.settings);S.opt=Object.assign({mirror:false,rand:0,hidden:false},S.opt||{});saveS();applyGains();}
   if(d.ui){UI.sort=d.ui.sort||'added';UI.filt=d.ui.filt||'all';saveUIPrefs();}
   for(const k of['chartsCsv','danCsv','chartsCsvName','danCsvName'])if(typeof d[k]==='string')Lib[k]=d[k];saveCsv();
   resolveAll();refreshAll();toast('記録を読み込みました');});
@@ -4188,7 +4196,8 @@ $('#clearLibNo').addEventListener('click',()=>{$('#clearLibConfirm').hidden=true
 $('#clearLibYes').addEventListener('click',async()=>{for(const s of Lib.sets.filter(s=>s.storeName))removeSet(s,false);await IDB.clear();$('#clearLibConfirm').hidden=true;UI.selSet=null;resolveAll();refreshAll();toast('保存した .osz を削除しました');});
 const bindRange=(id,key,fn)=>$(id).addEventListener('input',e=>{S[key]=parseFloat(e.target.value);if(fn)fn();saveS();renderSettings();});
 bindRange('#setSudden','sudden');bindRange('#setLaneW','laneWidth');bindRange('#setSpeed','speed');bindRange('#setOffset','offset');
-bindRange('#setMusic','music',()=>{if(musicGain)musicGain.gain.value=S.music;});bindRange('#setSe','se',()=>{if(seGain)seGain.gain.value=S.se;});
+bindRange('#setMusic','music',applyGains);bindRange('#setSe','se',applyGains);
+$('#setBalance').addEventListener('change',e=>{S.balance=e.target.checked;saveS();applyGains();});
 $('#setFalling').addEventListener('change',e=>{S.falling=e.target.value!=='taiko';S.perspective=e.target.value==='perspective';saveS();});
 $('#setLowFx').addEventListener('change',e=>{S.fx=e.target.checked?'low':'high';saveS();});
 $('#setRecord').addEventListener('change',e=>{S.record=e.target.checked;saveS();if(e.target.checked&&!recSupported())toast('このブラウザは録画に対応していません','err');});
