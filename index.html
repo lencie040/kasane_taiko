@@ -181,6 +181,7 @@ input[type=range]{width:100%;accent-color:var(--gold)}
 .stage-quit{position:absolute;top:calc(env(safe-area-inset-top,0px) + 76px);right:calc(env(safe-area-inset-right,0px) + 14px);background:rgba(23,29,59,.8);border:1px solid var(--line-2);border-radius:8px;padding:3px 10px;font-size:12px;color:var(--mute)}
 #pads{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:8px max(10px,env(safe-area-inset-left,0px)) 10px;height:132px;flex:none}
 @media (max-height:520px){#pads{height:84px;padding-block:4px 6px}#stage .stage-quit,#stage.touch .stage-quit{bottom:auto;top:calc(env(safe-area-inset-top,0px) + 48px)}}
+#stage,#stage *{touch-action:none}
 #pads button{border-radius:14px;border:2px solid var(--line-2);font-family:var(--f-display);font-size:20px;touch-action:none;user-select:none;-webkit-user-select:none}
 #pads .ka{background:color-mix(in srgb,var(--ka) 22%,var(--panel));color:var(--ka)}
 #pads .don{background:color-mix(in srgb,var(--don) 22%,var(--panel));color:#ff8a72}
@@ -4131,7 +4132,12 @@ $('#resetRec').addEventListener('click',()=>{$('#resetConfirm').hidden=false;});
 $('#resetNo').addEventListener('click',()=>{$('#resetConfirm').hidden=true;});
 $('#resetYes').addEventListener('click',()=>{Lib.best={};Lib.danBest={};Lib.unlocks={};Lib.played={};store.set('kt.best',{});store.set('kt.danBest',{});store.set('kt.unlocks',{});store.set('kt.played',{});$('#resetConfirm').hidden=true;refreshAll();toast('記録をリセットしました');});
 $('#stageMenu').addEventListener('click',()=>{if(G&&!G.finished)pauseGame();else if(!G||G.finished){if($('#result').hidden)closeStage();}});
+// iPhone Safari は速い連打をダブルタップの拡大と判定し、パッドのタップを取りこぼすため、パッドのタッチを既定の動作に渡さない
+for(const b of document.querySelectorAll('#pads button')){b.addEventListener('touchstart',e=>e.preventDefault(),{passive:false});b.addEventListener('touchend',e=>e.preventDefault(),{passive:false});}
 for(const b of document.querySelectorAll('#pads button'))b.addEventListener('pointerdown',e=>{e.preventDefault();if(G&&!G.paused&&!G.auto)press(b.dataset.role,songTime(e.timeStamp>1e12?performance.now():e.timeStamp));});
+// 演奏中のピンチ拡大・ページの動きを止める（Safari のジェスチャーでプレイが中断されるのを防ぐ）
+for(const t of ['gesturestart','gesturechange','gestureend'])document.addEventListener(t,e=>{if(document.body.classList.contains('playing'))e.preventDefault();},{passive:false});
+document.addEventListener('touchmove',e=>{if(document.body.classList.contains('playing'))e.preventDefault();},{passive:false});
 window.addEventListener('keydown',e=>{
   if(titleOpen()){if(/^(Tab|Shift|Control|Alt|Meta)/.test(e.key))return;if(e.key==='Enter'&&document.activeElement&&document.activeElement.id==='tsGuide')return;e.preventDefault();dismissTitle();return;}
   if(guideOpen()){if(e.key==='Escape'){e.preventDefault();closeGuide();}return;}
