@@ -4136,14 +4136,14 @@ $('#stageMenu').addEventListener('click',()=>{if(G&&!G.finished)pauseGame();else
 // パッドの入力：タッチ端末は touchstart で受け付ける（速い連打・同時押しでも届きやすい。pointerdown だと Safari で取りこぼすため）
 // マウスは pointerdown で受け付ける
 // 診断用（URLに ?debug=1 を付けたときだけ）：入力の受付数・無視数・最後のタップのずれ(ms)を表示する
-const DBG=new URLSearchParams(location.search).has('debug'),dbg={inputs:0,ignored:0,last:'-',hist:[]};
+const DBG=new URLSearchParams(location.search).has('debug'),dbg={inputs:0,ignored:0,last:'-',hist:[],spikes:[]};
 const padPress=(role,t)=>{dbg.inputs++;if(!(G&&!G.paused&&!G.auto)){dbg.ignored++;return;}const st=songTime(t);
   if(DBG&&G.targets){let best=null;for(let i=G.cursor;i<G.targets.length&&i<G.cursor+40;i++){const x=G.targets[i];if(x.judged)continue;if(best===null||Math.abs(x.t-st)<Math.abs(best-st))best=x.t;}if(best!==null){const d=Math.round(st-best);dbg.last=d+'ms';dbg.hist.push(d);if(dbg.hist.length>12)dbg.hist.shift();}}
   press(role,st);};
 if(DBG){const box=el('div',{id:'dbgBox',style:'position:fixed;left:6px;top:6px;z-index:999;background:#000c;color:#fff;font:12px/1.4 monospace;padding:4px 6px;border-radius:6px;pointer-events:none'});document.body.append(box);
   let fLast=performance.now(),fSum=0,fN=0,fMax=0;
-  (function frameMeter(){const n=performance.now(),d=n-fLast;fLast=n;fSum+=d;fN++;if(d>fMax)fMax=d;requestAnimationFrame(frameMeter);})();
-  setInterval(()=>{const avg=fN?Math.round(fSum/fN):0;box.textContent=`入力 ${dbg.inputs} / 無視 ${dbg.ignored} / フレーム平均 ${avg}ms 最大 ${Math.round(fMax)}ms / 直近のずれ ms: ${dbg.hist.join(' ')||'-'}`;fSum=0;fN=0;fMax=0;},500);}
+  (function frameMeter(){const n=performance.now(),d=n-fLast;fLast=n;fSum+=d;fN++;if(d>fMax)fMax=d;if(d>100&&G&&G.perfZero){dbg.spikes.push(Math.round(n-G.perfZero));if(dbg.spikes.length>5)dbg.spikes.shift();}requestAnimationFrame(frameMeter);})();
+  setInterval(()=>{const avg=fN?Math.round(fSum/fN):0;box.textContent=`入力 ${dbg.inputs} / 無視 ${dbg.ignored} / フレーム平均 ${avg}ms 最大 ${Math.round(fMax)}ms / 100ms超の止まり（音声開始から ms）: ${dbg.spikes.join(' ')||'-'} / 直近のずれ ms: ${dbg.hist.join(' ')||'-'}`;fSum=0;fN=0;fMax=0;},500);}
 for(const b of document.querySelectorAll('#pads button')){
   b.addEventListener('touchstart',e=>{e.preventDefault();const ts=e.timeStamp>1e12?performance.now():e.timeStamp;for(const tch of e.changedTouches)if(tch.target===b)padPress(b.dataset.role,ts);},{passive:false});
   b.addEventListener('touchend',e=>e.preventDefault(),{passive:false});
