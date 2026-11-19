@@ -2197,6 +2197,8 @@ function setTab(t){if(t!=='select'){UI.chooseCourse=false;resetRimSequence();sto
   for(const id of['select','dan','medley','records','load','settings'])$('#tab-'+id).hidden=id!==t;refreshAll();}
 function refreshAll(){renderSongList();renderDetail();renderDans();renderMedley();renderRecords();renderLoad();renderSettings();renderPotential();}
 // ポテンシャル（Arcaea 風）。譜面の定数は ★ の値、スコアは 1,000,000 満点を Arcaea の 10,000,000 換算にして評価する
+// 全良（全特良を含む）のときは、本家と違ってポテンシャルにボーナスを加える
+const ZEN_CROWNS=['zenryo','zentoku'],ZEN_BONUS=.5;
 function potentialOf(C,score){
   const s=score*10;let v;
   if(s>=10000000)v=C+2;
@@ -2211,9 +2213,9 @@ function potentialOf(C,score){
 // ベスト（曲ごとの最高点、最大30件）と直近（最新30プレイのうち上位10件）を合わせて平均する（件数が足りないときは、ある分だけで割る）
 function calcPotential(){
   const byUid=new Map(Lib.charts.map(c=>[c.uid,c]));
-  const pot=(uid,score)=>{const c=byUid.get(uid);return c&&c.level?potentialOf(c.level,score):0;};
-  const best=Object.entries(Lib.best).filter(([,b])=>b&&b.score>0).map(([u,b])=>pot(u,b.score)).sort((a,b)=>b-a).slice(0,30);
-  const recent=(Lib.recent||[]).slice(-30).map(r=>pot(r.uid,r.score)).sort((a,b)=>b-a).slice(0,10);
+  const pot=(uid,score,zen)=>{const c=byUid.get(uid);if(!c||!c.level)return 0;const v=potentialOf(c.level,score);return zen&&v>0?v+ZEN_BONUS:v;};
+  const best=Object.entries(Lib.best).filter(([,b])=>b&&b.score>0).map(([u,b])=>pot(u,b.score,!!b.potZen)).sort((a,b)=>b-a).slice(0,30);
+  const recent=(Lib.recent||[]).slice(-30).map(r=>pot(r.uid,r.score,!!r.zen)).sort((a,b)=>b-a).slice(0,10);
   const all=[...best,...recent];
   if(!all.length)return 0;
   return Math.floor(all.reduce((a,b)=>a+b,0)/all.length*100)/100;}
@@ -3405,8 +3407,8 @@ function offsetLine(st){if(st.offN<20)return null;const a=st.offSum/st.offN;if(M
 function rankBadge(score){const rk=rankOf(score);if(!rk)return null;return el('div',{class:'rank'+(rk[0]>=1000000?' rainbow':''),style:`--rk:${rk[3]}`},el('b',null,rk[1]),el('small',null,rk[2]+rk[1]));}
 function showResult(res){cancelAnimationFrame(rafId);rafId=0;const{chart,st}=res;const potBefore=calcPotential();const clear=st.gauge>=CLEAR[chart.course];const crown=crownFor(st,{stats:{chordNotes:st.chordNotes}},clear);
   let newBest=false;const prevBest=(Lib.best[chart.uid]||{}).score||0;
-  if(!res.auto&&!res.prac){markPlayed(chart.set);const b=Lib.best[chart.uid]||{score:0,crown:null};const nb={score:Math.max(b.score,st.score),crown:(CROWN_RANK[crown]||0)>(CROWN_RANK[b.crown]||0)?crown:b.crown};newBest=st.score>b.score;Lib.best[chart.uid]=nb;store.set('kt.best',Lib.best);
-    Lib.recent=[...(Lib.recent||[]),{uid:chart.uid,score:st.score,t:Date.now()}].slice(-30);store.set('kt.recent',Lib.recent);}
+  if(!res.auto&&!res.prac){markPlayed(chart.set);const b=Lib.best[chart.uid]||{score:0,crown:null};const nb={score:Math.max(b.score,st.score),crown:(CROWN_RANK[crown]||0)>(CROWN_RANK[b.crown]||0)?crown:b.crown,potZen:st.score>b.score?ZEN_CROWNS.includes(crown):!!b.potZen};newBest=st.score>b.score;Lib.best[chart.uid]=nb;store.set('kt.best',Lib.best);
+    Lib.recent=[...(Lib.recent||[]),{uid:chart.uid,score:st.score,zen:ZEN_CROWNS.includes(crown),t:Date.now()}].slice(-30);store.set('kt.recent',Lib.recent);}
   // ポテンシャルの前後（記録したプレイのみ表示）
   const potAfter=calcPotential(),potD=Math.round((potAfter-potBefore)*100)/100;
   const potLine=res.auto||res.prac?null:el('p',{class:'res-note'},potD===0?`ポテンシャル ${potAfter.toFixed(2)}（変わらず）`:`ポテンシャル ${potBefore.toFixed(2)} → ${potAfter.toFixed(2)}（${potD>0?'+':''}${potD.toFixed(2)}）`);
