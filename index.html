@@ -4133,8 +4133,14 @@ $('#resetNo').addEventListener('click',()=>{$('#resetConfirm').hidden=true;});
 $('#resetYes').addEventListener('click',()=>{Lib.best={};Lib.danBest={};Lib.unlocks={};Lib.played={};store.set('kt.best',{});store.set('kt.danBest',{});store.set('kt.unlocks',{});store.set('kt.played',{});$('#resetConfirm').hidden=true;refreshAll();toast('記録をリセットしました');});
 $('#stageMenu').addEventListener('click',()=>{if(G&&!G.finished)pauseGame();else if(!G||G.finished){if($('#result').hidden)closeStage();}});
 // iPhone Safari は速い連打をダブルタップの拡大と判定し、パッドのタップを取りこぼすため、パッドのタッチを既定の動作に渡さない
-for(const b of document.querySelectorAll('#pads button')){b.addEventListener('touchstart',e=>e.preventDefault(),{passive:false});b.addEventListener('touchend',e=>e.preventDefault(),{passive:false});}
-for(const b of document.querySelectorAll('#pads button'))b.addEventListener('pointerdown',e=>{e.preventDefault();if(G&&!G.paused&&!G.auto)press(b.dataset.role,songTime(e.timeStamp>1e12?performance.now():e.timeStamp));});
+// パッドの入力：タッチ端末は touchstart で受け付ける（速い連打・同時押しでも届きやすい。pointerdown だと Safari で取りこぼすため）
+// マウスは pointerdown で受け付ける
+const padPress=(role,t)=>{if(G&&!G.paused&&!G.auto)press(role,songTime(t));};
+for(const b of document.querySelectorAll('#pads button')){
+  b.addEventListener('touchstart',e=>{e.preventDefault();const now=performance.now();for(const tch of e.changedTouches)if(tch.target===b)padPress(b.dataset.role,now);},{passive:false});
+  b.addEventListener('touchend',e=>e.preventDefault(),{passive:false});
+  b.addEventListener('pointerdown',e=>{if(e.pointerType==='touch')return;e.preventDefault();padPress(b.dataset.role,e.timeStamp>1e12?performance.now():e.timeStamp);});
+}
 // 演奏中のピンチ拡大・ページの動きを止める（Safari のジェスチャーでプレイが中断されるのを防ぐ）
 for(const t of ['gesturestart','gesturechange','gestureend'])document.addEventListener(t,e=>{if(document.body.classList.contains('playing'))e.preventDefault();},{passive:false});
 document.addEventListener('touchmove',e=>{if(document.body.classList.contains('playing'))e.preventDefault();},{passive:false});
