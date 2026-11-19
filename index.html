@@ -1260,7 +1260,8 @@ function segAt(segs,t){if(!segs.length)return null;if(t<segs[0].time)return segs
 /* ================= 設定・記録 ================= */
 const S=Object.assign({keys:['KeyD','KeyF','KeyJ','KeyK'],speed:1,offset:0,music:.8,se:.7,auto:false,noiseEdit:false,falling:false,sudden:0,unlockAll:false},store.get('kt.settings',{}));
 S.opt=Object.assign({mirror:false,rand:0,hidden:false},S.opt||{});if(!S.fx)S.fx='high';
-const LOWFX=()=>S.fx==='low'||!!(G&&G.chart&&G.chart.multiRow);
+// タッチ端末は描画の負荷が大きいとパッドの入力を取りこぼすため、自動で軽い描画にする
+const LOWFX=()=>S.fx==='low'||!!UI.touch||!!(G&&G.chart&&G.chart.multiRow);
 function saveS(){store.set('kt.settings',S);}
 const Lib={sets:[],charts:[],dans:[],loadWarn:[],csvWarn:[],
   chartsCsv:store.get('kt.chartsCsv',''),danCsv:store.get('kt.danCsv',''),
