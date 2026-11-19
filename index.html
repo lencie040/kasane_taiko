@@ -4287,6 +4287,23 @@ async function loadRepositorySongs(direct=false){
     };
     const current=new Set(manifest.songs||[]);
     for(const set of [...Lib.sets])if(set.repoPath&&!current.has(set.repoPath))removeSet(set,false);
+    // 譜面CSV・ノーツ・フォルダは小さいので先に読み、曲は取得できたものから順に表示する
+    let repoNoiseData={};
+    for(const kind of ['charts','dan','noise','folders']){
+      try{
+        const value=manifest[kind]?decodeText(new Uint8Array(await get(manifest[kind]))):null;
+        if(kind==='noise')repoNoiseData=value?JSON.parse(value):{};
+        else if(kind==='folders')repoFolders=value?parseFolders(JSON.parse(value)):emptyFolders();
+        else{
+          Lib[kind+'Csv']=value??store.get('kt.'+kind+'Csv','');
+          Lib[kind+'CsvName']=value!=null?kind+'.csv':store.get('kt.'+kind+'CsvName','');
+        }
+      }catch(error){failed++;Lib.loadWarn.push(kind+': '+error.message);}
+    }
+    for(const chart of Lib.charts)chart.repoNoise=repoNoiseData[chart.uid]||{};
+    resolveAll();refreshAll();
+    let lastShown=0;
+    const showProgress=()=>{const now=performance.now();if(now-lastShown<400)return;lastShown=now;resolveAll();refreshAll();renderTitleStat();};
     for(const [i,path] of (manifest.songs||[]).entries()){
       status.textContent=`曲を読み込み中… ${i+1} / ${current.size}`;
       if(libraryWait)UI.loading=status.textContent;
@@ -4295,22 +4312,11 @@ async function loadRepositorySongs(direct=false){
         if(!hash||!Lib.sets.some(set=>set.repoPath===path&&set.repoHash===hash)){
           const set=await loadOsz(decodeURIComponent(path.split('/').pop()),await get(path),path);
           if(set.repoPath===path)set.repoHash=hash;
+          for(const chart of set.charts)chart.repoNoise=repoNoiseData[chart.uid]||{};
         }
         loaded++;
       }catch(error){failed++;Lib.loadWarn.push(path+': '+error.message);}
-    }
-    for(const kind of ['charts','dan','noise','folders']){
-      try{
-        const value=manifest[kind]?decodeText(new Uint8Array(await get(manifest[kind]))):null;
-        if(kind==='noise'){
-          const data=value?JSON.parse(value):{};
-          for(const chart of Lib.charts)chart.repoNoise=data[chart.uid]||{};
-        }else if(kind==='folders')repoFolders=value?parseFolders(JSON.parse(value)):emptyFolders();
-        else{
-          Lib[kind+'Csv']=value??store.get('kt.'+kind+'Csv','');
-          Lib[kind+'CsvName']=value!=null?kind+'.csv':store.get('kt.'+kind+'CsvName','');
-        }
-      }catch(error){failed++;Lib.loadWarn.push(kind+': '+error.message);}
+      showProgress();
     }
     if(!failed){
       const paths=manifest=>[...(manifest.songs||[]),...['charts','dan','noise','folders'].map(k=>manifest[k]).filter(Boolean)];
