@@ -2,6 +2,12 @@
   "version": 1,
   "folders": [
     {
+      "id": "7a0a0694-d4bc-4a4e-b49d-3e0d586260bd",
+      "name": "全曲",
+      "parent": "",
+      "color": "#ffffff"
+    },
+    {
       "id": "627506c1-fbf6-4fc8-97e9-b44835e7ba97",
       "name": "tkk_8619 OST/OCT",
       "parent": "",
@@ -61,12 +67,6 @@
       "name": "ゲームミュージック",
       "parent": "",
       "color": "#e96bff"
-    },
-    {
-      "id": "7a0a0694-d4bc-4a4e-b49d-3e0d586260bd",
-      "name": "全曲",
-      "parent": "",
-      "color": "#ffffff"
     }
   ],
   "assignments": {
