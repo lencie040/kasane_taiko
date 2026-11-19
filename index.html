@@ -1152,7 +1152,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
         <h3>確認用</h3>
         <label>演奏画面 <select id="setFalling"><option value="taiko">太鼓</option><option value="flat">4レーン落下（2D）</option><option value="perspective">4レーン落下（3D）</option></select></label>
         <div class="setting"><label for="setSudden">サドプラ（4レーンの上側を隠す）</label><div class="inline"><input id="setSudden" type="range" min="0" max="80" step="1" value="0"><output id="outSudden" for="setSudden"></output></div></div>
-        <div class="setting"><label for="setLaneW">レーンの幅（4レーン落下のとき）</label><div class="inline"><input id="setLaneW" type="range" min="40" max="100" step="1" value="100"><output id="outLaneW" for="setLaneW"></output></div></div>
+        <div class="setting"><label for="setLaneW">レーンの幅（4レーン落下のとき）</label><div class="inline"><input id="setLaneW" type="range" min="40" max="300" step="1" value="100"><output id="outLaneW" for="setLaneW"></output></div></div>
         <label class="switch"><input type="checkbox" id="setLowFx"> 演出を少なくする（動作が重いとき用。花火・観客を省き、封印ノーツの粒や光を簡略化します）</label>
         <label class="switch"><input type="checkbox" id="setNoiseEdit"> 編集モード（封印ノーツ・曲フォルダ）</label>
         <label class="switch"><input type="checkbox" id="setAuto"> オート演奏（記録・解禁はされません）</label>
@@ -3038,7 +3038,7 @@ function renderSettings(){
   $('#setSe').value=S.se;$('#outSe').textContent=Math.round(S.se*100)+'%';
   $('#setSudden').value=clamp(Number(S.sudden)||0,0,80);
   $('#outSudden').textContent=$('#setSudden').value+'%';
-  $('#setLaneW').value=clamp(Number(S.laneWidth)||100,40,100);
+  $('#setLaneW').value=clamp(Number(S.laneWidth)||100,40,300);
   $('#outLaneW').textContent=$('#setLaneW').value+'%';
   $('#setFalling').value=S.falling!==true?'taiko':S.perspective===true?'perspective':'flat';
   $('#setNoiseEdit').checked=S.noiseEdit===true;
@@ -3565,7 +3565,7 @@ function drawInterlude(){const c=ctx,W=view.W,H=view.H,pn=performance.now(),it=D
   c.restore();}
 
 function fallingLayout(){
-  const width=Math.min(view.W-16,520)*clamp(Number(S.laneWidth)||100,40,100)/100, bottom=view.H-48, top=62;
+  const width=Math.min(view.W-16,520)*clamp(Number(S.laneWidth)||100,40,300)/100, bottom=view.H-48, top=62;
   const perspective=S.perspective===true, center=view.W/2;
   const depth=y=>perspective?clamp(.23+.77*(y-top)/Math.max(1,bottom-top),.23,1):1;
   const xAt=(column,y)=>center+(column-2)*width/4*depth(y);
