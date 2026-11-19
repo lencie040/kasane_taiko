@@ -4143,7 +4143,7 @@ const padPress=(role,t)=>{dbg.inputs++;if(!(G&&!G.paused&&!G.auto)){dbg.ignored+
 if(DBG){const box=el('div',{id:'dbgBox',style:'position:fixed;left:6px;top:6px;z-index:999;background:#000c;color:#fff;font:12px/1.4 monospace;padding:4px 6px;border-radius:6px;pointer-events:none'});document.body.append(box);
   setInterval(()=>{box.textContent=`入力 ${dbg.inputs} / 無視 ${dbg.ignored} / 最後のずれ ${dbg.last}`;},200);}
 for(const b of document.querySelectorAll('#pads button')){
-  b.addEventListener('touchstart',e=>{e.preventDefault();const now=performance.now();for(const tch of e.changedTouches)if(tch.target===b)padPress(b.dataset.role,now);},{passive:false});
+  b.addEventListener('touchstart',e=>{e.preventDefault();const ts=e.timeStamp>1e12?performance.now():e.timeStamp;for(const tch of e.changedTouches)if(tch.target===b)padPress(b.dataset.role,ts);},{passive:false});
   b.addEventListener('touchend',e=>e.preventDefault(),{passive:false});
   b.addEventListener('pointerdown',e=>{if(e.pointerType==='touch')return;e.preventDefault();padPress(b.dataset.role,e.timeStamp>1e12?performance.now():e.timeStamp);});
 }
