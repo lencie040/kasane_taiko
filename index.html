@@ -973,6 +973,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
           </div>
           <div class="lv-range" role="group" aria-label="難易度で絞り込み"><span>★</span><input id="lvMin" type="number" step="0.1" min="0" inputmode="decimal" placeholder="下限" aria-label="難易度の下限"><span>〜</span><input id="lvMax" type="number" step="0.1" min="0" inputmode="decimal" placeholder="上限" aria-label="難易度の上限"><button class="btn small" id="lvClear" type="button">クリア</button></div>
         </div></details>
+        <div id="potBadge" class="pot-badge" style="font-variant-numeric:tabular-nums;font-weight:700;margin:4px 2px 8px" aria-live="polite"></div>
         <div id="folderTools" class="folder-tools"></div>
         <ul class="songlist" id="songlist"></ul>
         <div class="arcade-footer"><button class="btn" id="arcadePrev" aria-label="前の曲またはフォルダ">▲</button><p class="nav-hint" id="navHint"></p><button class="btn" id="arcadeNext" aria-label="次の曲またはフォルダ">▼</button></div>
@@ -1270,7 +1271,7 @@ function saveS(){store.set('kt.settings',S);}
 const Lib={sets:[],charts:[],dans:[],loadWarn:[],csvWarn:[],
   chartsCsv:store.get('kt.chartsCsv',''),danCsv:store.get('kt.danCsv',''),
   chartsCsvName:store.get('kt.chartsCsvName',''),danCsvName:store.get('kt.danCsvName',''),
-  unlocks:store.get('kt.unlocks',{}),best:store.get('kt.best',{}),danBest:store.get('kt.danBest',{}),
+  unlocks:store.get('kt.unlocks',{}),best:store.get('kt.best',{}),recent:store.get('kt.recent',[]),danBest:store.get('kt.danBest',{}),
   fav:store.get('kt.fav',{}),played:store.get('kt.played',{})};
 const UI=Object.assign({tab:'select',selSet:null,selChart:null,binding:null,touch:matchMedia('(pointer: coarse)').matches||matchMedia('(any-pointer: coarse)').matches,gesture:false,sort:'added',filt:'all'},store.get('kt.ui',{}));
 function isLocked(c){return c.course==='kasane'&&!S.unlockAll&&!Lib.unlocks[c.uid];}
@@ -2194,7 +2195,30 @@ window.addEventListener('resize',()=>{if(UI.tab==='medley'&&!document.hidden)dra
 /* ================= 画面: 共通 ================= */
 function setTab(t){if(t!=='select'){UI.chooseCourse=false;resetRimSequence();stopPreview();}if(t!=='medley')stopMedley();UI.tab=t;for(const b of document.querySelectorAll('.tab'))b.classList.toggle('is-on',b.dataset.tab===t);
   for(const id of['select','dan','medley','records','load','settings'])$('#tab-'+id).hidden=id!==t;refreshAll();}
-function refreshAll(){renderSongList();renderDetail();renderDans();renderMedley();renderRecords();renderLoad();renderSettings();}
+function refreshAll(){renderSongList();renderDetail();renderDans();renderMedley();renderRecords();renderLoad();renderSettings();renderPotential();}
+// ポテンシャル（Arcaea 風）。譜面の定数は ★ の値、スコアは 1,000,000 満点を Arcaea の 10,000,000 換算にして評価する
+function potentialOf(C,score){
+  const s=score*10;let v;
+  if(s>=10000000)v=C+2;
+  else if(s>=9950000)v=C+1.5+(s-9950000)/100000;
+  else if(s>=9800000)v=C+1+(s-9800000)/300000;
+  else if(s>=9500000)v=C+(s-9500000)/300000;
+  else if(s>=9200000)v=C-1+(s-9200000)/300000;
+  else if(s>=8900000)v=C-2+(s-8900000)/300000;
+  else if(s>=8600000)v=C-3+(s-8600000)/300000;
+  else v=0;
+  return Math.max(0,v);}
+// ベスト（曲ごとの最高点、最大30件）と直近（最新30プレイのうち上位10件）を合わせて平均する（件数が足りないときは、ある分だけで割る）
+function calcPotential(){
+  const byUid=new Map(Lib.charts.map(c=>[c.uid,c]));
+  const pot=(uid,score)=>{const c=byUid.get(uid);return c&&c.level?potentialOf(c.level,score):0;};
+  const best=Object.entries(Lib.best).filter(([,b])=>b&&b.score>0).map(([u,b])=>pot(u,b.score)).sort((a,b)=>b-a).slice(0,30);
+  const recent=(Lib.recent||[]).slice(-30).map(r=>pot(r.uid,r.score)).sort((a,b)=>b-a).slice(0,10);
+  const all=[...best,...recent];
+  if(!all.length)return 0;
+  return Math.floor(all.reduce((a,b)=>a+b,0)/all.length*100)/100;}
+function renderPotential(){const el=$('#potBadge');if(!el)return;
+  const v=calcPotential();el.textContent=`ポテンシャル ${v.toFixed(2)}`;}
 function crownBadge(k){return k?el('span',{class:'crown '+k},CROWN[k]):el('span',{class:'crown none'},'—');}
 let recordQuery='',recordFilter='played',recordOrder='score',recordPage=0;
 function renderRecords(){
@@ -3379,9 +3403,13 @@ function drawHist(cvh,st,win){if(!cvh.isConnected)return;const r=cvh.getBounding
 function offsetLine(st){if(st.offN<20)return null;const a=st.offSum/st.offN;if(Math.abs(a)<=8)return el('p',{class:'res-note'},'タイミングはほぼ合っています');
   const nv=S.offset+Math.round(a);return el('p',{class:'res-note'},`${a>0?'遅め':'早め'}に叩いています。オフセットを ${nv>0?'+':''}${nv}ms にすると合いやすくなります`);}
 function rankBadge(score){const rk=rankOf(score);if(!rk)return null;return el('div',{class:'rank'+(rk[0]>=1000000?' rainbow':''),style:`--rk:${rk[3]}`},el('b',null,rk[1]),el('small',null,rk[2]+rk[1]));}
-function showResult(res){cancelAnimationFrame(rafId);rafId=0;const{chart,st}=res;const clear=st.gauge>=CLEAR[chart.course];const crown=crownFor(st,{stats:{chordNotes:st.chordNotes}},clear);
+function showResult(res){cancelAnimationFrame(rafId);rafId=0;const{chart,st}=res;const potBefore=calcPotential();const clear=st.gauge>=CLEAR[chart.course];const crown=crownFor(st,{stats:{chordNotes:st.chordNotes}},clear);
   let newBest=false;const prevBest=(Lib.best[chart.uid]||{}).score||0;
-  if(!res.auto&&!res.prac){markPlayed(chart.set);const b=Lib.best[chart.uid]||{score:0,crown:null};const nb={score:Math.max(b.score,st.score),crown:(CROWN_RANK[crown]||0)>(CROWN_RANK[b.crown]||0)?crown:b.crown};newBest=st.score>b.score;Lib.best[chart.uid]=nb;store.set('kt.best',Lib.best);}
+  if(!res.auto&&!res.prac){markPlayed(chart.set);const b=Lib.best[chart.uid]||{score:0,crown:null};const nb={score:Math.max(b.score,st.score),crown:(CROWN_RANK[crown]||0)>(CROWN_RANK[b.crown]||0)?crown:b.crown};newBest=st.score>b.score;Lib.best[chart.uid]=nb;store.set('kt.best',Lib.best);
+    Lib.recent=[...(Lib.recent||[]),{uid:chart.uid,score:st.score,t:Date.now()}].slice(-30);store.set('kt.recent',Lib.recent);}
+  // ポテンシャルの前後（記録したプレイのみ表示）
+  const potAfter=calcPotential(),potD=Math.round((potAfter-potBefore)*100)/100;
+  const potLine=res.auto||res.prac?null:el('p',{class:'res-note'},potD===0?`ポテンシャル ${potAfter.toFixed(2)}（変わらず）`:`ポテンシャル ${potBefore.toFixed(2)} → ${potAfter.toFixed(2)}（${potD>0?'+':''}${potD.toFixed(2)}）`);
   const C=COURSES[chart.course],kind=!crown?'fail':crown==='zentoku'?'zentoku':crown==='zenryo'?'zen':crown;
   const scoreEl=el('span',null,'0');const card=$('#resultCard');card.className='ov-card res';card.innerHTML='';
   const tags=[S.speed!==1?`×${S.speed.toFixed(1)}`:'',optLabel()].filter(Boolean).join('・');
@@ -3391,6 +3419,7 @@ function showResult(res){cancelAnimationFrame(rafId);rafId=0;const{chart,st}=res
         el('div',{class:'stamp '+kind},crown?CROWN[crown]:'クリア失敗'),
         el('div',{class:'score-row'},el('div',{class:'res-score'},scoreEl,el('small',null,'点')),rankBadge(st.score)),
         res.prac?el('div',{class:'best dim'},`練習モード（×${res.prac.rate}・${fmtTime(res.prac.from)}〜${fmtTime(res.prac.to)}）のため記録していません`):res.auto?el('div',{class:'best dim'},'オート演奏のため記録していません'):newBest?el('div',{class:'best'},`自己ベスト更新（前回 ${fmtNum(prevBest)}）`):el('div',{class:'best dim'},`ベスト ${fmtNum(prevBest)}`),
+        potLine,
         el('div',{class:'gwrap'},el('div',{class:'glab'},el('span',null,`魂ゲージ（クリア ${CLEAR[chart.course]/100}%）`),el('b',null,(st.gauge/100).toFixed(1)+'%')),
           el('div',{class:'gbar'},el('i',{style:`--w:${(st.gauge/100).toFixed(1)}%`}),el('b',{style:`--c:${CLEAR[chart.course]/100}%`})))),
       el('div',{class:'res-right'},judgeRows(st,st.notes,st.chordNotes),histBlock(st,res.win||WIN_HARD))),
@@ -4226,7 +4255,7 @@ $('#setAuto').addEventListener('change',e=>{S.auto=e.target.checked;saveS();rend
 $('#setUnlock').addEventListener('change',e=>{S.unlockAll=e.target.checked;saveS();refreshAll();});
 $('#resetRec').addEventListener('click',()=>{$('#resetConfirm').hidden=false;});
 $('#resetNo').addEventListener('click',()=>{$('#resetConfirm').hidden=true;});
-$('#resetYes').addEventListener('click',()=>{Lib.best={};Lib.danBest={};Lib.unlocks={};Lib.played={};store.set('kt.best',{});store.set('kt.danBest',{});store.set('kt.unlocks',{});store.set('kt.played',{});$('#resetConfirm').hidden=true;refreshAll();toast('記録をリセットしました');});
+$('#resetYes').addEventListener('click',()=>{Lib.best={};Lib.recent=[];Lib.danBest={};Lib.unlocks={};Lib.played={};store.set('kt.best',{});store.set('kt.recent',[]);store.set('kt.danBest',{});store.set('kt.unlocks',{});store.set('kt.played',{});$('#resetConfirm').hidden=true;refreshAll();toast('記録をリセットしました');});
 $('#stageMenu').addEventListener('click',()=>{if(G&&!G.finished)pauseGame();else if(!G||G.finished){if($('#result').hidden)closeStage();}});
 // iPhone Safari は速い連打をダブルタップの拡大と判定し、パッドのタップを取りこぼすため、パッドのタッチを既定の動作に渡さない
 // パッドの入力：タッチ端末は touchstart で受け付ける（速い連打・同時押しでも届きやすい。pointerdown だと Safari で取りこぼすため）
