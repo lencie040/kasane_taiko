@@ -1154,7 +1154,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
         <div class="setting"><label for="setSudden">サドプラ（4レーンの上側を隠す）</label><div class="inline"><input id="setSudden" type="range" min="0" max="80" step="1" value="0"><output id="outSudden" for="setSudden"></output></div></div>
         <div class="setting"><label for="setLaneW">レーンの幅（4レーン落下のとき）</label><div class="inline"><input id="setLaneW" type="range" min="40" max="300" step="1" value="100"><output id="outLaneW" for="setLaneW"></output></div></div>
         <label class="switch"><input type="checkbox" id="setLowFx"> 演出を少なくする（動作が重いとき用。花火・観客を省き、封印ノーツの粒や光を簡略化します）</label>
-        <label class="switch"><input type="checkbox" id="setBalance"> 曲とノーツSEの音量バランスを自動で整える（曲を少し下げ、ノーツSEを少し上げます）</label>
+        <label class="switch"><input type="checkbox" id="setBalance"> 曲の音量を解析して自動で揃え、ノーツSEとのバランスも整える</label>
         <label class="switch"><input type="checkbox" id="setRecord"> 録画機能（演奏を録画してmp4で保存。通常の曲と全難易度同時再生が対象です）</label>
         <label class="switch"><input type="checkbox" id="setNoiseEdit"> 編集モード（封印ノーツ・曲フォルダ）</label>
         <label class="switch"><input type="checkbox" id="setAuto"> オート演奏（記録・解禁はされません）</label>
@@ -1779,7 +1779,7 @@ function getAudio(chart){const set=chart.set,key=set.key+'|'+(set.repoHash||'')+
 let preview=null;
 async function playPreview(chart){stopPreview();if(!UI.gesture||UI.tab!=='select')return;const tk={};preview=tk;
   try{const buf=await getAudio(chart);if(preview!==tk||!$('#stage').hidden)return;
-    const src=AC.createBufferSource();src.buffer=buf;const g=AC.createGain();g.gain.setValueAtTime(0,AC.currentTime);g.gain.linearRampToValueAtTime(.85,AC.currentTime+.6);
+    const src=AC.createBufferSource();src.buffer=buf;const g=AC.createGain();g.gain.setValueAtTime(0,AC.currentTime);g.gain.linearRampToValueAtTime(.85*loudnessGain(buf),AC.currentTime+.6);
     src.connect(g);g.connect(musicGain);let at=(chart.set.preview>=0?chart.set.preview:buf.duration*400)/1000;if(at>buf.duration-4)at=0;src.loop=true;src.loopStart=at;src.loopEnd=Math.min(buf.duration,at+22);
     src.start(0,at);tk.src=src;tk.g=g;
     UI.previewKey=chart.set.key;showEq();src.onended=()=>{if(preview===tk){UI.previewKey=null;showEq();}};}catch(e){}}
@@ -2029,7 +2029,7 @@ function scheduleMedleyTrack(session,track,when){
   track.endAt=when+(duration-offset);
   if(offset<buffer.duration&&offset<duration){
     const source=AC.createBufferSource();
-    source.buffer=buffer;source.connect(musicGain);
+    source.buffer=buffer;const lg=AC.createGain();lg.gain.value=loudnessGain(buffer);source.connect(lg);lg.connect(musicGain);
     source.start(when,offset);source.stop(track.endAt);
     track.source=source;
   }
@@ -2666,6 +2666,26 @@ function applyGains(){
   const on=S.balance!==false;
   if(musicGain)musicGain.gain.value=S.music*(on?BALANCE.music:1);
   if(seGain)seGain.gain.value=Math.min(1,S.se*(on?BALANCE.se:1));}
+// 曲ごとの音量を解析して、同じ大きさに揃える。目標はおおよそ -18dB（簡易的なラウドネス。K特性なし）
+const LOUD_TARGET_DB=-18;
+const loudCache=new WeakMap();
+function measureLoudness(buf){
+  const block=Math.floor(buf.sampleRate*.4),nb=Math.floor(buf.length/block);
+  if(nb<1)return null;
+  const pw=new Float64Array(nb);
+  for(let c=0;c<buf.numberOfChannels;c++){const d=buf.getChannelData(c);
+    for(let b=0;b<nb;b++){let s=0;const o=b*block;for(let i=0;i<block;i++){const v=d[o+i];s+=v*v;}pw[b]+=s/block/buf.numberOfChannels;}}
+  const abs=pw.filter(p=>p>Math.pow(10,-5));                   // 絶対ゲート：-50dB より小さいブロックは無音扱い
+  if(!abs.length)return null;
+  const rel=abs.reduce((a,b)=>a+b,0)/abs.length*Math.pow(10,-1); // 相対ゲート：平均より10dB低いブロックも除外
+  const gated=abs.filter(p=>p>=rel);
+  return 10*Math.log10(gated.reduce((a,b)=>a+b,0)/gated.length);}
+function loudnessGain(buf){
+  if(!buf||S.balance===false)return 1;
+  let db=loudCache.get(buf);
+  if(db===undefined){db=measureLoudness(buf);loudCache.set(buf,db);}
+  if(db==null)return 1;
+  return clamp(Math.pow(10,(LOUD_TARGET_DB-db)/20),.2,2.5);}
 // キー設定（演奏4キー＋7曲移動の2キー）。割り当てたキーが既に別の役割にあれば入れ替える
 function bindKey(i,code){
   const all=[...S.keys,...S.skipKeys],old=all.indexOf(code);
@@ -3269,7 +3289,7 @@ async function runSong(chart,prac){
   if(chart.set.bgUrl){G.bgImg=new Image();G.bgImg.src=chart.set.bgUrl;}
   computeLayout();
   const rate=prac?prac.rate:1,t0=prac?Math.max(0,prac.from-2400):0,lead=prac&&prac.from>0?1000:Math.max(1400,2800-Math.max(0,chart.firstT),1000-chart.firstT/rate);
-  const src=AC.createBufferSource();src.buffer=buf;src.playbackRate.value=rate;const g=AC.createGain();src.connect(g);g.connect(musicGain);
+  const src=AC.createBufferSource();src.buffer=buf;src.playbackRate.value=rate;const g=AC.createGain();g.gain.value=loudnessGain(buf);src.connect(g);g.connect(musicGain);
   const acZero=AC.currentTime+.12+lead/1000;src.start(acZero,t0/1000);
   Object.assign(G,{rate,t0,src,gain:g,acZero,latency:((AC.outputLatency||0)+(AC.baseLatency||0))*1000,perfZero:performance.now()+(acZero-AC.currentTime)*1000,introAt:performance.now()});}
 function finishSong(){if(!G||G.finished)return;G.finished=true;if(!G.failed)fadeMusic(.8);
