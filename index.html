@@ -1152,6 +1152,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
         <h3>確認用</h3>
         <label>演奏画面 <select id="setFalling"><option value="taiko">太鼓</option><option value="flat">4レーン落下（2D）</option><option value="perspective">4レーン落下（3D）</option></select></label>
         <div class="setting"><label for="setSudden">サドプラ（4レーンの上側を隠す）</label><div class="inline"><input id="setSudden" type="range" min="0" max="80" step="1" value="0"><output id="outSudden" for="setSudden"></output></div></div>
+        <div class="setting"><label for="setLaneW">レーンの幅（4レーン落下のとき）</label><div class="inline"><input id="setLaneW" type="range" min="40" max="100" step="1" value="100"><output id="outLaneW" for="setLaneW"></output></div></div>
         <label class="switch"><input type="checkbox" id="setLowFx"> 演出を少なくする（動作が重いとき用。花火・観客を省き、封印ノーツの粒や光を簡略化します）</label>
         <label class="switch"><input type="checkbox" id="setNoiseEdit"> 編集モード（封印ノーツ・曲フォルダ）</label>
         <label class="switch"><input type="checkbox" id="setAuto"> オート演奏（記録・解禁はされません）</label>
@@ -1259,7 +1260,7 @@ function diffRange(d,min,mid,max){return d>5?mid+(max-mid)*(d-5)/5:d<5?mid-(mid-
 function segAt(segs,t){if(!segs.length)return null;if(t<segs[0].time)return segs[0];let lo=0,hi=segs.length-1,a=0;while(lo<=hi){const m=(lo+hi)>>1;if(segs[m].time<=t+1){a=m;lo=m+1;}else hi=m-1;}return segs[a];}
 
 /* ================= 設定・記録 ================= */
-const S=Object.assign({keys:['KeyD','KeyF','KeyJ','KeyK'],speed:1,offset:0,music:.8,se:.7,auto:false,noiseEdit:false,falling:false,sudden:0,unlockAll:false},store.get('kt.settings',{}));
+const S=Object.assign({keys:['KeyD','KeyF','KeyJ','KeyK'],speed:1,offset:0,music:.8,se:.7,auto:false,noiseEdit:false,falling:false,sudden:0,laneWidth:100,unlockAll:false},store.get('kt.settings',{}));
 S.opt=Object.assign({mirror:false,rand:0,hidden:false},S.opt||{});if(!S.fx)S.fx='high';
 // タッチ端末は描画の負荷が大きいとパッドの入力を取りこぼすため、自動で軽い描画にする
 const LOWFX=()=>S.fx==='low'||!!UI.touch||!!(G&&G.chart&&G.chart.multiRow);
@@ -3037,6 +3038,8 @@ function renderSettings(){
   $('#setSe').value=S.se;$('#outSe').textContent=Math.round(S.se*100)+'%';
   $('#setSudden').value=clamp(Number(S.sudden)||0,0,80);
   $('#outSudden').textContent=$('#setSudden').value+'%';
+  $('#setLaneW').value=clamp(Number(S.laneWidth)||100,40,100);
+  $('#outLaneW').textContent=$('#setLaneW').value+'%';
   $('#setFalling').value=S.falling!==true?'taiko':S.perspective===true?'perspective':'flat';
   $('#setNoiseEdit').checked=S.noiseEdit===true;
   $('#setAuto').checked=S.auto;$('#setUnlock').checked=S.unlockAll;$('#setLowFx').checked=S.fx==='low';
@@ -3562,7 +3565,7 @@ function drawInterlude(){const c=ctx,W=view.W,H=view.H,pn=performance.now(),it=D
   c.restore();}
 
 function fallingLayout(){
-  const width=Math.min(view.W-16,520), bottom=view.H-48, top=62;
+  const width=Math.min(view.W-16,520)*clamp(Number(S.laneWidth)||100,40,100)/100, bottom=view.H-48, top=62;
   const perspective=S.perspective===true, center=view.W/2;
   const depth=y=>perspective?clamp(.23+.77*(y-top)/Math.max(1,bottom-top),.23,1):1;
   const xAt=(column,y)=>center+(column-2)*width/4*depth(y);
@@ -4121,7 +4124,7 @@ $('#clearLib').addEventListener('click',()=>{$('#clearLibConfirm').hidden=false;
 $('#clearLibNo').addEventListener('click',()=>{$('#clearLibConfirm').hidden=true;});
 $('#clearLibYes').addEventListener('click',async()=>{for(const s of Lib.sets.filter(s=>s.storeName))removeSet(s,false);await IDB.clear();$('#clearLibConfirm').hidden=true;UI.selSet=null;resolveAll();refreshAll();toast('保存した .osz を削除しました');});
 const bindRange=(id,key,fn)=>$(id).addEventListener('input',e=>{S[key]=parseFloat(e.target.value);if(fn)fn();saveS();renderSettings();});
-bindRange('#setSudden','sudden');bindRange('#setSpeed','speed');bindRange('#setOffset','offset');
+bindRange('#setSudden','sudden');bindRange('#setLaneW','laneWidth');bindRange('#setSpeed','speed');bindRange('#setOffset','offset');
 bindRange('#setMusic','music',()=>{if(musicGain)musicGain.gain.value=S.music;});bindRange('#setSe','se',()=>{if(seGain)seGain.gain.value=S.se;});
 $('#setFalling').addEventListener('change',e=>{S.falling=e.target.value!=='taiko';S.perspective=e.target.value==='perspective';saveS();});
 $('#setLowFx').addEventListener('change',e=>{S.fx=e.target.checked?'low':'high';saveS();});
