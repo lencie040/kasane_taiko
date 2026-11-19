@@ -277,6 +277,8 @@ body:has(#tab-medley:not([hidden])){animation:none}
 .fchips button{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:3px 11px;font-size:12.5px;font-weight:700;color:var(--mute)}
 .fchips button:hover{border-color:var(--line-2);color:var(--washi)}
 .fchips button.is-on{background:var(--washi);color:var(--ink);border-color:var(--washi)}
+.lv-range{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--mute)}
+.lv-range input{width:78px;padding:3px 6px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:inherit;font:inherit}
 .list-count{margin-left:auto;color:var(--dim);font-size:12px}
 .song{position:relative;padding-right:46px}
 .fav{position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:50%;border:0;background:none;color:var(--dim);font-size:17px;line-height:1;display:grid;place-items:center}
@@ -962,6 +964,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
           <div class="fchips" role="group" aria-label="絞り込み">
             <button data-f="all">すべて</button><button data-f="kasane">重あり</button><button data-f="unclear">未クリアあり</button><button data-f="fav">★ お気に入り</button>
           </div>
+          <div class="lv-range" role="group" aria-label="難易度で絞り込み"><span>★</span><input id="lvMin" type="number" step="0.1" min="0" inputmode="decimal" placeholder="下限" aria-label="難易度の下限"><span>〜</span><input id="lvMax" type="number" step="0.1" min="0" inputmode="decimal" placeholder="上限" aria-label="難易度の上限"><button class="btn small" id="lvClear" type="button">クリア</button></div>
         </div></details>
         <div id="folderTools" class="folder-tools"></div>
         <ul class="songlist" id="songlist"></ul>
@@ -2424,6 +2427,8 @@ function visibleSets(){const q=norm($('#filter').value),f=UI.filt||'all',srt=UI.
   if(f==='kasane')list=list.filter(s=>s.charts.some(c=>c.course==='kasane'));
   else if(f==='unclear')list=list.filter(hasUnclear);
   else if(f==='fav')list=list.filter(s=>Lib.fav[s.key]);
+  if(UI.lvMin!=null||UI.lvMax!=null){let lo=UI.lvMin??-Infinity,hi=UI.lvMax??Infinity;if(lo>hi)[lo,hi]=[hi,lo];
+    list=list.filter(s=>s.charts.some(c=>c.course!=='kasane'&&(c.level||0)>=lo&&(c.level||0)<=hi));}
   const folders=effectiveFolders();
   if(folders.folders.length&&!q)list=list.filter(s=>UI.folder&&songInFolder(s,folders,UI.folder));
   const order=new Map(Lib.sets.map((s,i)=>[s,i])),pl=s=>Lib.played[s.key]||{t:0,n:0},col=new Intl.Collator('ja');
@@ -2431,7 +2436,8 @@ function visibleSets(){const q=norm($('#filter').value),f=UI.filt||'all',srt=UI.
     lvDesc:(a,b)=>lvKey(b)-lvKey(a),lvAsc:(a,b)=>lvKey(a)-lvKey(b),bpm:(a,b)=>b.charts[0].bpm[1]-a.charts[0].bpm[1],len:(a,b)=>b.charts[0].length-a.charts[0].length,
     recent:(a,b)=>pl(b).t-pl(a).t,plays:(a,b)=>pl(b).n-pl(a).n}[srt]||(()=>0);
   return list.sort((a,b)=>cmp(a,b)||order.get(a)-order.get(b));}
-function saveUIPrefs(){store.set('kt.ui',{sort:UI.sort,filt:UI.filt});}
+function saveUIPrefs(){store.set('kt.ui',{sort:UI.sort,filt:UI.filt,lvMin:UI.lvMin??null,lvMax:UI.lvMax??null});}
+const lvParse=v=>{const n=parseFloat(v);return Number.isFinite(n)?n:null;};
 function toggleFav(key){if(Lib.fav[key])delete Lib.fav[key];else Lib.fav[key]=1;store.set('kt.fav',Lib.fav);renderSongList();}
 function markPlayed(set){if(!set)return;const p=Lib.played[set.key]||{t:0,n:0};Lib.played[set.key]={t:Date.now(),n:p.n+1};store.set('kt.played',Lib.played);}
 function pickRandom(){const sets=visibleSets();if(!sets.length){toast('表示中の曲がありません');return;}UI.gesture=true;ensureAudio();
@@ -2545,6 +2551,7 @@ function renderSongList(){
   $('#navHint').textContent=`カ（${keyLabel(S.keys[0])}・${keyLabel(S.keys[3])}）で移動、ドンで決定`;
   for(const button of document.querySelectorAll('.fchips button'))button.classList.toggle('is-on',button.dataset.f===(UI.filt||'all'));
   $('#sortSel').value=UI.sort||'added';
+  for(const[id,v]of[['lvMin',UI.lvMin],['lvMax',UI.lvMax]]){const input=$('#'+id);if(document.activeElement!==input)input.value=v??'';}
   if(!count){ul.append(el('li',{class:'empty'},'条件に合う曲がありません'));return;}
   const index=arcadeIndex(entries);
   const visible=Math.min(7,count),above=Math.floor(visible/2);
@@ -4053,6 +4060,8 @@ $('#danMonthly').addEventListener('click',()=>{UI.danMode='monthly';renderDans()
 $('#danKasane').addEventListener('click',()=>{UI.danMode='kasane';renderDans();});
 $('#filter').addEventListener('input',()=>{UI.folderCursor=null;renderSongList();renderDetail();});
 $('#sortSel').addEventListener('change',e=>{UI.sort=e.target.value;saveUIPrefs();renderSongList();});
+for(const id of['lvMin','lvMax'])$('#'+id).addEventListener('input',e=>{UI[id]=lvParse(e.target.value);saveUIPrefs();UI.folderCursor=null;renderSongList();renderDetail();});
+$('#lvClear').addEventListener('click',()=>{UI.lvMin=null;UI.lvMax=null;saveUIPrefs();renderSongList();renderDetail();});
 for(const b of document.querySelectorAll('.fchips button'))b.addEventListener('click',()=>{UI.filt=b.dataset.f;saveUIPrefs();renderSongList();renderDetail();});
 $('#arcadePrev').addEventListener('click',()=>menuMove(-1,0));
 $('#arcadeNext').addEventListener('click',()=>menuMove(1,0));
