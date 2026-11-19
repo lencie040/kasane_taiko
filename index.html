@@ -1154,6 +1154,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
         <div class="setting"><label for="setSudden">サドプラ（4レーンの上側を隠す）</label><div class="inline"><input id="setSudden" type="range" min="0" max="80" step="1" value="0"><output id="outSudden" for="setSudden"></output></div></div>
         <div class="setting"><label for="setLaneW">レーンの幅（4レーン落下のとき）</label><div class="inline"><input id="setLaneW" type="range" min="40" max="300" step="1" value="100"><output id="outLaneW" for="setLaneW"></output></div></div>
         <label class="switch"><input type="checkbox" id="setLowFx"> 演出を少なくする（動作が重いとき用。花火・観客を省き、封印ノーツの粒や光を簡略化します）</label>
+        <label class="switch"><input type="checkbox" id="setRecord"> 録画機能（演奏を録画してmp4で保存。通常の曲と全難易度同時再生が対象です）</label>
         <label class="switch"><input type="checkbox" id="setNoiseEdit"> 編集モード（封印ノーツ・曲フォルダ）</label>
         <label class="switch"><input type="checkbox" id="setAuto"> オート演奏（記録・解禁はされません）</label>
         <label class="switch"><input type="checkbox" id="setUnlock"> 重譜面をすべて解禁して表示（譜面作者向け）</label>
@@ -1260,7 +1261,7 @@ function diffRange(d,min,mid,max){return d>5?mid+(max-mid)*(d-5)/5:d<5?mid-(mid-
 function segAt(segs,t){if(!segs.length)return null;if(t<segs[0].time)return segs[0];let lo=0,hi=segs.length-1,a=0;while(lo<=hi){const m=(lo+hi)>>1;if(segs[m].time<=t+1){a=m;lo=m+1;}else hi=m-1;}return segs[a];}
 
 /* ================= 設定・記録 ================= */
-const S=Object.assign({keys:['KeyD','KeyF','KeyJ','KeyK'],speed:1,offset:0,music:.8,se:.7,auto:false,noiseEdit:false,falling:false,sudden:0,laneWidth:100,unlockAll:false},store.get('kt.settings',{}));
+const S=Object.assign({keys:['KeyD','KeyF','KeyJ','KeyK'],speed:1,offset:0,music:.8,se:.7,auto:false,noiseEdit:false,falling:false,sudden:0,laneWidth:100,record:false,unlockAll:false},store.get('kt.settings',{}));
 S.opt=Object.assign({mirror:false,rand:0,hidden:false},S.opt||{});if(!S.fx)S.fx='high';
 // タッチ端末は描画の負荷が大きいとパッドの入力を取りこぼすため、自動で軽い描画にする
 const LOWFX=()=>S.fx==='low'||!!UI.touch||!!(G&&G.chart&&G.chart.multiRow);
@@ -1750,6 +1751,7 @@ function ensureAudio(){
   AC=new(window.AudioContext||window.webkitAudioContext)({latencyHint:'interactive'});
   musicGain=AC.createGain();musicGain.gain.value=S.music;musicGain.connect(AC.destination);
   seGain=AC.createGain();seGain.gain.value=S.se;seGain.connect(AC.destination);
+  recDest=AC.createMediaStreamDestination();musicGain.connect(recDest);seGain.connect(recDest);
   const sr=AC.sampleRate,mk=(dur,fn)=>{const n=Math.floor(sr*dur),b=AC.createBuffer(1,n,sr),d=b.getChannelData(0);const st={ph:0,ph2:0};for(let i=0;i<n;i++)d[i]=fn(i/sr,st,sr);return b;};
   SE.don=mk(.3,(t,s,sr)=>{const f=58+95*Math.exp(-t*32);s.ph+=f/sr;return(Math.sin(TAU*s.ph)*Math.exp(-t*12)+(Math.random()*2-1)*Math.exp(-t*90)*.25)*.9;});
   SE.ka=mk(.12,(t,s,sr)=>{s.ph+=2350/sr;s.ph2+=3720/sr;return(Math.sin(TAU*s.ph)*.5+Math.sin(TAU*s.ph2)*.35)*Math.exp(-t*55)+(Math.random()*2-1)*Math.exp(-t*110)*.45;});
@@ -3042,7 +3044,7 @@ function renderSettings(){
   $('#outLaneW').textContent=$('#setLaneW').value+'%';
   $('#setFalling').value=S.falling!==true?'taiko':S.perspective===true?'perspective':'flat';
   $('#setNoiseEdit').checked=S.noiseEdit===true;
-  $('#setAuto').checked=S.auto;$('#setUnlock').checked=S.unlockAll;$('#setLowFx').checked=S.fx==='low';
+  $('#setAuto').checked=S.auto;$('#setUnlock').checked=S.unlockAll;$('#setLowFx').checked=S.fx==='low';$('#setRecord').checked=S.record===true;$('#setRecord').disabled=!recSupported();
   if(!CAL.on&&CAL.result==null)$('#calSub').textContent=`いまのオフセット: ${S.offset>0?'+':''}${S.offset}ms`;}
 
 /* ================= 演奏 ================= */
@@ -3193,7 +3195,7 @@ function updateFallingDanHud(now){
   }
 }
 function openStage(){stopPreview();$('#stage').hidden=false;$('#stage').classList.toggle('touch',UI.touch);document.body.classList.add('playing');$('#result').hidden=true;$('#pause').hidden=true;$('#pads').hidden=libraryWait||!UI.touch||S.falling===true;setupFallingDanHud();layoutStage();startLoop();}
-function closeStage(){if(AUTOALL_FALLING){S.falling=true;AUTOALL_FALLING=null;}songLoad++;libraryWait=false;cancelAnimationFrame(rafId);rafId=0;stopSong();G=null;D=null;$('#stage').hidden=true;setupFallingDanHud();document.body.classList.remove('playing');refreshAll();}
+function closeStage(){stopRecord();if(AUTOALL_FALLING){S.falling=true;AUTOALL_FALLING=null;}songLoad++;libraryWait=false;cancelAnimationFrame(rafId);rafId=0;stopSong();G=null;D=null;$('#stage').hidden=true;setupFallingDanHud();document.body.classList.remove('playing');refreshAll();}
 function startLoop(){if(!rafId)rafId=requestAnimationFrame(frame);}
 function stopSong(){if(G&&G.src){try{G.src.stop();}catch(e){}G.src=null;}}
 function fadeMusic(sec){if(!G||!G.gain||!AC)return;try{const g=G.gain.gain;g.cancelScheduledValues(AC.currentTime);g.setValueAtTime(g.value,AC.currentTime);g.linearRampToValueAtTime(0,AC.currentTime+sec);G.src.stop(AC.currentTime+sec+.05);}catch(e){}}
@@ -3229,6 +3231,7 @@ async function runSong(chart,prac){
   let buf;try{buf=await getAudio(chart);}catch(e){if(ticket===songLoad){closeStage();toast(e.message,'err');}return;}
   if(ticket!==songLoad||$('#stage').hidden)return;
   G=newRun(chart,prac);if(D){G.auto=D.auto;G.disp=D.st.score;G.lastCombo=D.st.combo;}
+  if(!prac&&!D)startRecord(G);
   if(!$('#stage').hidden)layoutStage();
   if(chart.set.bgUrl){G.bgImg=new Image();G.bgImg.src=chart.set.bgUrl;}
   computeLayout();
@@ -3237,6 +3240,7 @@ async function runSong(chart,prac){
   const acZero=AC.currentTime+.12+lead/1000;src.start(acZero,t0/1000);
   Object.assign(G,{rate,t0,src,gain:g,acZero,latency:((AC.outputLatency||0)+(AC.baseLatency||0))*1000,perfZero:performance.now()+(acZero-AC.currentTime)*1000,introAt:performance.now()});}
 function finishSong(){if(!G||G.finished)return;G.finished=true;if(!G.failed)fadeMusic(.8);
+  const finishedRun=G;setTimeout(()=>stopRecord(finishedRun),900);// 音の減衰が入るよう少し後で止める
   const res={chart:G.chart,st:G.st,failed:G.failed,auto:G.auto,win:G.win,prac:G.prac};const alive=()=>!$('#stage').hidden;
   if(G.prac){const pr=G.prac;if(pr.loop){pr.n=(pr.n||1)+1;setTimeout(()=>{if(alive()&&G&&G.prac===pr)runSong(G.chart,pr);},700);}else setTimeout(()=>{if(alive())showResult(res);},900);return;}
   let stamp=null;const cs={stats:{chordNotes:G.st.chordNotes}};
@@ -3254,6 +3258,40 @@ function resumeGame(){if(!G||!G.paused)return;$('#pause').hidden=true;const run=
   const go=()=>{if(done||!run.paused)return;done=true;run.perfZero+=performance.now()-run.pauseAt;run.paused=false;};
   try{const r=AC.resume();if(r&&r.then)r.then(go,go);else go();}catch(e){go();}
   setTimeout(go,1200);}
+
+/* ---------- 録画（演奏画面の映像と音を mp4 で保存） ---------- */
+let recDest=null;
+const REC={rec:null,run:null,chunks:[],mime:'',name:'',badge:null};
+function recSupported(){return typeof MediaRecorder!=='undefined'&&typeof cv.captureStream==='function';}
+function recMime(){return['video/mp4;codecs=avc1,mp4a.40.2','video/mp4','video/webm;codecs=vp9,opus','video/webm'].find(m=>MediaRecorder.isTypeSupported(m))||'';}
+function recordName(run){const c=run.chart,d=new Date(),p=n=>String(n).padStart(2,'0');
+  const stamp=`${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
+  const what=c.multiRow?'全難易度同時':(c.meta?.version||'譜面');
+  return `${c.set.title}_${what}_${stamp}`.replace(/[\\/:*?"<>|]/g,'_');}
+function showRecBadge(on){
+  if(!REC.badge&&on){const b=document.createElement('div');b.textContent='● REC';
+    b.style.cssText='position:fixed;top:8px;right:8px;z-index:50;padding:3px 9px;border-radius:999px;background:rgba(200,30,40,.92);color:#fff;font:700 12px system-ui,sans-serif;pointer-events:none';
+    document.body.append(b);REC.badge=b;}
+  if(REC.badge)REC.badge.hidden=!on;}
+function startRecord(run){
+  if(S.record!==true||!recSupported()||!AC||!recDest||REC.rec)return;
+  try{
+    const video=cv.captureStream(30).getVideoTracks(),audio=recDest.stream.getAudioTracks();
+    const mime=recMime();
+    const rec=new MediaRecorder(new MediaStream([...video,...audio]),{...(mime?{mimeType:mime}:{}),videoBitsPerSecond:6000000,audioBitsPerSecond:192000});
+    REC.chunks=[];REC.mime=rec.mimeType||mime||'video/webm';REC.name=recordName(run);REC.run=run;REC.rec=rec;
+    rec.ondataavailable=e=>{if(e.data&&e.data.size)REC.chunks.push(e.data);};
+    rec.onstop=()=>{
+      const type=REC.mime,ext=type.includes('mp4')?'mp4':'webm',blob=new Blob(REC.chunks,{type});REC.chunks=[];
+      const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`${REC.name}.${ext}`;
+      document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
+      toast(`録画を保存しました（${ext}）`+(ext==='webm'?'。このブラウザではmp4で録画できなかったのでwebmです':''));};
+    rec.start(1000);showRecBadge(true);
+  }catch(e){REC.rec=null;REC.run=null;toast('録画を開始できませんでした：'+e.message,'err');}}
+function stopRecord(run){
+  if(!REC.rec||(run&&REC.run!==run))return;
+  const rec=REC.rec;REC.rec=null;REC.run=null;showRecBadge(false);
+  if(rec.state!=='inactive')rec.stop();}
 
 /* ---------- 結果 ---------- */
 const RANKS=[[1000000,'極','虹','#ffffff'],[950000,'雅','紫','#b48cf2'],[900000,'雅','桃','#f29cc2'],[800000,'雅','金','#f2bc3d'],[700000,'粋','銀','#c8cdd8'],[600000,'粋','銅','#d08a52'],[500000,'粋','白','#f2ecdc']];
@@ -4128,6 +4166,7 @@ bindRange('#setSudden','sudden');bindRange('#setLaneW','laneWidth');bindRange('#
 bindRange('#setMusic','music',()=>{if(musicGain)musicGain.gain.value=S.music;});bindRange('#setSe','se',()=>{if(seGain)seGain.gain.value=S.se;});
 $('#setFalling').addEventListener('change',e=>{S.falling=e.target.value!=='taiko';S.perspective=e.target.value==='perspective';saveS();});
 $('#setLowFx').addEventListener('change',e=>{S.fx=e.target.checked?'low':'high';saveS();});
+$('#setRecord').addEventListener('change',e=>{S.record=e.target.checked;saveS();if(e.target.checked&&!recSupported())toast('このブラウザは録画に対応していません','err');});
 $('#setNoiseEdit').addEventListener('change',e=>{S.noiseEdit=e.target.checked;saveS();renderSongList();renderDetail();});
 $('#setAuto').addEventListener('change',e=>{S.auto=e.target.checked;saveS();renderDetail();});
 $('#setUnlock').addEventListener('change',e=>{S.unlockAll=e.target.checked;saveS();refreshAll();});
