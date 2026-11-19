@@ -937,6 +937,13 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
   .dojo-windows.has-gauge{grid-template-columns:1fr}
   .dojo-windows.has-gauge>.dojo-condition .dojo-tiers{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+.pot-card{display:grid;gap:4px;padding:10px 14px;border-radius:14px;border:1px solid var(--line,rgba(127,127,127,.35));background:var(--panel,rgba(127,127,127,.08));max-width:360px}
+.pot-main{display:flex;align-items:baseline;gap:8px}
+.pot-main small{font-size:12px;letter-spacing:.08em;opacity:.75}
+.pot-main b{font-size:28px;line-height:1;font-variant-numeric:tabular-nums;color:var(--accent,#f2bc3d)}
+.pot-theory{font-size:12px;opacity:.8;font-variant-numeric:tabular-nums}
+.pot-bar{height:6px;border-radius:999px;background:rgba(127,127,127,.25);overflow:hidden}
+.pot-bar i{display:block;height:100%;border-radius:inherit;background:var(--accent,#f2bc3d);transition:width .4s}
 </style>
 
 <header class="top">
@@ -2219,8 +2226,18 @@ function calcPotential(){
   const all=[...best,...recent];
   if(!all.length)return 0;
   return Math.floor(all.reduce((a,b)=>a+b,0)/all.length*100)/100;}
-function renderPotential(){const el=$('#potBadge');if(!el)return;
-  const v=calcPotential();el.textContent=`ポテンシャル ${v.toFixed(2)}`;}
+// 理論値：全譜面（重譜面を除く）でスコア 1,000,000 かつ全良を取ったときの、同じ計算方法によるポテンシャル
+function calcTheory(){
+  const vals=Lib.charts.filter(c=>c.level&&c.course!=='kasane').map(c=>potentialOf(c.level,1000000)+ZEN_BONUS).sort((a,b)=>b-a);
+  if(!vals.length)return 0;
+  const all=[...vals.slice(0,30),...Array(10).fill(vals[0])];   // 直近10件は同じ譜面の繰り返しも含む
+  return Math.floor(all.reduce((a,b)=>a+b,0)/all.length*100)/100;}
+function renderPotential(){const box=$('#potBadge');if(!box)return;
+  const v=calcPotential(),t=calcTheory(),pct=t>0?Math.min(100,Math.floor(v/t*100)):0;
+  box.replaceChildren(el('div',{class:'pot-card'},
+    el('div',{class:'pot-main'},el('small',null,'ポテンシャル'),el('b',null,v.toFixed(2))),
+    el('div',{class:'pot-theory'},`理論値 ${t.toFixed(2)} ・ 達成率 ${pct}%`),
+    el('div',{class:'pot-bar'},el('i',{style:`width:${pct}%`}))));}
 function crownBadge(k){return k?el('span',{class:'crown '+k},CROWN[k]):el('span',{class:'crown none'},'—');}
 let recordQuery='',recordFilter='played',recordOrder='score',recordPage=0;
 function renderRecords(){
