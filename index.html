@@ -939,6 +939,18 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 }
 .pot-badge{margin-left:auto;padding:3px 10px;border-radius:999px;border:2px solid currentColor;font-size:13px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
 .arcade-heading .pot-badge{margin-left:0;margin-right:auto;color:#452638;background:#fff8df;border:2px solid #482d3e;padding:2px 12px}
+.char-picker{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 10px;scrollbar-width:thin}
+.char-card{flex:0 0 auto;width:92px;display:grid;justify-items:center;gap:2px;padding:6px 6px 8px;border-radius:14px;border:2px solid #482d3e;background:#fff8df;color:#452638;font:inherit;cursor:pointer;text-align:center}
+.char-card strong{font-size:13px;line-height:1.2;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.char-card small{font-size:11px;line-height:1.3;opacity:.85}
+.char-card.is-on{outline:3px solid #f2bc3d;outline-offset:1px}
+.char-card.locked{filter:grayscale(1);opacity:.7;cursor:default}
+.char-card .char-cond{font-size:10px}
+.char-card .char-img,.char-result .char-img{width:64px;height:64px;object-fit:cover;border-radius:10px;background:rgba(127,127,127,.2)}
+.char-none{width:64px;height:64px;display:grid;place-items:center;border-radius:10px;background:rgba(127,127,127,.15);font-weight:700}
+.char-result{display:flex;gap:12px;align-items:center;padding:10px;border-radius:14px;border:2px solid #482d3e;background:#fff8df;color:#452638;margin:8px 0}
+.char-result-text{display:grid;gap:2px;min-width:0}
+.char-result-text small{font-size:12px}
 </style>
 
 <header class="top">
@@ -963,6 +975,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
     <div class="select-grid">
       <div class="arcade-menu" id="arcadeMenu">
         <div class="arcade-heading"><h2>曲をえらぶ</h2><span class="pot-badge num" id="potBadge" aria-live="polite"></span><span class="list-count num" id="listCount"></span></div>
+        <div id="charPicker" class="char-picker" hidden></div>
         <details class="arcade-catalog"><summary>検索・並び順・絞り込み</summary>
         <div class="list-head"><input id="filter" type="search" placeholder="曲名・アーティストで検索" aria-label="曲を検索"><button class="btn" id="randomBtn" title="表示中の曲からランダムに選びます">おまかせ</button></div>
         <div class="list-tools">
@@ -2196,7 +2209,7 @@ window.addEventListener('resize',()=>{if(UI.tab==='medley'&&!document.hidden)dra
 /* ================= 画面: 共通 ================= */
 function setTab(t){if(t!=='select'){UI.chooseCourse=false;resetRimSequence();stopPreview();}if(t!=='medley')stopMedley();UI.tab=t;for(const b of document.querySelectorAll('.tab'))b.classList.toggle('is-on',b.dataset.tab===t);
   for(const id of['select','dan','medley','records','load','settings'])$('#tab-'+id).hidden=id!==t;refreshAll();}
-function refreshAll(){renderSongList();renderDetail();renderDans();renderMedley();renderRecords();renderLoad();renderSettings();renderPotential();}
+function refreshAll(){renderSongList();renderDetail();renderDans();renderMedley();renderRecords();renderLoad();renderSettings();renderPotential();renderCharPicker();}
 // ポテンシャル（Arcaea 風）。譜面の定数は ★ の値、スコアは 1,000,000 満点を Arcaea の 10,000,000 換算にして評価する
 // 全良（全特良を含む）のときは、本家と違ってポテンシャルにボーナスを加える
 const ZEN_CROWNS=['zenryo','zentoku'],ZEN_BONUS=.5;
@@ -3127,16 +3140,110 @@ function renderSettings(){
   $('#setAuto').checked=S.auto;$('#setUnlock').checked=S.unlockAll;$('#setLowFx').checked=S.fx==='low';$('#setRecord').checked=S.record===true;$('#setRecord').disabled=!recSupported();
   if(!CAL.on&&CAL.result==null)$('#calSub').textContent=`いまのオフセット: ${S.offset>0?'+':''}${S.offset}ms`;}
 
+/* ================= キャラクター ================= */
+// content/characters.csv（1行1キャラ）: id,name,image,ability,unlock_type,unlock_target,unlock_course,unlock_value,unlock_text
+// image は content/characters/ 内のファイル名。行頭が # の行は無視します。
+const ABILITY_JP={gauge_up:'クリア前のゲージ増加 2倍・減少 1/2',good_wide:'良判定が少し優しい',score_up:'スコア増加 1.1倍',renda_up:'連打のスコア 5倍',gauge_down:'ゲージ増加 1/2・減少 2倍',good_tight:'良判定が少し厳しい',seal:'通常ノーツが稀に封印ノーツになる'};
+const CHARS_SAVE=Object.assign({owned:{},prog:{},selected:null},store.get('kt.chars',{}));
+Lib.characters=[];Lib.rollBest=store.get('kt.rollBest',{});
+const clerp=(a,b,t)=>a+(b-a)*t;
+const charNeed=lv=>5+lv;                    // Lv からの次のレベルまでの経験値
+function saveChars(){store.set('kt.chars',CHARS_SAVE);}
+function parseCharacters(text){
+  const lines=text.split(/\r?\n/).map(s=>s.trim()).filter(s=>s&&!s.startsWith('#'));
+  if(lines.length<2)return[];const head=lines[0].split(',').map(s=>s.trim());
+  return lines.slice(1).map(l=>{const v=l.split(',').map(s=>s.trim()),o={};head.forEach((h,i)=>o[h]=v[i]??'');
+    return{id:o.id,name:o.name||o.id,image:o.image,ability:o.ability,type:o.unlock_type,target:o.unlock_target,course:o.unlock_course,value:Number(o.unlock_value)||0,text:o.unlock_text||''};
+  }).filter(c=>c.id&&ABILITY_JP[c.ability]);}
+async function loadCharacterFile(){
+  try{const r=await fetch('content/characters.csv',{cache:'no-cache'});if(r.ok)Lib.characters=parseCharacters(await r.text());else Lib.characters=[];}
+  catch(e){Lib.characters=[];}
+  evaluateCharacters();}
+function charUnlockText(c){switch(c.type){
+  case'dan_pass':return`${c.target} 合格`;case'dan_gold':return`${c.target} 金合格`;
+  case'song_clear':return`「${c.target}」${c.course?c.course+' ':''}クリア`;case'song_full':return`「${c.target}」フルコンボ`;
+  case'song_zen':return`「${c.target}」全良`;case'song_score':return`「${c.target}」${c.value.toLocaleString()}点以上`;
+  case'song_renda':return`「${c.target}」連打 ${c.value}打以上`;}return'';}
+function charUnlocked(c){
+  const songs=()=>Lib.charts.filter(x=>x.set.title===c.target&&(!c.course||x.course===c.course));
+  const dan=()=>Lib.dans.find(d=>d.name===c.target||d.key===c.target);
+  switch(c.type){
+    case'dan_pass':{const d=dan();return!!d&&!!Lib.danBest[d.key];}
+    case'dan_gold':{const d=dan();return!!d&&Lib.danBest[d.key]==='gold';}
+    case'song_clear':case'song_full':case'song_zen':{const need={song_clear:1,song_full:2,song_zen:3}[c.type];
+      return songs().some(x=>(CROWN_RANK[(Lib.best[x.uid]||{}).crown]||0)>=need);}
+    case'song_score':return songs().some(x=>((Lib.best[x.uid]||{}).score||0)>=c.value);
+    case'song_renda':return songs().some(x=>(Lib.rollBest[x.uid]||0)>=c.value);}
+  return false;}
+// 条件を満たしたキャラを獲得する。新しく獲得したキャラを返す
+function evaluateCharacters(){
+  const got=[];for(const c of Lib.characters){if(!CHARS_SAVE.owned[c.id]&&charUnlocked(c)){CHARS_SAVE.owned[c.id]=true;got.push(c);}}
+  if(got.length){saveChars();for(const c of got)toast(`新しいキャラクター獲得：${c.name}`);}
+  renderCharPicker();return got;}
+function selectedChar(){const c=Lib.characters.find(x=>x.id===CHARS_SAVE.selected);return c&&CHARS_SAVE.owned[c.id]?c:null;}
+// 通常プレイで選んでいるキャラの能力（レベル反映済み）。Lv1 は能力なし、Lv100 で記載の効果になる
+function charEffects(ch,lv,soft){
+  const t=(clamp(lv,1,100)-1)/99,fx={gain:1,loss:1,gainClear:1,lossClear:1,score:1,roll:1,good:soft?42:25,seal:0};
+  switch(ch.ability){
+    case'gauge_up':fx.gainClear=clerp(1,2,t);fx.lossClear=clerp(1,.5,t);break;
+    case'good_wide':fx.good=soft?clerp(42,80,t):clerp(25,40,t);break;
+    case'score_up':fx.score=clerp(1,1.1,t);break;
+    case'renda_up':fx.roll=clerp(1,5,t);break;
+    case'gauge_down':fx.gain=clerp(1,.5,t);fx.loss=clerp(1,2,t);break;
+    case'good_tight':fx.good=soft?clerp(42,25,t):clerp(25,20,t);break;
+    case'seal':fx.seal=clerp(0,.2,t);break;}
+  return fx;}
+function abFor(chart,prac){
+  const c=selectedChar();if(!c||D||prac||S.auto||chart.multiRow)return null;
+  const soft=chart.course==='easy'||chart.course==='normal',lv=(CHARS_SAVE.prog[c.id]||{lv:1}).lv;
+  return{def:c,lv,fx:charEffects(c,lv,soft),clear:CLEAR[chart.course]};}
+// 封印ノーツ（能力）：通常のノーツを確率 p で左右どちらかの封印にする
+function applySeal(targets,p){if(!p)return targets;
+  const mark=n=>{if(!n.noise&&Math.random()<p)n.noise=Math.random()<.5?'left':'right';};
+  for(const t of targets){if(t.type==='single')mark(t);else for(const n of t.notes)mark(n);}
+  return targets;}
+// 通常プレイ後：連打数の記録、獲得判定、経験値、結果カードの作成
+function charAfterPlay(chart,st,clear,res){
+  if(res.auto||res.prac)return null;
+  Lib.rollBest[chart.uid]=Math.max(Lib.rollBest[chart.uid]||0,st.roll||0);store.set('kt.rollBest',Lib.rollBest);
+  evaluateCharacters();
+  const c=selectedChar();if(!c)return null;
+  const gain=1+(clear?1:0)+(st.bad===0?1:0)+(st.ok===0&&st.bad===0?1:0)+(st.score>=950000?1:0);
+  const p=CHARS_SAVE.prog[c.id]||{lv:1,xp:0};let lv=p.lv,xp=p.xp+gain,up=false;
+  while(lv<100&&xp>=charNeed(lv)){xp-=charNeed(lv);lv++;up=true;}
+  if(lv>=100)xp=0;
+  CHARS_SAVE.prog[c.id]={lv,xp};saveChars();renderCharPicker();
+  const img=el('img',{src:`content/characters/${c.image}`,alt:c.name,class:'char-img'});img.onerror=()=>{img.hidden=true;};
+  return el('div',{class:'char-result'},img,el('div',{class:'char-result-text'},el('strong',null,c.name),
+    el('small',null,`Lv ${lv}　経験値 +${gain}${up?'　レベルアップ！':''}`),el('small',null,ABILITY_JP[c.ability])));}
+function renderCharPicker(){const box=$('#charPicker');if(!box)return;
+  if(!Lib.characters.length){box.hidden=true;return;}
+  box.hidden=false;
+  const pic=(src,cls)=>{const i=el('img',{src,alt:'',class:cls});i.onerror=()=>{i.hidden=true;};return i;};
+  const none=el('button',{type:'button',class:'char-card'+(!selectedChar()?' is-on':'')},el('strong',null,'なし'),el('small',null,'能力なし'));
+  none.onclick=()=>{CHARS_SAVE.selected=null;saveChars();renderCharPicker();};
+  const cards=[none];
+  for(const c of Lib.characters){const owned=!!CHARS_SAVE.owned[c.id],on=owned&&CHARS_SAVE.selected===c.id;
+    const b=el('button',{type:'button',class:'char-card'+(owned?'':' locked')+(on?' is-on':''),title:owned?ABILITY_JP[c.ability]:(c.text||charUnlockText(c))},
+      pic(`content/characters/${c.image}`,'char-img'),el('strong',null,owned?c.name:'？？？'),
+      el('small',null,owned?`Lv ${(CHARS_SAVE.prog[c.id]||{lv:1}).lv}`:'ロック'),
+      owned?el('small',null,ABILITY_JP[c.ability]):el('small',{class:'char-cond'},c.text||charUnlockText(c)));
+    b.onclick=()=>{if(!owned)return;CHARS_SAVE.selected=on?null:c.id;saveChars();renderCharPicker();};
+    cards.push(b);}
+  box.replaceChildren(...cards);}
+
 /* ================= 演奏 ================= */
 let G=null,D=null,rafId=0;const cv=$('#cv'),ctx=cv.getContext('2d');const view={W:0,H:0,dpr:1,L:null};
 function newStats(notes,chordNotes,course){return{notes,chordNotes,gu:10000/Math.max(1,notes*.75),badMul:BADMUL[course]||2,tokuryo:0,good:0,ok:0,bad:0,roll:0,rollDrum:0,combo:0,maxCombo:0,score:0,gauge:0,judged:0,chordJudged:0,offSum:0,offN:0,offs:[],chordHit:0,chordMiss:0,mismatch:0};}
 function newRun(chart,prac){
   if(!chart.multiRow)loadNoise(chart);
+  const ab=abFor(chart,prac);
   const tsrc=prac?chart.targets.filter(t=>(prac.from<=0||t.t>=prac.from)&&t.t<=prac.to):chart.targets,rsrc=prac?chart.rolls.filter(r=>(prac.from<=0||r.end>=prac.from)&&r.t<=prac.to):chart.rolls;
   let nN=0,nC=0;for(const t of tsrc){if(t.type==='chord'){nN+=t.notes.length;nC+=t.notes.length;}else nN++;}
-  return{chart,prac:prac||null,win:(chart.course==='easy'||chart.course==='normal')?WIN_SOFT:WIN_HARD,
-    targets:applyOpts(tsrc.map(t=>({...t,notes:t.notes?t.notes.map(n=>({...n})):null,judged:false,res:null,buf:null}))),hidden:!D&&!!S.opt.hidden,
-    rolls:rsrc.map(r=>({...r,count:0,done:false})),cursor:0,st:newStats(nN,nC,chart.course),
+  const baseWin=(chart.course==='easy'||chart.course==='normal')?WIN_SOFT:WIN_HARD;
+  return{chart,prac:prac||null,win:ab?{...baseWin,good:ab.fx.good}:baseWin,
+    targets:applySeal(applyOpts(tsrc.map(t=>({...t,notes:t.notes?t.notes.map(n=>({...n})):null,judged:false,res:null,buf:null}))),ab?ab.fx.seal:0),hidden:!D&&!!S.opt.hidden,
+    rolls:rsrc.map(r=>({...r,count:0,done:false})),cursor:0,st:Object.assign(newStats(nN,nC,chart.course),{ab}),
     base:Math.ceil(1000000/Math.max(1,chart.stats.notes)/10)*10,openChord:null,absorb:null,pop:null,flash:{},lanes:chart.stats.maxLanes,
     fx:{parts:[],rings:[],flyers:[],scorePops:[],banner:null,stamp:null,rollPop:0},disp:0,prevScore:0,kiaiAmt:0,lastCombo:0,comboAt:0,gaugeFlash:0,
     endAt:prac?prac.to+1200:chart.length+1800,now:-3000,paused:false,finished:false,failed:false,auto:S.auto,autoSide:0,synced:false};}
@@ -3154,8 +3261,9 @@ function syncClock(){if(!AC||!AC.getOutputTimestamp||G.paused)return;let ts;try{
 
 function addStats(st,kind,n,chord,base){
   if(kind==='tokuryo'){st.tokuryo+=n;st.good+=n;}else st[kind]+=n;
-  if(kind==='bad'){st.combo=0;st.gauge=Math.max(0,st.gauge-st.gu*st.badMul*n);}
-  else{st.combo+=n;if(st.combo>st.maxCombo)st.maxCombo=st.combo;st.gauge=Math.min(10000,st.gauge+(kind==='ok'?st.gu*.5:st.gu)*n);st.score+=(kind==='ok'?Math.floor(base/20)*10:base)*n;}
+  const ab=st.ab,below=!!ab&&st.gauge<ab.clear,fx=ab?ab.fx:null;
+  if(kind==='bad'){st.combo=0;st.gauge=Math.max(0,st.gauge-st.gu*st.badMul*n*(fx?fx.loss*(below?fx.lossClear:1):1));}
+  else{st.combo+=n;if(st.combo>st.maxCombo)st.maxCombo=st.combo;st.gauge=Math.min(10000,st.gauge+(kind==='ok'?st.gu*.5:st.gu)*n*(fx?fx.gain*(below?fx.gainClear:1):1));st.score+=Math.floor((kind==='ok'?Math.floor(base/20)*10:base)*n*(fx?fx.score:1));}
   st.judged+=n;if(chord)st.chordJudged+=n;}
 function judge(tg,kind,off,why){
   tg.judged=true;tg.res=kind;const chord=tg.type==='chord',n=chord?tg.notes.length:1;
@@ -3166,7 +3274,7 @@ function judge(tg,kind,off,why){
   if(D)checkDanFail();}
 function rollHit(r,color){
   if(r.type==='balloon'){if(color!=='d')return;r.count++;addRoll(300);fxRoll(r);if(r.count>=r.hits){r.done=true;r.popped=true;addRoll(5000,true);playSE('pop');fxRoll(r,true);}}
-  else{const now=G.now;if(r.first==null)r.first=now;r.count++;r.last=now;addRoll(r.big?200:100,false,true);fxRoll(r);}}
+  else{const now=G.now;if(r.first==null)r.first=now;r.count++;r.last=now;addRoll(Math.floor((r.big?200:100)*(G.st.ab?G.st.ab.fx.roll:1)),false,true);fxRoll(r);}}
 function addRoll(pts,bonus,drum){for(const st of D?[G.st,D.st]:[G.st]){if(!bonus)st.roll++;if(drum)st.rollDrum++;st.score+=pts;}if(D)checkDanFail();}
 function activeRoll(t){for(const r of G.rolls)if(!r.done&&t>=r.t&&t<=r.end)return r;return null;}
 function nextTargetAfter(tg){const T=G.targets;const i=T.indexOf(tg);for(let j=i+1;j<T.length;j++)if(T[j].t>tg.t)return T[j];return null;}
@@ -3410,6 +3518,7 @@ function showResult(res){cancelAnimationFrame(rafId);rafId=0;const{chart,st}=res
   let newBest=false;const prevBest=(Lib.best[chart.uid]||{}).score||0;
   if(!res.auto&&!res.prac){markPlayed(chart.set);const b=Lib.best[chart.uid]||{score:0,crown:null};const nb={score:Math.max(b.score,st.score),crown:(CROWN_RANK[crown]||0)>(CROWN_RANK[b.crown]||0)?crown:b.crown,potZen:st.score>b.score?ZEN_CROWNS.includes(crown):!!b.potZen};newBest=st.score>b.score;Lib.best[chart.uid]=nb;store.set('kt.best',Lib.best);
     Lib.recent=[...(Lib.recent||[]),{uid:chart.uid,score:st.score,zen:ZEN_CROWNS.includes(crown),t:Date.now()}].slice(-30);store.set('kt.recent',Lib.recent);}
+  const charBox=charAfterPlay(chart,st,clear,res);
   // ポテンシャルの前後（記録したプレイのみ表示）
   const potAfter=calcPotential(),potD=Math.round((potAfter-potBefore)*100)/100;
   const potLine=res.auto||res.prac?null:el('p',{class:'res-note'},potD===0?`ポテンシャル ${potAfter.toFixed(2)}（変わらず）`:`ポテンシャル ${potBefore.toFixed(2)} → ${potAfter.toFixed(2)}（${potD>0?'+':''}${potD.toFixed(2)}）`);
@@ -3422,6 +3531,7 @@ function showResult(res){cancelAnimationFrame(rafId);rafId=0;const{chart,st}=res
         el('div',{class:'stamp '+kind},crown?CROWN[crown]:'クリア失敗'),
         el('div',{class:'score-row'},el('div',{class:'res-score'},scoreEl,el('small',null,'点')),rankBadge(st.score)),
         res.prac?el('div',{class:'best dim'},`練習モード（×${res.prac.rate}・${fmtTime(res.prac.from)}〜${fmtTime(res.prac.to)}）のため記録していません`):res.auto?el('div',{class:'best dim'},'オート演奏のため記録していません'):newBest?el('div',{class:'best'},`自己ベスト更新（前回 ${fmtNum(prevBest)}）`):el('div',{class:'best dim'},`ベスト ${fmtNum(prevBest)}`),
+        charBox,
         potLine,
         el('div',{class:'gwrap'},el('div',{class:'glab'},el('span',null,`魂ゲージ（クリア ${CLEAR[chart.course]/100}%）`),el('b',null,(st.gauge/100).toFixed(1)+'%')),
           el('div',{class:'gbar'},el('i',{style:`--w:${(st.gauge/100).toFixed(1)}%`}),el('b',{style:`--c:${CLEAR[chart.course]/100}%`})))),
@@ -4427,6 +4537,7 @@ async function loadRepositorySongs(direct=false){
         }
       }catch(error){failed++;Lib.loadWarn.push(kind+': '+error.message);}
     }
+    await loadCharacterFile();
     for(const chart of Lib.charts)chart.repoNoise=repoNoiseData[chart.uid]||{};
     resolveAll();refreshAll();
     let lastShown=0;

@@ -1,0 +1,9 @@
+# キャラクター定義（1行1キャラ。行頭 # はコメント）
+# id: 任意の英数字 / name: 表示名 / image: content/characters/ 内の画像ファイル名
+# ability: gauge_up / good_wide / score_up / renda_up / gauge_down / good_tight / seal
+# unlock_type: dan_pass / dan_gold / song_clear / song_full / song_zen / song_score / song_renda
+# unlock_target: 段位名（dan_*）または曲名（song_*）
+# unlock_course: 曲の譜面（かんたん/ふつう/おに など。空欄なら全譜面）
+# unlock_value: song_score は点数、song_renda は連打数。それ以外は空欄
+# unlock_text: 表示する入手条件の説明（空欄なら自動で作ります）
+id,name,image,ability,unlock_type,unlock_target,unlock_course,unlock_value,unlock_text
