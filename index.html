@@ -2568,7 +2568,7 @@ function arcadeEntries(){
   if(back)entries.push({folder:back,index:entries.length});
   for(const folder of folders)entries.push({folder,index:entries.length});
   visibleSets().forEach((set,index)=>{
-    if(back&&index>0&&index%7===0)entries.push({folder:back,index:entries.length});
+    if(back&&index>0&&index%6===0)entries.push({folder:back,index:entries.length});
     entries.push({set});
   });
   return entries;
@@ -2757,12 +2757,12 @@ function loudnessGain(buf){
   if(db===undefined){db=measureLoudness(buf);loudCache.set(buf,db);}
   if(db==null)return 1;
   return clamp(Math.pow(10,(LOUD_TARGET_DB-db)/20),.2,2.5);}
-// キー設定（演奏4キー＋6曲移動の2キー）。割り当てたキーが既に別の役割にあれば入れ替える
+// キー設定（演奏4キー＋7曲移動の2キー）。割り当てたキーが既に別の役割にあれば入れ替える
 function bindKey(i,code){
   const all=[...S.keys,...S.skipKeys],old=all.indexOf(code);
   if(old>=0&&old!==i)all[old]=all[i];
   all[i]=code;S.keys=all.slice(0,4);S.skipKeys=all.slice(4);saveS();}
-// 6曲分まとめて移動する（step は +6 で下、-6 で上）
+// 7曲分まとめて移動する（step は +7 で下、-7 で上）
 function jumpSongs(step){
   const entries=arcadeEntries();if(!entries.length)return;
   UI.gesture=true;ensureAudio();resetRimSequence();
@@ -3154,7 +3154,7 @@ function renderSettings(){
   const kb=$('#keybox');kb.innerHTML='';
   ROLES.forEach((r,i)=>{const b=el('button',{class:(ROLE_COLOR[r]==='k'?'ka':'don')+(UI.binding===i?' wait':''),id:'key-'+r},el('small',null,ROLE_JP[r]),el('b',null,UI.binding===i?'…':keyLabel(S.keys[i])));
     b.addEventListener('click',()=>{UI.binding=UI.binding===i?null:i;renderSettings();});kb.append(b);});
-  [['下へ6曲','down'],['上へ6曲','up']].forEach(([label],j)=>{const idx=4+j;
+  [["下へ7曲","down"],["上へ7曲","up"]].forEach(([label],j)=>{const idx=4+j;
     const b=el('button',{class:'ka'+(UI.binding===idx?' wait':''),id:'key-skip-'+j},el('small',null,label),el('b',null,UI.binding===idx?'…':keyLabel(S.skipKeys[j])));
     b.addEventListener('click',()=>{UI.binding=UI.binding===idx?null:idx;renderSettings();});kb.append(b);});
   $('#setSpeed').value=S.speed;$('#outSpeed').textContent='×'+Number(S.speed).toFixed(1);
@@ -4481,7 +4481,7 @@ window.addEventListener('keydown',e=>{
   if((e.key==='Escape'||e.key==='Backspace')&&UI.chooseCourse){e.preventDefault();backToSongs();return;}
   if((e.key==='Escape'||e.key==='Backspace')&&UI.folder){e.preventDefault();changeFolder(parentFolder(effectiveFolders()),UI.folder);return;}
   const sk=S.skipKeys.indexOf(e.code);
-  if(sk>=0&&!UI.chooseCourse){e.preventDefault();if(!e.repeat)jumpSongs(sk===0?6:-6);return;}
+  if(sk>=0&&!UI.chooseCourse){e.preventDefault();if(!e.repeat)jumpSongs(sk===0?7:-7);return;}
   if(UI.chooseCourse&&(ki===0||ki===3||e.key==='ArrowLeft'||e.key==='ArrowRight')){
     e.preventDefault();
     if(!e.repeat)hitPickerRim(ki===0||e.key==='ArrowLeft'?-1:1);
