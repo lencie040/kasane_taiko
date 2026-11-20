@@ -7,3 +7,4 @@
 # unlock_value: song_score は点数、song_renda は連打数。それ以外は空欄
 # unlock_text: 表示する入手条件の説明（空欄なら自動で作ります）
 id,name,image,ability,unlock_type,unlock_target,unlock_course,unlock_value,unlock_text
+1,レンゲツシェー,0777,seal,song_zen,恋月星,おに,,,
