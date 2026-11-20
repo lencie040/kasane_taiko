@@ -937,13 +937,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
   .dojo-windows.has-gauge{grid-template-columns:1fr}
   .dojo-windows.has-gauge>.dojo-condition .dojo-tiers{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
-.pot-card{display:grid;gap:4px;padding:10px 14px;border-radius:14px;border:1px solid var(--line,rgba(127,127,127,.35));background:var(--panel,rgba(127,127,127,.08));max-width:360px}
-.pot-main{display:flex;align-items:baseline;gap:8px}
-.pot-main small{font-size:12px;letter-spacing:.08em;opacity:.75}
-.pot-main b{font-size:28px;line-height:1;font-variant-numeric:tabular-nums;color:var(--accent,#f2bc3d)}
-.pot-theory{font-size:12px;opacity:.8;font-variant-numeric:tabular-nums}
-.pot-bar{height:6px;border-radius:999px;background:rgba(127,127,127,.25);overflow:hidden}
-.pot-bar i{display:block;height:100%;border-radius:inherit;background:var(--accent,#f2bc3d);transition:width .4s}
+.pot-badge{margin-left:auto;padding:3px 10px;border-radius:999px;border:2px solid currentColor;font-size:13px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
 </style>
 
 <header class="top">
@@ -967,7 +961,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
   <section class="pane" id="tab-select">
     <div class="select-grid">
       <div class="arcade-menu" id="arcadeMenu">
-        <div class="arcade-heading"><h2>曲をえらぶ</h2><span class="list-count num" id="listCount"></span></div>
+        <div class="arcade-heading"><h2>曲をえらぶ</h2><span class="list-count num" id="listCount"></span><span class="pot-badge num" id="potBadge" aria-live="polite"></span></div>
         <details class="arcade-catalog"><summary>検索・並び順・絞り込み</summary>
         <div class="list-head"><input id="filter" type="search" placeholder="曲名・アーティストで検索" aria-label="曲を検索"><button class="btn" id="randomBtn" title="表示中の曲からランダムに選びます">おまかせ</button></div>
         <div class="list-tools">
@@ -980,7 +974,6 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
           </div>
           <div class="lv-range" role="group" aria-label="難易度で絞り込み"><span>★</span><input id="lvMin" type="number" step="0.1" min="0" inputmode="decimal" placeholder="下限" aria-label="難易度の下限"><span>〜</span><input id="lvMax" type="number" step="0.1" min="0" inputmode="decimal" placeholder="上限" aria-label="難易度の上限"><button class="btn small" id="lvClear" type="button">クリア</button></div>
         </div></details>
-        <div id="potBadge" class="pot-badge" style="font-variant-numeric:tabular-nums;font-weight:700;margin:4px 2px 8px" aria-live="polite"></div>
         <div id="folderTools" class="folder-tools"></div>
         <ul class="songlist" id="songlist"></ul>
         <div class="arcade-footer"><button class="btn" id="arcadePrev" aria-label="前の曲またはフォルダ">▲</button><p class="nav-hint" id="navHint"></p><button class="btn" id="arcadeNext" aria-label="次の曲またはフォルダ">▼</button></div>
@@ -2226,18 +2219,8 @@ function calcPotential(){
   const all=[...best,...recent];
   if(!all.length)return 0;
   return Math.floor(all.reduce((a,b)=>a+b,0)/all.length*100)/100;}
-// 理論値：全譜面（重譜面を除く）でスコア 1,000,000 かつ全良を取ったときの、同じ計算方法によるポテンシャル
-function calcTheory(){
-  const vals=Lib.charts.filter(c=>c.level&&c.course!=='kasane').map(c=>potentialOf(c.level,1000000)+ZEN_BONUS).sort((a,b)=>b-a);
-  if(!vals.length)return 0;
-  const all=[...vals.slice(0,30),...Array(10).fill(vals[0])];   // 直近10件は同じ譜面の繰り返しも含む
-  return Math.floor(all.reduce((a,b)=>a+b,0)/all.length*100)/100;}
 function renderPotential(){const box=$('#potBadge');if(!box)return;
-  const v=calcPotential(),t=calcTheory(),pct=t>0?Math.min(100,Math.floor(v/t*100)):0;
-  box.replaceChildren(el('div',{class:'pot-card'},
-    el('div',{class:'pot-main'},el('small',null,'ポテンシャル'),el('b',null,v.toFixed(2))),
-    el('div',{class:'pot-theory'},`理論値 ${t.toFixed(2)} ・ 達成率 ${pct}%`),
-    el('div',{class:'pot-bar'},el('i',{style:`width:${pct}%`}))));}
+  box.textContent=`ポテンシャル ${calcPotential().toFixed(2)}`;}
 function crownBadge(k){return k?el('span',{class:'crown '+k},CROWN[k]):el('span',{class:'crown none'},'—');}
 let recordQuery='',recordFilter='played',recordOrder='score',recordPage=0;
 function renderRecords(){
