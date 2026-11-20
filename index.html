@@ -939,7 +939,9 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 }
 .pot-badge{margin-left:auto;padding:3px 10px;border-radius:999px;border:2px solid currentColor;font-size:13px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
 .arcade-heading .pot-badge{margin-left:0;margin-right:auto;color:#452638;background:#fff8df;border:2px solid #482d3e;padding:2px 12px}
-.char-bar{position:relative;z-index:3;padding:0 2px 8px;margin-top:-150px;width:max-content;max-width:100%}
+.songlist{position:relative;z-index:2}
+.char-bar{position:relative;z-index:1;padding:0 2px 8px;margin-top:-150px;width:max-content;max-width:100%}
+@media (min-width:861px){.char-bar{position:fixed;left:8px;bottom:8px;margin:0;padding:0}}
 #charBtn.char-pick{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 12px 10px;min-width:200px;max-width:100%;height:auto;line-height:1.3;box-shadow:0 8px 18px rgba(0,0,0,.35)}
 #charBtn .char-pick-img{width:min(40vw,240px);height:min(40vw,240px);object-fit:contain;border-radius:14px;background:rgba(127,127,127,.12)}
 #charBtn .char-pick-img[hidden]{display:none}
