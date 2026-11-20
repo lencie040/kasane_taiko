@@ -938,6 +938,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
   .dojo-windows.has-gauge>.dojo-condition .dojo-tiers{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 .pot-badge{margin-left:auto;padding:3px 10px;border-radius:999px;border:2px solid currentColor;font-size:13px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+.arcade-heading .pot-badge{margin-left:0;margin-right:auto}
 </style>
 
 <header class="top">
@@ -961,7 +962,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
   <section class="pane" id="tab-select">
     <div class="select-grid">
       <div class="arcade-menu" id="arcadeMenu">
-        <div class="arcade-heading"><h2>曲をえらぶ</h2><span class="list-count num" id="listCount"></span><span class="pot-badge num" id="potBadge" aria-live="polite"></span></div>
+        <div class="arcade-heading"><h2>曲をえらぶ</h2><span class="pot-badge num" id="potBadge" aria-live="polite"></span><span class="list-count num" id="listCount"></span></div>
         <details class="arcade-catalog"><summary>検索・並び順・絞り込み</summary>
         <div class="list-head"><input id="filter" type="search" placeholder="曲名・アーティストで検索" aria-label="曲を検索"><button class="btn" id="randomBtn" title="表示中の曲からランダムに選びます">おまかせ</button></div>
         <div class="list-tools">
