@@ -3165,7 +3165,8 @@ function charUnlockText(c){switch(c.type){
   case'song_zen':return`「${c.target}」全良`;case'song_score':return`「${c.target}」${c.value.toLocaleString()}点以上`;
   case'song_renda':return`「${c.target}」連打 ${c.value}打以上`;}return'';}
 function charUnlocked(c){
-  const songs=()=>Lib.charts.filter(x=>x.set.title===c.target&&(!c.course||x.course===c.course));
+  // 曲名は画面に表示される名前（set.title）と完全一致、譜面は内部名（oni など）か表示名（おに など）のどちらでも可
+  const songs=()=>Lib.charts.filter(x=>x.set.title===c.target&&(!c.course||x.course===c.course||COURSES[x.course]?.jp===c.course||x.meta.version===c.course));
   const dan=()=>Lib.dans.find(d=>d.name===c.target||d.key===c.target);
   switch(c.type){
     case'dan_pass':{const d=dan();return!!d&&!!Lib.danBest[d.key];}
