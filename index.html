@@ -939,7 +939,15 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 }
 .pot-badge{margin-left:auto;padding:3px 10px;border-radius:999px;border:2px solid currentColor;font-size:13px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
 .arcade-heading .pot-badge{margin-left:0;margin-right:auto;color:#452638;background:#fff8df;border:2px solid #482d3e;padding:2px 12px}
-.char-picker{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 10px;scrollbar-width:thin}
+.char-bar{padding:2px 2px 8px}
+.char-panel{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:16px;background:rgba(20,8,16,.55)}
+.char-panel[hidden]{display:none}
+.char-sheet{width:100%;max-width:560px;max-height:86dvh;overflow:auto;padding:14px;border-radius:18px;border:3px solid #482d3e;background:#fff8df;color:#452638;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.char-sheet-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.char-sheet-head h3{margin:0;font-size:20px}
+.char-sheet-note{margin:6px 0 10px;font-size:12px;opacity:.8}
+.char-picker{display:flex;flex-wrap:wrap;gap:8px;padding:4px 2px 10px}
+.char-picker[hidden]{display:none}
 .char-card{flex:0 0 auto;width:92px;display:grid;justify-items:center;gap:2px;padding:6px 6px 8px;border-radius:14px;border:2px solid #482d3e;background:#fff8df;color:#452638;font:inherit;cursor:pointer;text-align:center}
 .char-card strong{font-size:13px;line-height:1.2;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .char-card small{font-size:11px;line-height:1.3;opacity:.85}
@@ -975,7 +983,6 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
     <div class="select-grid">
       <div class="arcade-menu" id="arcadeMenu">
         <div class="arcade-heading"><h2>曲をえらぶ</h2><span class="pot-badge num" id="potBadge" aria-live="polite"></span><span class="list-count num" id="listCount"></span></div>
-        <div id="charPicker" class="char-picker" hidden></div>
         <details class="arcade-catalog"><summary>検索・並び順・絞り込み</summary>
         <div class="list-head"><input id="filter" type="search" placeholder="曲名・アーティストで検索" aria-label="曲を検索"><button class="btn" id="randomBtn" title="表示中の曲からランダムに選びます">おまかせ</button></div>
         <div class="list-tools">
@@ -990,6 +997,14 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
         </div></details>
         <div id="folderTools" class="folder-tools"></div>
         <ul class="songlist" id="songlist"></ul>
+        <div class="char-bar" id="charBar" hidden><button class="btn" id="charBtn" type="button" aria-haspopup="dialog">キャラ：なし</button></div>
+        <div class="char-panel" id="charPanel" hidden role="dialog" aria-modal="true" aria-label="キャラクターを選ぶ">
+          <div class="char-sheet">
+            <div class="char-sheet-head"><h3>キャラクター</h3><button class="btn" id="charClose" type="button">閉じる</button></div>
+            <p class="char-sheet-note">獲得したキャラから選べます。同じキャラを押すと外れます。</p>
+            <div id="charPicker" class="char-picker"></div>
+          </div>
+        </div>
         <div class="arcade-footer"><button class="btn" id="arcadePrev" aria-label="前の曲またはフォルダ">▲</button><p class="nav-hint" id="navHint"></p><button class="btn" id="arcadeNext" aria-label="次の曲またはフォルダ">▼</button></div>
       </div>
       <div class="detail" id="detail"></div>
@@ -3217,19 +3232,25 @@ function charAfterPlay(chart,st,clear,res){
   const img=el('img',{src:`content/characters/${c.image}`,alt:c.name,class:'char-img'});img.onerror=()=>{img.hidden=true;};
   return el('div',{class:'char-result'},img,el('div',{class:'char-result-text'},el('strong',null,c.name),
     el('small',null,`Lv ${lv}　経験値 +${gain}${up?'　レベルアップ！':''}`),el('small',null,ABILITY_JP[c.ability])));}
+$('#charBtn')?.addEventListener('click',()=>openCharPanel(true));
+$('#charClose')?.addEventListener('click',()=>openCharPanel(false));
+$('#charPanel')?.addEventListener('click',e=>{if(e.target.id==='charPanel')openCharPanel(false);});
+function openCharPanel(open){const p=$('#charPanel');if(!p)return;p.hidden=!open;if(open)renderCharPicker();}
 function renderCharPicker(){const box=$('#charPicker');if(!box)return;
-  if(!Lib.characters.length){box.hidden=true;return;}
-  box.hidden=false;
+  const sel=selectedChar(),bar=$('#charBar'),btn=$('#charBtn');
+  if(bar)bar.hidden=!Lib.characters.length;
+  if(btn)btn.textContent=`キャラ：${sel?sel.name:'なし'}`;
+  if(!Lib.characters.length){openCharPanel(false);return;}
   const pic=(src,cls)=>{const i=el('img',{src,alt:'',class:cls});i.onerror=()=>{i.hidden=true;};return i;};
   const none=el('button',{type:'button',class:'char-card'+(!selectedChar()?' is-on':'')},el('strong',null,'なし'),el('small',null,'能力なし'));
-  none.onclick=()=>{CHARS_SAVE.selected=null;saveChars();renderCharPicker();};
+  none.onclick=()=>{CHARS_SAVE.selected=null;saveChars();openCharPanel(false);renderCharPicker();};
   const cards=[none];
   for(const c of Lib.characters){const owned=!!CHARS_SAVE.owned[c.id],on=owned&&CHARS_SAVE.selected===c.id;
     const b=el('button',{type:'button',class:'char-card'+(owned?'':' locked')+(on?' is-on':''),title:owned?ABILITY_JP[c.ability]:(c.text||charUnlockText(c))},
       pic(`content/characters/${c.image}`,'char-img'),el('strong',null,owned?c.name:'？？？'),
       el('small',null,owned?`Lv ${(CHARS_SAVE.prog[c.id]||{lv:1}).lv}`:'ロック'),
       owned?el('small',null,ABILITY_JP[c.ability]):el('small',{class:'char-cond'},c.text||charUnlockText(c)));
-    b.onclick=()=>{if(!owned)return;CHARS_SAVE.selected=on?null:c.id;saveChars();renderCharPicker();};
+    b.onclick=()=>{if(!owned)return;CHARS_SAVE.selected=on?null:c.id;saveChars();openCharPanel(false);renderCharPicker();};
     cards.push(b);}
   box.replaceChildren(...cards);}
 
