@@ -948,6 +948,15 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 .char-sheet-note{margin:6px 0 10px;font-size:12px;opacity:.8}
 .char-picker{display:flex;flex-wrap:wrap;gap:8px;padding:4px 2px 10px}
 .char-picker[hidden]{display:none}
+.char-preview{display:flex;gap:12px;align-items:center;margin:0 0 8px}
+.char-preview:empty{display:none}
+.char-preview-img{width:112px;height:112px;flex:0 0 auto;object-fit:cover;border-radius:14px;background:rgba(127,127,127,.2)}
+.char-preview-text{display:grid;gap:4px;min-width:0}
+.char-thumb{width:32px;height:32px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-right:6px}
+#result.has-char{display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:nowrap}
+#result.has-char[hidden]{display:none}
+.res-char-out{flex:0 0 auto;width:min(26vw,170px);height:auto;max-height:70dvh;object-fit:contain;border-radius:16px;filter:drop-shadow(0 6px 14px rgba(0,0,0,.35))}
+@media (max-width:700px){#result.has-char{flex-direction:column;gap:8px}.res-char-out{width:min(42vw,150px)}}
 .char-card{flex:0 0 auto;width:92px;display:grid;justify-items:center;gap:2px;padding:6px 6px 8px;border-radius:14px;border:2px solid #482d3e;background:#fff8df;color:#452638;font:inherit;cursor:pointer;text-align:center}
 .char-card strong{font-size:13px;line-height:1.2;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .char-card small{font-size:11px;line-height:1.3;opacity:.85}
@@ -1002,6 +1011,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
           <div class="char-sheet">
             <div class="char-sheet-head"><h3>キャラクター</h3><button class="btn" id="charClose" type="button">閉じる</button></div>
             <p class="char-sheet-note">獲得したキャラから選べます。同じキャラを押すと外れます。</p>
+            <div class="char-preview" id="charPreview"></div>
             <div id="charPicker" class="char-picker"></div>
           </div>
         </div>
@@ -3229,9 +3239,19 @@ function charAfterPlay(chart,st,clear,res){
   while(lv<100&&xp>=charNeed(lv)){xp-=charNeed(lv);lv++;up=true;}
   if(lv>=100)xp=0;
   CHARS_SAVE.prog[c.id]={lv,xp};saveChars();renderCharPicker();
-  const img=el('img',{src:`content/characters/${c.image}`,alt:c.name,class:'char-img'});img.onerror=()=>{img.hidden=true;};
-  return el('div',{class:'char-result'},img,el('div',{class:'char-result-text'},el('strong',null,c.name),
-    el('small',null,`Lv ${lv}　経験値 +${gain}${up?'　レベルアップ！':''}`),el('small',null,ABILITY_JP[c.ability])));}
+  // 画像はリザルト画面の左外側に出すため、カードの外に返す
+  const img=el('img',{src:`content/characters/${c.image}`,alt:c.name,class:'res-char-out'});img.onerror=()=>{img.hidden=true;};
+  const box=el('div',{class:'char-result'},el('div',{class:'char-result-text'},el('strong',null,c.name),
+    el('small',null,`Lv ${lv}　経験値 +${gain}${up?'　レベルアップ！':''}`),el('small',null,ABILITY_JP[c.ability])));
+  return{box,img};}
+// リザルト画面の左外側にキャラ画像を出す（null のときは消す）
+function setResultChar(r){const ov=$('#result');if(!ov)return;
+  ov.querySelectorAll('.res-char-out').forEach(e=>e.remove());ov.classList.toggle('has-char',!!r);
+  if(r)ov.prepend(r.img);}
+// キャラ選択パネルの上部に、選んでいる（触れている）キャラを大きく出す
+function previewChar(c){const box=$('#charPreview');if(!box)return;box.replaceChildren();if(!c)return;
+  const img=el('img',{src:`content/characters/${c.image}`,alt:c.name,class:'char-preview-img'});img.onerror=()=>{img.hidden=true;};
+  box.append(img,el('div',{class:'char-preview-text'},el('strong',null,c.name),el('small',null,`Lv ${(CHARS_SAVE.prog[c.id]||{lv:1}).lv}`),el('small',null,ABILITY_JP[c.ability])));}
 $('#charBtn')?.addEventListener('click',()=>openCharPanel(true));
 $('#charClose')?.addEventListener('click',()=>openCharPanel(false));
 $('#charPanel')?.addEventListener('click',e=>{if(e.target.id==='charPanel')openCharPanel(false);});
@@ -3239,7 +3259,9 @@ function openCharPanel(open){const p=$('#charPanel');if(!p)return;p.hidden=!open
 function renderCharPicker(){const box=$('#charPicker');if(!box)return;
   const sel=selectedChar(),bar=$('#charBar'),btn=$('#charBtn');
   if(bar)bar.hidden=!Lib.characters.length;
-  if(btn)btn.textContent=`キャラ：${sel?sel.name:'なし'}`;
+  if(btn){const thumb=sel?el('img',{src:`content/characters/${sel.image}`,alt:'',class:'char-thumb'}):null;
+    if(thumb)thumb.onerror=()=>{thumb.hidden=true;};
+    btn.replaceChildren(...(thumb?[thumb]:[]),document.createTextNode(`キャラ：${sel?sel.name:'なし'}`));}
   if(!Lib.characters.length){openCharPanel(false);return;}
   const pic=(src,cls)=>{const i=el('img',{src,alt:'',class:cls});i.onerror=()=>{i.hidden=true;};return i;};
   const none=el('button',{type:'button',class:'char-card'+(!selectedChar()?' is-on':'')},el('strong',null,'なし'),el('small',null,'能力なし'));
@@ -3250,9 +3272,11 @@ function renderCharPicker(){const box=$('#charPicker');if(!box)return;
       pic(`content/characters/${c.image}`,'char-img'),el('strong',null,owned?c.name:'？？？'),
       el('small',null,owned?`Lv ${(CHARS_SAVE.prog[c.id]||{lv:1}).lv}`:'ロック'),
       owned?el('small',null,ABILITY_JP[c.ability]):el('small',{class:'char-cond'},c.text||charUnlockText(c)));
+    if(owned){b.addEventListener('mouseenter',()=>previewChar(c));b.addEventListener('focus',()=>previewChar(c));}
     b.onclick=()=>{if(!owned)return;CHARS_SAVE.selected=on?null:c.id;saveChars();openCharPanel(false);renderCharPicker();};
     cards.push(b);}
-  box.replaceChildren(...cards);}
+  box.replaceChildren(...cards);
+  previewChar(sel);}
 
 /* ================= 演奏 ================= */
 let G=null,D=null,rafId=0;const cv=$('#cv'),ctx=cv.getContext('2d');const view={W:0,H:0,dpr:1,L:null};
@@ -3540,12 +3564,12 @@ function showResult(res){cancelAnimationFrame(rafId);rafId=0;const{chart,st}=res
   let newBest=false;const prevBest=(Lib.best[chart.uid]||{}).score||0;
   if(!res.auto&&!res.prac){markPlayed(chart.set);const b=Lib.best[chart.uid]||{score:0,crown:null};const nb={score:Math.max(b.score,st.score),crown:(CROWN_RANK[crown]||0)>(CROWN_RANK[b.crown]||0)?crown:b.crown,potZen:st.score>b.score?ZEN_CROWNS.includes(crown):!!b.potZen};newBest=st.score>b.score;Lib.best[chart.uid]=nb;store.set('kt.best',Lib.best);
     Lib.recent=[...(Lib.recent||[]),{uid:chart.uid,score:st.score,zen:ZEN_CROWNS.includes(crown),t:Date.now()}].slice(-30);store.set('kt.recent',Lib.recent);}
-  const charBox=charAfterPlay(chart,st,clear,res);
+  const charRes=charAfterPlay(chart,st,clear,res),charBox=charRes?charRes.box:null;
   // ポテンシャルの前後（記録したプレイのみ表示）
   const potAfter=calcPotential(),potD=Math.round((potAfter-potBefore)*100)/100;
   const potLine=res.auto||res.prac?null:el('p',{class:'res-note'},potD===0?`ポテンシャル ${potAfter.toFixed(2)}（変わらず）`:`ポテンシャル ${potBefore.toFixed(2)} → ${potAfter.toFixed(2)}（${potD>0?'+':''}${potD.toFixed(2)}）`);
   const C=COURSES[chart.course],kind=!crown?'fail':crown==='zentoku'?'zentoku':crown==='zenryo'?'zen':crown;
-  const scoreEl=el('span',null,'0');const card=$('#resultCard');card.className='ov-card res';card.innerHTML='';
+  const scoreEl=el('span',null,'0');const card=$('#resultCard');card.className='ov-card res';card.innerHTML='';setResultChar(charRes);
   const tags=[S.speed!==1?`×${S.speed.toFixed(1)}`:'',optLabel()].filter(Boolean).join('・');
   card.append(el('div',{class:'res-head'},el('span',{class:'chip',style:`--cc:${C.color}`},C.jp,el('b',null,levelText(chart))),el('span',{class:'ttl'},chart.set.title),tags?el('span',{class:'res-tags'},tags):null),
     el('div',{class:'res-main'},
@@ -3574,7 +3598,7 @@ function showDanResult(){cancelAnimationFrame(rafId);rafId=0;if(!D)return;const 
   if(red&&!D.auto){const prev=Lib.danBest[d.key];if(prev!=='gold')Lib.danBest[d.key]=gold?'gold':'red';store.set('kt.danBest',Lib.danBest);
     if(unlockC){const was=Lib.unlocks[unlockC.uid];Lib.unlocks[unlockC.uid]=gold||was==='gold'?'gold':'red';store.set('kt.unlocks',Lib.unlocks);
     unlockMsg=was?`「${unlockC.set.title}」重 ${ROMAN[unlockC.level]||''} は解禁済みです`:`「${unlockC.set.title}」重 ${ROMAN[unlockC.level]||''} が通常プレイで遊べるようになりました`;}}
-  const scoreEl=el('span',null,'0');const card=$('#resultCard');card.className='ov-card res';card.innerHTML='';
+  const scoreEl=el('span',null,'0');const card=$('#resultCard');card.className='ov-card res';card.innerHTML='';setResultChar(null);
   card.append(el('div',{class:'res-head'},el('span',{class:'dan-mini'},d.src==='monthly'?'月':d.level?ROMAN[d.level]:'?'),el('span',{class:'ttl'},d.name)),
     el('div',{class:'res-main'},
       el('div',{class:'res-left'},
