@@ -949,9 +949,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 .pot-badge{margin-left:auto;padding:3px 10px;border-radius:999px;border:2px solid currentColor;font-size:13px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
 .arcade-heading .pot-badge{margin-left:0;margin-right:auto;color:#452638;background:#fff8df;border:2px solid #482d3e;padding:2px 12px}
 .arcade-heading h2,.course-top h2{font-family:var(--f-display);font-weight:400}
-.arcade-board{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;align-items:start}
-.arcade-track{min-width:0}
-.arcade-footer{margin:0 0 4px}
+.arcade-footer{margin:0 0 4px;flex-wrap:wrap}
 .arcade-footer .btn{
   width:44px;min-height:38px;padding:2px 6px;border:2px solid #5e344b;border-radius:11px;
   background:#fff5d3;box-shadow:0 3px #9f5258;color:#5d2e51;
@@ -987,51 +985,36 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 }
 #songlist :is(.song,.folder-entry):focus-visible{outline:2px dashed #542545;outline-offset:2px}
 #songlist .song .chips{width:100%;margin-top:6px}
-.char-bar{display:flex;align-items:center;justify-content:center;gap:12px;min-width:0}
-#charArtwork{display:block;width:min(92px,26vw);height:auto;max-height:106px;object-fit:contain;filter:drop-shadow(0 5px 5px #63374838)}
-#charBtn{display:grid;justify-items:start;gap:1px;min-height:44px;max-width:100%;padding:6px 14px;border:2px solid #653650;border-radius:10px;background:#fff8e1;color:#542c49;box-shadow:0 3px #ad6165;text-align:left}
-#charBtn strong,#charBtn small{display:block;overflow-wrap:anywhere}
-#charBtn small{color:#754757}
-@media(min-width:1060px){
-  .arcade-board:has(.char-bar:not([hidden])){grid-template-columns:minmax(0,1fr) minmax(126px,17%);gap:16px}
-  .char-bar{flex-direction:column;position:sticky;top:84px;padding:12px 2px}
-  #charArtwork{width:100%;max-width:214px;max-height:290px}
+.arcade-songboard{display:grid;grid-template-columns:minmax(0,1fr);align-items:center}
+.arcade-songboard:has(.arcade-character:not([hidden])){
+  grid-template-columns:clamp(52px,15%,180px) minmax(0,1fr);
 }
-@media(max-width:1059px){.char-bar{order:-1}}
+.arcade-character{margin:0;min-width:0;pointer-events:none}
+#charArtwork{display:block;width:100%;max-height:clamp(122px,30vw,298px);object-fit:contain;filter:drop-shadow(0 5px 5px #63374855)}
+#charBtn{width:auto;max-width:100%;padding-inline:9px;min-height:38px;font-size:12px;line-height:1.25}
 @media(max-width:650px){
   #songlist>li:not(.empty){width:91%}
-  .arcade-board{gap:6px}
   #songlist{--sel-h:148px}
   #songlist .song .chips{gap:3px}
+  .arcade-songboard:has(.arcade-character:not([hidden])) #songlist{padding-inline:6px}
+  .arcade-songboard:has(.arcade-character:not([hidden])) #songlist>li:not(.empty):not(.song-outgoing){width:96%;translate:calc(var(--strip-shift,0%) * .38) 0}
 }
-.char-panel{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:16px;background:rgba(20,8,16,.55)}
-.char-panel[hidden]{display:none}
-.char-sheet{width:100%;max-width:560px;max-height:86dvh;overflow:auto;padding:14px;border-radius:18px;border:3px solid #482d3e;background:#fff8df;color:#452638;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.char-panel{padding:14px;width:min(560px,calc(100% - 26px));max-height:86dvh;overflow:auto;border-radius:18px;border:3px solid #482d3e;background:#fff8df;color:#452638;box-shadow:0 10px 30px #14081059}
+.char-panel::backdrop{background:#1408108c}
 .char-sheet-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .char-sheet-head h3{margin:0;font-size:20px}
-.char-sheet-note{margin:6px 0 10px;font-size:12px;opacity:.8}
-.char-picker{display:flex;flex-wrap:wrap;gap:8px;padding:4px 2px 10px}
-.char-picker[hidden]{display:none}
-.char-preview{display:flex;gap:12px;align-items:center;margin:0 0 8px}
-.char-preview:empty{display:none}
-.char-preview-img{width:112px;height:112px;flex:0 0 auto;object-fit:contain}
-.char-preview-text{display:grid;gap:4px;min-width:0}
-.char-thumb{width:32px;height:32px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-right:6px}
+.char-picker{display:grid;gap:8px;padding:0;margin:12px 0 0;list-style:none}
+.char-choice{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 10px;border:1px solid #ba8b86;border-radius:10px;background:#fff4db}
+.char-choice.is-on{border-color:#a35b45;background:#ffe7a8}
+.char-choice-text{display:grid;gap:1px;min-width:0;overflow-wrap:anywhere}
+.char-choice-text small{color:#754757}
+.char-choice .btn{flex:none;min-height:38px;padding:4px 9px}
+.char-choice .char-lock{color:#754757;flex:none;font-weight:700}
 #result.has-char{display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:nowrap}
 #result.has-char[hidden]{display:none}
 .res-char-out{flex:0 0 auto;width:min(30vw,280px);height:auto;max-height:78dvh;object-fit:contain;border-radius:16px;filter:drop-shadow(0 6px 14px rgba(0,0,0,.35))}
 #result.has-char>.ov-card{min-width:0;flex:0 1 900px}
 @media (max-width:700px){#result.has-char{flex-direction:column;gap:8px}.res-char-out{width:min(60vw,220px);max-height:30dvh}}
-.char-choice{flex:0 0 auto;width:112px;display:grid;justify-items:center;align-content:start;gap:5px}
-.char-choice>.char-img{background:none;object-fit:contain}
-.char-card{width:100%;min-height:44px;display:grid;justify-items:center;gap:2px;padding:6px 8px;border-radius:10px;border:2px solid #794e5e;background:#fff2d5;color:#452638;font:inherit;cursor:pointer;text-align:center}
-.char-card strong{font-size:13px;line-height:1.2;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.char-card small{font-size:11px;line-height:1.3;opacity:.85}
-.char-card.is-on{outline:3px solid #f2bc3d;outline-offset:1px}
-.char-card.locked{filter:grayscale(1);opacity:.7;cursor:default}
-.char-card .char-cond{font-size:10px}
-.char-card .char-img,.char-result .char-img{width:64px;height:64px;object-fit:cover;border-radius:10px;background:rgba(127,127,127,.2)}
-.char-none{width:64px;height:64px;display:grid;place-items:center;border-radius:10px;background:rgba(127,127,127,.15);font-weight:700}
 .char-result{display:flex;gap:12px;align-items:center;padding:10px;border-radius:14px;border:2px solid #482d3e;background:#fff8df;color:#452638;margin:8px 0}
 .char-result-text{display:grid;gap:2px;min-width:0}
 .char-result-text small{font-size:12px}
@@ -1072,24 +1055,20 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
           <div class="lv-range" role="group" aria-label="難易度で絞り込み"><span>★</span><input id="lvMin" type="number" step="0.1" min="0" inputmode="decimal" placeholder="下限" aria-label="難易度の下限"><span>〜</span><input id="lvMax" type="number" step="0.1" min="0" inputmode="decimal" placeholder="上限" aria-label="難易度の上限"><button class="btn small" id="lvClear" type="button">クリア</button></div>
         </div></details>
         <div id="folderTools" class="folder-tools"></div>
-        <div class="arcade-board">
-          <div class="arcade-track">
-            <div class="arcade-footer"><button class="btn" id="arcadePrev" aria-label="前の曲またはフォルダ">▲</button><p class="nav-hint" id="navHint"></p><button class="btn" id="arcadeNext" aria-label="次の曲またはフォルダ">▼</button></div>
-            <ul class="songlist" id="songlist" aria-label="曲とフォルダ"></ul>
-          </div>
-          <div class="char-bar" id="charBar" hidden>
-            <img id="charArtwork" alt="" hidden>
-            <button class="btn" id="charBtn" type="button" aria-haspopup="dialog" aria-controls="charPanel" aria-expanded="false"><strong>キャラを選ぶ</strong><small></small></button>
-          </div>
+        <div class="arcade-footer">
+          <button class="btn" id="arcadePrev" aria-label="前の曲またはフォルダ">▲</button>
+          <p class="nav-hint" id="navHint"></p>
+          <button class="btn" id="arcadeNext" aria-label="次の曲またはフォルダ">▼</button>
+          <button class="btn" id="charBtn" type="button" aria-haspopup="dialog" aria-controls="charPanel" aria-expanded="false" hidden>キャラ選択</button>
         </div>
-        <div class="char-panel" id="charPanel" hidden role="dialog" aria-modal="true" aria-label="キャラクターを選ぶ">
-          <div class="char-sheet">
-            <div class="char-sheet-head"><h3>キャラクター</h3><button class="btn" id="charClose" type="button">閉じる</button></div>
-            <p class="char-sheet-note">獲得したキャラから選べます。同じキャラを押すと外れます。</p>
-            <div class="char-preview" id="charPreview"></div>
-            <div id="charPicker" class="char-picker"></div>
-          </div>
+        <div class="arcade-songboard">
+          <figure class="arcade-character" id="charStand" hidden><img id="charArtwork" alt=""></figure>
+          <ul class="songlist" id="songlist" aria-label="曲とフォルダ"></ul>
         </div>
+        <dialog class="char-panel" id="charPanel" aria-labelledby="charPanelTitle">
+          <div class="char-sheet-head"><h3 id="charPanelTitle">キャラクター</h3><button class="btn" id="charClose" type="button" autofocus>閉じる</button></div>
+          <ul id="charPicker" class="char-picker"></ul>
+        </dialog>
       </div>
       <div class="detail" id="detail"></div>
     </div>
@@ -1586,6 +1565,7 @@ function resolveAll(){
   for(const r of rules)if(!r.used)warns.push(`charts.csv ${r.line}行目: 一致する譜面が読み込まれていません（${r.file} / ${r.version}）`);
   Lib.csvWarn=warns;buildDans();
   if(Lib.csvWarn.some(w=>w.includes('読み込まれていません')))Lib.csvWarn.push(loadedHint());
+  evaluateCharacters();
 }
 function finishDan(d){
   d.ready=d.songs.length===3&&d.songs.every(Boolean);d.level=d.songs[2]?.course==='kasane'?d.songs[2].level:null;
@@ -3262,12 +3242,15 @@ function parseCharacters(text){
 async function loadCharacterFile(){
   try{const r=await fetch('content/characters.csv',{cache:'no-cache'});if(r.ok)Lib.characters=parseCharacters(await r.text());else Lib.characters=[];}
   catch(e){Lib.characters=[];}
-  evaluateCharacters();}
-function charUnlockText(c){switch(c.type){
+}
+function charUnlockText(c){
+  if(c.text)return c.text;
+  const song=`「${c.target}」${c.course?`（${COURSES[c.course]?.jp||c.course}）`:''}`;
+  switch(c.type){
   case'dan_pass':return`${c.target} 合格`;case'dan_gold':return`${c.target} 金合格`;
-  case'song_clear':return`「${c.target}」${c.course?c.course+' ':''}クリア`;case'song_full':return`「${c.target}」フルコンボ`;
-  case'song_zen':return`「${c.target}」全良`;case'song_score':return`「${c.target}」${c.value.toLocaleString()}点以上`;
-  case'song_renda':return`「${c.target}」連打 ${c.value}打以上`;}return'';}
+  case'song_clear':return`${song}をクリア`;case'song_full':return`${song}をフルコンボ`;
+  case'song_zen':return`${song}を全良`;case'song_score':return`${song}で${fmtNum(c.value)}点以上`;
+  case'song_renda':return`${song}で連打${fmtNum(c.value)}打以上`;}return'';}
 function charUnlocked(c){
   // 曲名は画面に表示される名前（set.title）と完全一致、譜面は内部名（oni など）か表示名（おに など）のどちらでも可
   const songs=()=>Lib.charts.filter(x=>x.set.title===c.target&&(!c.course||x.course===c.course||COURSES[x.course]?.jp===c.course||x.meta.version===c.course));
@@ -3284,8 +3267,8 @@ function charUnlocked(c){
 function evaluateCharacters(){
   const got=[];for(const c of Lib.characters){if(!CHARS_SAVE.owned[c.id]&&charUnlocked(c)){CHARS_SAVE.owned[c.id]=true;got.push(c);}}
   if(got.length){saveChars();for(const c of got)toast(`新しいキャラクター獲得：${c.name}`);}
-  renderCharPicker();return got;}
-function selectedChar(){const c=Lib.characters.find(x=>x.id===CHARS_SAVE.selected);return c&&CHARS_SAVE.owned[c.id]?c:null;}
+}
+function selectedChar(){const id=CHARS_SAVE.selected;return id!=null&&CHARS_SAVE.owned[id]?Lib.characters.find(c=>c.id===String(id))??null:null;}
 // 通常プレイで選んでいるキャラの能力（レベル反映済み）。Lv1 は能力なし、Lv100 で記載の効果になる
 function charEffects(ch,lv,soft){
   const t=(clamp(lv,1,100)-1)/99,fx={gain:1,loss:1,gainClear:1,lossClear:1,score:1,roll:1,good:soft?42:25,seal:0};
@@ -3327,49 +3310,73 @@ function charAfterPlay(chart,st,clear,res){
 function setResultChar(r){const ov=$('#result');if(!ov)return;
   ov.querySelectorAll('.res-char-out').forEach(e=>e.remove());ov.classList.toggle('has-char',!!r);
   if(r)ov.prepend(r.img);}
-// キャラ選択パネルの上部に、選んでいる（触れている）キャラを大きく出す
-function previewChar(c){const box=$('#charPreview');if(!box)return;box.replaceChildren();if(!c)return;
-  const img=el('img',{src:`content/characters/${c.image}`,alt:c.name,class:'char-preview-img'});img.onerror=()=>{img.hidden=true;};
-  box.append(img,el('div',{class:'char-preview-text'},el('strong',null,c.name),el('small',null,`Lv ${(CHARS_SAVE.prog[c.id]||{lv:1}).lv}`),el('small',null,ABILITY_JP[c.ability])));}
-$('#charBtn')?.addEventListener('click',()=>openCharPanel(true));
-$('#charClose')?.addEventListener('click',()=>openCharPanel(false));
-$('#charPanel')?.addEventListener('click',e=>{if(e.target.id==='charPanel')openCharPanel(false);});
-function openCharPanel(open){
-  const panel=$('#charPanel'),button=$('#charBtn');
-  const changed=panel.hidden===open;
-  panel.hidden=!open;button.setAttribute('aria-expanded',String(open));
-  if(open){renderCharPicker();$('#charClose').focus();}
-  else if(changed&&!$('#charBar').hidden)button.focus({preventScroll:true});
+const charPanel=$('#charPanel'),charButton=$('#charBtn'),charArtwork=$('#charArtwork'),charStand=$('#charStand');
+let renderedCharChoices='';
+charButton.addEventListener('click',()=>{
+  if(charPanel.open||!Lib.characters.length)return;
+  evaluateCharacters();
+  charPanel.showModal();
+  charButton.setAttribute('aria-expanded','true');
+  renderCharPicker();
+});
+$('#charClose').addEventListener('click',()=>charPanel.close());
+charPanel.addEventListener('click',e=>{
+  if(e.target!==charPanel)return;
+  const {left,right,top,bottom}=charPanel.getBoundingClientRect();
+  if(e.clientX<left||e.clientX>right||e.clientY<top||e.clientY>bottom)charPanel.close();
+});
+charPanel.addEventListener('close',()=>{
+  if(charPanel.open)return;
+  charButton.setAttribute('aria-expanded','false');
+  if(!charButton.hidden)charButton.focus({preventScroll:true});
+});
+charArtwork.addEventListener('error',()=>{charStand.hidden=true;});
+
+function chooseCharacter(id){
+  if(id!==null&&!CHARS_SAVE.owned[id])return;
+  CHARS_SAVE.selected=id;
+  saveChars();
+  renderCharPicker();
+  charPanel.close();
 }
-function renderCharPicker(){const box=$('#charPicker');if(!box)return;
-  const sel=selectedChar(),bar=$('#charBar'),art=$('#charArtwork');
-  bar.hidden=!Lib.characters.length;
-  if(sel){
-    const path=`content/characters/${sel.image}`;
-    art.alt=sel.name;
-    if(art.getAttribute('src')!==path){
-      art.hidden=false;art.src=path;
+function renderCharPicker(){
+  const selected=selectedChar();
+  charButton.hidden=!Lib.characters.length;
+  charButton.textContent=selected?'キャラ変更':'キャラ選択';
+  charButton.setAttribute('aria-label',selected?`キャラ変更（使用中：${selected.name}）`:'キャラクターを選ぶ');
+  if(selected){
+    const path=`content/characters/${encodeURIComponent(selected.image)}`;
+    charArtwork.alt=selected.name;
+    if(charArtwork.getAttribute('src')!==path){
+      charStand.hidden=false;
+      charArtwork.src=path;
     }
   }else{
-    art.hidden=true;art.removeAttribute('src');art.alt='';
+    charStand.hidden=true;charArtwork.removeAttribute('src');charArtwork.alt='';
   }
-  $('#charBtn small').textContent=sel?sel.name:'キャラなし';
-  if(!Lib.characters.length){openCharPanel(false);return;}
-  const pic=(src,cls)=>{const i=el('img',{src,alt:'',class:cls});i.onerror=()=>{i.hidden=true;};return i;};
-  const none=el('button',{type:'button',class:'char-card'+(!sel?' is-on':''),'aria-pressed':String(!sel)},el('strong',null,'なし'),el('small',null,'能力なし'));
-  none.onclick=()=>{CHARS_SAVE.selected=null;saveChars();openCharPanel(false);renderCharPicker();};
-  const cards=[el('div',{class:'char-choice'},none)];
-  for(const c of Lib.characters){const owned=!!CHARS_SAVE.owned[c.id],on=owned&&CHARS_SAVE.selected===c.id;
-    const b=el('button',{type:'button',class:'char-card'+(owned?'':' locked')+(on?' is-on':''),'aria-pressed':String(on),'aria-disabled':owned?null:'true',title:owned?ABILITY_JP[c.ability]:(c.text||charUnlockText(c))},
-      el('strong',null,owned?c.name:'？？？'),
-      el('small',null,owned?`Lv ${(CHARS_SAVE.prog[c.id]||{lv:1}).lv}`:'ロック'),
-      owned?el('small',null,ABILITY_JP[c.ability]):el('small',{class:'char-cond'},c.text||charUnlockText(c)));
-    if(owned){b.addEventListener('mouseenter',()=>previewChar(c));b.addEventListener('focus',()=>previewChar(c));}
-    b.onclick=()=>{if(!owned)return;CHARS_SAVE.selected=on?null:c.id;saveChars();openCharPanel(false);renderCharPicker();};
-    cards.push(el('div',{class:'char-choice'},pic(`content/characters/${c.image}`,'char-img'),b));}
-  box.replaceChildren(...cards);
-  previewChar(sel);}
-$('#charArtwork').addEventListener('error',e=>{e.currentTarget.hidden=true;});
+  if(!charPanel.open)return;
+
+  const choices=[{id:null,name:'キャラなし',owned:true,detail:'キャラ能力を使わずに演奏'}];
+  for(const c of Lib.characters){
+    const owned=!!CHARS_SAVE.owned[c.id];
+    const detail=owned?`Lv ${CHARS_SAVE.prog[c.id]?.lv||1} ・ ${ABILITY_JP[c.ability]}`:charUnlockText(c);
+    choices.push({id:c.id,name:c.name,owned,detail});
+  }
+  const selectedId=selected?.id??null;
+  // 曲の読み込み中に一覧が再描画されても、選択ボタンのフォーカスを保持する。
+  const signature=JSON.stringify([selectedId,choices]);
+  if(signature===renderedCharChoices)return;
+  renderedCharChoices=signature;
+
+  $('#charPicker').replaceChildren(...choices.map(({id,name,owned,detail})=>{
+    const active=id===selectedId;
+    const action=active?el('span',{class:'char-lock'},'使用中'):
+      owned?el('button',{class:'btn',type:'button','aria-label':id===null?'キャラクターを外す':`${name}を使う`,onclick:()=>chooseCharacter(id)},id===null?'外す':'使う'):
+      el('span',{class:'char-lock'},'未解禁');
+    return el('li',{class:'char-choice'+(active?' is-on':'')},
+      el('div',{class:'char-choice-text'},el('strong',null,name),el('small',null,detail)),action);
+  }));
+}
 
 /* ================= 演奏 ================= */
 let G=null,D=null,rafId=0;const cv=$('#cv'),ctx=cv.getContext('2d');const view={W:0,H:0,dpr:1,L:null};
@@ -3690,7 +3697,9 @@ function showDanResult(){cancelAnimationFrame(rafId);rafId=0;if(!D)return;const 
   const unlockC=d.src==='monthly'?null:d.songs[2];let unlockMsg=null;
   if(red&&!D.auto){const prev=Lib.danBest[d.key];if(prev!=='gold')Lib.danBest[d.key]=gold?'gold':'red';store.set('kt.danBest',Lib.danBest);
     if(unlockC){const was=Lib.unlocks[unlockC.uid];Lib.unlocks[unlockC.uid]=gold||was==='gold'?'gold':'red';store.set('kt.unlocks',Lib.unlocks);
-    unlockMsg=was?`「${unlockC.set.title}」重 ${ROMAN[unlockC.level]||''} は解禁済みです`:`「${unlockC.set.title}」重 ${ROMAN[unlockC.level]||''} が通常プレイで遊べるようになりました`;}}
+    unlockMsg=was?`「${unlockC.set.title}」重 ${ROMAN[unlockC.level]||''} は解禁済みです`:`「${unlockC.set.title}」重 ${ROMAN[unlockC.level]||''} が通常プレイで遊べるようになりました`;}
+    evaluateCharacters();
+  }
   const scoreEl=el('span',null,'0');const card=$('#resultCard');card.className='ov-card res';card.innerHTML='';setResultChar(null);
   card.append(el('div',{class:'res-head'},el('span',{class:'dan-mini'},d.src==='monthly'?'月':d.level?ROMAN[d.level]:'?'),el('span',{class:'ttl'},d.name)),
     el('div',{class:'res-main'},
@@ -4565,7 +4574,10 @@ document.addEventListener('touchmove',e=>{if(document.body.classList.contains('p
 window.addEventListener('keydown',e=>{
   if(titleOpen()){if(/^(Tab|Shift|Control|Alt|Meta)/.test(e.key))return;if(e.key==='Enter'&&document.activeElement&&document.activeElement.id==='tsGuide')return;e.preventDefault();dismissTitle();return;}
   if(guideOpen()){if(e.key==='Escape'){e.preventDefault();closeGuide();}return;}
-  if(!$('#charPanel').hidden){if(e.key==='Escape'){e.preventDefault();openCharPanel(false);}return;}
+  if(charPanel.open){
+    if(e.key==='Escape'){e.preventDefault();charPanel.close();}
+    return;
+  }
   if(CAL.on&&(S.keys.includes(e.code)||e.code==='Space')){e.preventDefault();if(!e.repeat)calTap(e.timeStamp>1e12?performance.now():e.timeStamp);return;}
   if(!$('#stage').hidden&&!$('#result').hidden){if(performance.now()-(UI.resultAt||0)<800)return;const ki=S.keys.indexOf(e.code);
     if(e.key==='Enter'||ki===1||ki===2){e.preventDefault();const b=$('#resultCard .ov-btns .btn.primary');if(b)b.click();}
