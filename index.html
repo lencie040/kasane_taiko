@@ -184,7 +184,7 @@ input[type=range]{width:100%;accent-color:var(--gold)}
 #stage{position:fixed;inset:0;z-index:50;background:var(--ink);padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);display:flex;flex-direction:column}
 #cv{display:block;width:100%;flex:1;min-height:0;touch-action:none}
 .stage-quit{position:absolute;top:calc(env(safe-area-inset-top,0px) + 76px);right:calc(env(safe-area-inset-right,0px) + 14px);background:rgba(23,29,59,.8);border:1px solid var(--line-2);border-radius:8px;padding:3px 10px;font-size:12px;color:var(--mute)}
-#pads{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:8px max(10px,env(safe-area-inset-left,0px)) 10px;height:132px;flex:none}
+#pads{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:8px max(10px,env(safe-area-inset-left,0px)) 10px;height:132px;flex:none;touch-action:none}
 @media (max-height:520px){#pads{height:84px;padding-block:4px 6px}}
 #stage,#stage *{touch-action:none}
 #pads button{border-radius:14px;border:2px solid var(--line-2);font-family:var(--f-display);font-size:20px;font-weight:900;touch-action:none;user-select:none;-webkit-user-select:none}
@@ -971,19 +971,18 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
   border:3px solid #48283e;border-radius:12px;
   box-shadow:inset 0 0 0 2px #fff8,0 3px #713a5199;
 }
-#songlist .song{display:flex;flex-direction:column;justify-content:center;padding:3px 38px 3px 9px}
+#songlist .song{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3px 9px}
 #songlist .folder-entry{height:100%;padding-block:2px}
 #songlist :is(.song-t,.folder-entry strong){
   min-width:0;max-width:100%;padding:4px 10px;border:0;box-shadow:none;
   font-family:var(--f-display);font-size:clamp(16px,2vw,24px);font-weight:800;
 }
-#songlist .song-t{width:100%;overflow:hidden}
+#songlist .song-t{width:calc(100% - 58px);overflow:hidden;text-align:center}
 #songlist .song-t>span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #songlist .song.is-on .song-t>span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;white-space:normal}
 #songlist .song .fav{top:50%;right:5px;translate:0 -50%;width:30px;min-width:0;height:30px;padding:0}
 #songlist .song.is-on .fav{top:11px;translate:none}
 #songlist .song.is-on{justify-content:center;padding:8px 10px}
-#songlist .song.is-on .song-t{max-width:calc(100% - 60px)}
 #songlist :is(.song,.folder-entry).is-on{
   outline:3px solid #fff5c4;outline-offset:0;
   box-shadow:inset 0 0 0 2px #fff9,0 0 0 5px #a85058,0 5px 0 5px #6d344253;
@@ -1296,6 +1295,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 <div id="toast" aria-live="polite"></div>
 <div id="drop" hidden>ここにドロップして追加</div>
 
+<script src="content/fonts/murecho-glyphs.js"></script>
 <script>
 'use strict';
 /* ================= 定数 ================= */
@@ -1314,7 +1314,7 @@ const COURSES={
 const COURSE_ORDER=['easy','normal','hard','oni','ura','kasane'];
 const COURSE_ALIAS={easy:'easy',kantan:'easy','かんたん':'easy','簡単':'easy',normal:'normal',futsuu:'normal','ふつう':'normal','普通':'normal',hard:'hard',muzukashii:'hard','むずかしい':'hard','難しい':'hard',oni:'oni','おに':'oni','鬼':'oni',ura:'ura','inner oni':'ura','ura oni':'ura','裏':'ura','おに裏':'ura','裏おに':'ura','裏鬼':'ura','鬼裏':'ura',kasane:'kasane','重':'kasane','かさね':'kasane',special:'kasane'};
 const WIN_SOFT={good:42,ok:108,bad:125}, WIN_HARD={good:25,ok:75,bad:108};
-const TOKU_WIN=18, CHORD_GATHER=60, CHORD_SETTLE=25;
+const TOKU_WIN=18, CHORD_GATHER=60, CHORD_SETTLE=25, TOUCH_DELIVERY_GRACE=80;
 const CLEAR={easy:6000,normal:7000,hard:7000,oni:8000,ura:8000,kasane:8000};
 const BADMUL={easy:.5,normal:1,hard:1.5,oni:2,ura:2,kasane:2};
 const COND={
@@ -1344,9 +1344,19 @@ const TAU=Math.PI*2;
 const $=(s,r=document)=>r.querySelector(s);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
+const glyphSegments=typeof Intl.Segmenter==='function'?new Intl.Segmenter('ja',{granularity:'grapheme'}):null;
+const hasMurechoGlyph=char=>MURECHO_GLYPHS.has(char)||/\s/u.test(char);
+function murechoText(value){
+  const text=String(value??'');
+  if(typeof MURECHO_GLYPHS==='undefined')return text;
+  const chars=[...text];
+  if(chars.every(hasMurechoGlyph))return text;
+  if(!glyphSegments)return chars.map(char=>hasMurechoGlyph(char)?char:'〼').join('');
+  return Array.from(glyphSegments.segment(text),({segment})=>[...segment].every(hasMurechoGlyph)?segment:'〼').join('');
+}
 function norm(s){return String(s??'').normalize('NFKC').toLowerCase().replace(/\.(osz|zip)$/,'').replace(/\s+/g,' ').trim();}
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
-function el(tag,attrs,...kids){const e=document.createElement(tag);if(attrs)for(const[k,v]of Object.entries(attrs)){if(v==null||v===false)continue;if(k==='class')e.className=v;else if(k==='style')e.style.cssText=v;else if(k.startsWith('on'))e.addEventListener(k.slice(2),v);else e.setAttribute(k,v===true?'':v);}for(const k of kids.flat()){if(k==null||k===false)continue;e.append(k.nodeType?k:document.createTextNode(String(k)));}return e;}
+function el(tag,attrs,...kids){const e=document.createElement(tag);if(attrs)for(const[k,v]of Object.entries(attrs)){if(v==null||v===false)continue;if(k==='class')e.className=v;else if(k==='style')e.style.cssText=v;else if(k.startsWith('on'))e.addEventListener(k.slice(2),v);else e.setAttribute(k,v===true?'':v);}for(const k of kids.flat()){if(k==null||k===false)continue;e.append(k.nodeType?k:document.createTextNode(murechoText(k)));}return e;}
 const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
 function toast(msg,kind){const d=el('div',{class:kind||''},msg);$('#toast').append(d);setTimeout(()=>d.remove(),kind==='err'?6000:3200);}
 function fmtTime(ms){const s=Math.max(0,Math.round(ms/1000));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
@@ -1906,11 +1916,11 @@ const medleyTones=Object.fromEntries([['don','ドン'],['ka','カツ']].map(([ki
 
 function renderMedleyTones(message=''){
   for(const tone of Object.values(medleyTones)){
-    tone.name.textContent=tone.busy?'読み込み中…':tone.file?.name??'標準音';
+    tone.name.textContent=murechoText(tone.busy?'読み込み中…':tone.file?.name??'標準音');
     tone.choose.disabled=tone.listen.disabled=!medleyTonesReady||tone.busy;
     tone.reset.disabled=tone.choose.disabled||!tone.file;
   }
-  const status=$('#medleyToneStatus');status.textContent=message;status.hidden=!message;
+  const status=$('#medleyToneStatus');status.textContent=murechoText(message);status.hidden=!message;
 }
 renderMedleyTones();
 
@@ -2210,9 +2220,9 @@ function renderMedley(){
   if(UI.tab!=='medley')return;
   const session=medley,track=session?.current,v=medleyView;
   const total=session?.charts.length??medleyCharts().length;
-  v.title.textContent=track?.chart.set.title??(session?'読み込み中…':'停止中');
+  v.title.textContent=murechoText(track?.chart.set.title??(session?'読み込み中…':'停止中'));
   const skipped=session?.unreadable.size?` ・ 音源エラー ${session.unreadable.size}件` : '';
-  v.status.textContent=track?`${track.chart.meta.version} ・ ${COURSES[track.chart.course].jp} ${levelText(track.chart)} ・ ${track.position} / ${total}譜面${skipped}`:
+  v.status.textContent=track?murechoText(`${track.chart.meta.version} ・ ${COURSES[track.chart.course].jp} ${levelText(track.chart)} ・ ${track.position} / ${total}譜面${skipped}`):
     total?`${total}譜面${skipped}`:libraryBooting?'曲を読み込み中…':'再生できる譜面がありません。';
   v.play.textContent=session?(session.paused?'再開':'一時停止'):'再生';
   v.play.disabled=session?!track:!total;
@@ -2533,7 +2543,7 @@ function folderStrip(folder,selected,select){
     style:`--folder:${folder.back?'#b2b9e8':folderColor(folder)};--ftext:${folder.textColor||'#2d1936'}`,
     'aria-label':folder.back?'親フォルダへもどる':null,
     class:'folder-entry'+(folder.back?' is-back':'')+(folder.textColor?' has-tcolor':'')+(selected?' is-on':''),onclick:select},
-    el('span',{class:folder.back?'folder-back-icon':'folder-icon','aria-hidden':'true'},folder.back?'↶':null),
+    el('span',{class:folder.back?'folder-back-icon':'folder-icon','aria-hidden':'true'},folder.back?'←':null),
     el('strong',null,folder.name),el('span',{'aria-hidden':'true'},folder.back?'‹':'›')));
 }
 function folderAssignmentControl(set){
@@ -3015,7 +3025,7 @@ function renderDetail(){const d=$('#detail');$('#arcadeMenu').hidden=!!UI.choose
   const courses=visibleCourses(s);
   const list=el('div',{class:'crs-list',role:'group','aria-label':'コース',style:'--course-count:5'});
   list.append(el('button',{class:'crs crs-back'+(UI.courseBack?' is-on':''),onclick:backToSongs},
-    el('span',{class:'k','aria-hidden':'true'},'↶'),el('span',{class:'nm'},el('strong',null,'もどる'))));
+    el('span',{class:'k','aria-hidden':'true'},'←'),el('span',{class:'nm'},el('strong',null,'もどる'))));
   for(const [slot,course] of courses.entries()){
     const c=chartForSlot(s,course),C=COURSES[course],locked=c&&isLocked(c);
     const active=!UI.courseBack&&UI.courseSlot===slot;
@@ -3352,7 +3362,7 @@ function renderCharPicker(){
   charButton.setAttribute('aria-label',selected?`キャラ変更（使用中：${selected.name}）`:'キャラクターを選ぶ');
   if(selected){
     const path=`content/characters/${encodeURIComponent(selected.image)}`;
-    charArtwork.alt=selected.name;
+    charArtwork.alt=murechoText(selected.name);
     if(charArtwork.getAttribute('src')!==path){
       charStand.hidden=false;
       charArtwork.src=path;
@@ -3407,6 +3417,12 @@ function applyOpts(targets){if(D)return targets;const o=S.opt,p=o.rand===2?.5:o.
   return targets;}
 function optLabel(){if(D)return'';const o=S.opt,a=[];if(o.mirror)a.push('あべこべ');if(o.rand)a.push(o.rand===2?'でたらめ':'きまぐれ');if(o.hidden)a.push('ドロン');return a.join('・');}
 function songTime(perf){return(perf-G.perfZero-S.offset-(G.synced?0:G.latency))*(G.rate||1)+(G.t0||0);}
+function inputTime(event){
+  const now=performance.now();
+  let t=event.timeStamp;
+  if(t>1e12)t-=performance.timeOrigin??(Date.now()-now);
+  return t>0&&t<=now+1?Math.min(t,now):now;
+}
 function syncClock(){if(!AC||!AC.getOutputTimestamp||G.paused)return;let ts;try{ts=AC.getOutputTimestamp();}catch(e){return;}
   if(!ts||!ts.performanceTime||!(ts.contextTime>0))return;const est=ts.performanceTime-(ts.contextTime-G.acZero)*1000;
   if(Math.abs(est-G.perfZero)>600)return;if(!G.synced){G.perfZero=est;G.synced=true;}else G.perfZero+=(est-G.perfZero)*.04;}
@@ -3424,9 +3440,9 @@ function judge(tg,kind,off,why){
   if(kind!=='bad'&&off!=null){G.st.offSum+=off;G.st.offN++;G.st.offs.push(off);}
   fxJudge(tg,kind,why);
   if(D)checkDanFail();}
-function rollHit(r,color){
+function rollHit(r,color,t=G.now){
   if(r.type==='balloon'){if(color!=='d')return;r.count++;addRoll(300);fxRoll(r);if(r.count>=r.hits){r.done=true;r.popped=true;addRoll(5000,true);playSE('pop');fxRoll(r,true);}}
-  else{const now=G.now;if(r.first==null)r.first=now;r.count++;r.last=now;addRoll(Math.floor((r.big?200:100)*(G.st.ab?G.st.ab.fx.roll:1)),false,true);fxRoll(r);}}
+  else{if(r.first==null)r.first=t;r.count++;r.last=t;addRoll(Math.floor((r.big?200:100)*(G.st.ab?G.st.ab.fx.roll:1)),false,true);fxRoll(r);}}
 function addRoll(pts,bonus,drum){for(const st of D?[G.st,D.st]:[G.st]){if(!bonus)st.roll++;if(drum)st.rollDrum++;st.score+=pts;}if(D)checkDanFail();}
 function activeRoll(t){for(const r of G.rolls)if(!r.done&&t>=r.t&&t<=r.end)return r;return null;}
 function nextTargetAfter(tg){const T=G.targets;const i=T.indexOf(tg);for(let j=i+1;j<T.length;j++)if(T[j].t>tg.t)return T[j];return null;}
@@ -3434,20 +3450,36 @@ function finalizeChord(tg){G.openChord=null;const b=tg.buf;let kind,why=null;
   if(b.dup||b.d!==tg.reqD||b.k!==tg.reqK){kind='bad';why='mismatch';}
   else{const worst=Math.max(...b.offs.map(Math.abs));kind=worst<=TOKU_WIN?'tokuryo':worst<=G.win.good?'good':worst<=G.win.ok?'ok':'bad';}
   judge(tg,kind,b.offs.reduce((a,x)=>a+x,0)/b.offs.length,why);}
+function nearestTarget(t,color){
+  const W=G.win,T=G.targets;
+  let target=null,distance=Infinity;
+  for(let i=G.cursor;i<T.length;i++){
+    const x=T[i],off=x.t-t;
+    if(off>W.bad||off>distance)break;
+    if(x.judged||off< -W.bad)continue;
+    const d=Math.abs(off);
+    if(d<distance||(d===distance&&target.type==='single'&&target.color!==color&&(x.type==='chord'||x.color===color))){
+      target=x;distance=d;
+    }
+  }
+  return target;
+}
 function press(role,t,auto){
   if(!G||G.finished||G.paused||G.failed)return;const color=ROLE_COLOR[role];
   G.flash[role]=performance.now();playSE(color==='d'?'don':'ka');
   if(G.openChord&&t>G.openChord.gatherEnd)finalizeChord(G.openChord);
-  if(G.absorb&&G.absorb.color===color&&G.absorb.role!==role&&t-G.absorb.t<=30){const bonus=G.absorb.pts;G.absorb=null;for(const st of D?[G.st,D.st]:[G.st])st.score+=bonus;G.st.bigBoth=(G.st.bigBoth||0)+1;fxBig();return;}
+  if(!auto)expireTargets(t);
+  if(G.failed)return;
   const oc=G.openChord;
+  const tg=oc?null:nearestTarget(t,color);
+  const big=G.absorb;
+  if(big&&big.color===color&&big.role!==role&&t>=big.t&&t-big.t<=30&&(!tg||Math.abs(t-big.noteTime)<Math.abs(t-tg.t))){
+    G.absorb=null;for(const st of D?[G.st,D.st]:[G.st])st.score+=big.pts;G.st.bigBoth=(G.st.bigBoth||0)+1;fxBig();return;
+  }
   if(oc){if(noiseBlocked(oc,role)){G.openChord=null;judge(oc,'bad',null,'noise');return;}const b=oc.buf;if(b.keys.has(role))b.dup=true;b.keys.add(role);if(color==='d')b.d++;else b.k++;b.offs.push(t-oc.t);
     if(b.dup||b.d>oc.reqD||b.k>oc.reqK)finalizeChord(oc);else if(b.d===oc.reqD&&b.k===oc.reqK)oc.gatherEnd=Math.min(oc.gatherEnd,t+CHORD_SETTLE);return;}
-  const W=G.win,T=G.targets,cands=[];
-  for(let i=G.cursor;i<T.length&&cands.length<2;i++){const x=T[i];if(x.judged)continue;if(x.t-t>W.bad)break;if(t-x.t>W.bad)continue;cands.push(x);}
-  const roll=activeRoll(t);
-  if(!cands.length||(roll&&Math.abs(cands[0].t-t)>W.ok)){if(roll)rollHit(roll,color);return;}
-  let tg=cands[0];
-  if(tg.type==='single'&&tg.color!==color&&cands[1]&&(cands[1].type==='chord'||cands[1].color===color)&&Math.abs(cands[1].t-t)<Math.abs(tg.t-t))tg=cands[1];
+  const W=G.win,roll=activeRoll(t);
+  if(!tg||(roll&&Math.abs(tg.t-t)>W.ok)){if(roll)rollHit(roll,color,t);return;}
   if(noiseBlocked(tg,role)){judge(tg,'bad',null,'noise');return;}
   if(tg.type==='chord'){const nx=nextTargetAfter(tg);const mid=nx?(tg.t+nx.t)/2:Infinity;
     tg.buf={keys:new Set([role]),d:color==='d'?1:0,k:color==='k'?1:0,offs:[t-tg.t],dup:false};
@@ -3456,7 +3488,7 @@ function press(role,t,auto){
   const off=t-tg.t,a=Math.abs(off);
   if(tg.color!==color){judge(tg,'bad',null,'color');return;}
   const kind=a<=W.good?'good':a<=W.ok?'ok':'bad';judge(tg,kind,off);
-  if(tg.big&&!tg.noise&&kind!=='bad')G.absorb={color,role,t,pts:kind==='ok'?Math.floor(G.base/20)*10:G.base};}
+  if(tg.big&&!tg.noise&&kind!=='bad')G.absorb={color,role,t,noteTime:tg.t,pts:kind==='ok'?Math.floor(G.base/20)*10:G.base};}
 function autoplayRows(now){const T=G.targets,played={};
   for(let i=G.cursor;i<T.length;i++){const tg=T[i];if(tg.t>now)break;if(tg.judged||tg.autoDone)continue;tg.autoDone=true;
     G.autoSide^=1;const sd=G.autoSide,role=tg.noise?noiseRole(tg):(tg.color==='d'?(sd?'donL':'donR'):(sd?'kaL':'kaR'));
@@ -3474,13 +3506,18 @@ function autoplay(now){if(G.chart.multiRow){autoplayRows(now);return;}const T=G.
   let nextT=Infinity;for(let i=G.cursor;i<T.length;i++)if(!T[i].judged){nextT=T[i].t;break;}
   for(const r of G.rolls){if(r.done||now<r.t||now>r.end)continue;if(nextT-now<G.win.bad+10)continue;
     if(now-(r.autoLast??-1e9)>=(r.type==='balloon'?45:50)){r.autoLast=now;G.autoSide^=1;press(G.autoSide?'donL':'donR',now,true);}}}
-function update(now){
-  if(G.auto&&!G.failed)autoplay(now);
-  if(G.openChord&&now>G.openChord.gatherEnd)finalizeChord(G.openChord);
+function expireTargets(t){
   const T=G.targets;
   while(G.cursor<T.length){const tg=T[G.cursor];if(tg.judged){G.cursor++;continue;}if(tg===G.openChord)break;
-    if(now-tg.t>G.win.bad){judge(tg,'bad',null,'miss');G.cursor++;continue;}break;}
-  for(const r of G.rolls)if(!r.done&&now>r.end)r.done=true;
+    if(t-tg.t>G.win.bad){judge(tg,'bad',null,'miss');G.cursor++;continue;}break;}
+}
+function update(now){
+  if(G.auto&&!G.failed)autoplay(now);
+  // 処理が遅れたタッチを待ってから失効させる。良・可・不可の判定幅はイベントの時刻に適用する。
+  const expireAt=now-(UI.touch&&!G.auto?TOUCH_DELIVERY_GRACE*(G.rate||1):0);
+  if(G.openChord&&expireAt>G.openChord.gatherEnd)finalizeChord(G.openChord);
+  expireTargets(expireAt);
+  for(const r of G.rolls)if(!r.done&&expireAt>r.end)r.done=true;
   if(!G.finished&&!G.failed&&now>G.endAt&&!G.openChord)finishSong();
   if(G.failed&&!G.finished&&performance.now()-G.failAt>2600)finishSong();}
 function checkDanFail(){if(!D||!G||G.failed)return;
@@ -3497,7 +3534,7 @@ function setupFallingDanHud(){
     hud.grid.replaceChildren();
     return;
   }
-  hud.rank.textContent=D.dan.name;
+  hud.rank.textContent=murechoText(D.dan.name);
   hud.panel.firstElementChild.append(menu);
   hud.cards=D.conds.map(cond=>{
     const value=el('b');
@@ -3567,7 +3604,7 @@ async function danInterlude(){const chart=D.dan.songs[D.idx];G=null;D.interlude=
 let songLoad=0;
 async function runSong(chart,prac){
   const ticket=++songLoad;
-  if($('#stage').hidden)openStage();G=null;UI.loading=`読み込み中 — ${chart.set.title}`;startLoop();
+  if($('#stage').hidden)openStage();G=null;UI.loading=murechoText(`読み込み中 — ${chart.set.title}`);startLoop();
   let buf;try{buf=await getAudio(chart);}catch(e){if(ticket===songLoad){closeStage();toast(e.message,'err');}return;}
   if(ticket!==songLoad||$('#stage').hidden)return;
   G=newRun(chart,prac);if(D){G.auto=D.auto;G.disp=D.st.score;G.lastCombo=D.st.combo;}
@@ -3749,7 +3786,15 @@ function computeLayout(){const W=view.W,H=view.H;const gw=clamp(W*.4,130,440);
   view.L={laneH,fieldH,top,r,judgeX,panelW:judgeX-r*1.55-6};
   if(!S.falling)view.gauge={x:Math.max(96,W-gw-40),y:top-25,w:Math.min(gw,W-125),h:14};}
 function rr(c,x,y,w,h,r){c.beginPath();if(c.roundRect)c.roundRect(x,y,w,h,r);else c.rect(x,y,w,h);}
-function fit(c,s,maxW){if(maxW<=0)return'';if(c.measureText(s).width<=maxW)return s;let lo=0,hi=s.length;while(lo<hi){const m=(lo+hi+1)>>1;if(c.measureText(s.slice(0,m)+'…').width<=maxW)lo=m;else hi=m-1;}return s.slice(0,lo)+'…';}
+function fit(c,s,maxW){
+  if(maxW<=0)return'';
+  const text=murechoText(s);
+  if(c.measureText(text).width<=maxW)return text;
+  const chars=[...text];
+  let lo=0,hi=chars.length;
+  while(lo<hi){const m=(lo+hi+1)>>1;if(c.measureText(chars.slice(0,m).join('')+'…').width<=maxW)lo=m;else hi=m-1;}
+  return chars.slice(0,lo).join('')+'…';
+}
 function cover(c,img,W,H){const s=Math.max(W/img.naturalWidth,H/img.naturalHeight);const w=img.naturalWidth*s,h=img.naturalHeight*s;c.drawImage(img,(W-w)/2,(H-h)/2,w,h);}
 
 /* 音符は色とサイズごとに一度だけ描いて使い回す */
@@ -3939,7 +3984,7 @@ function drawInterlude(){const c=ctx,W=view.W,H=view.H,pn=performance.now(),it=D
   const titleSize=Math.min(64,W*.13,compact?H*.17:64);
   const a=easeOut(clamp((pn-it.t0)/500,0,1)),cx=W/2;let y=compact?24:Math.max(56,H/2-(falling?140:230));
   c.save();c.globalAlpha=a;c.textAlign='center';
-  c.font=`700 14px ${FB}`;c.fillStyle='#f2bc3d';c.fillText(D.dan.name,cx,y);y+=38;
+  c.font=`700 14px ${FB}`;c.fillStyle='#f2bc3d';c.fillText(murechoText(D.dan.name),cx,y);y+=38;
   const sx=cx-80;c.textBaseline='middle';
   for(let i=0;i<3;i++){const x=sx+i*80;if(i<2){c.fillStyle=i<it.idx?'#f2bc3d':'#3c4784';c.fillRect(x,y-2,80,4);}}
   for(let i=0;i<3;i++){const x=sx+i*80,cur=i===it.idx;c.beginPath();c.arc(x,y,cur?14:10,0,TAU);c.fillStyle=i<it.idx?'#f2bc3d':cur?(stacked?'#f2bc3d':'#f2ecdc'):'#262c4e';c.fill();
@@ -4069,17 +4114,15 @@ function drawFalling(now,pn){
   c.textAlign='left';drawHud(now,pn);drawPlayCounts(view.H-view.countH-5,true);
 }
 
-cv.style.touchAction='none';
-cv.addEventListener('pointerdown',e=>{
-  if(S.falling!==true||!G||G.paused||G.auto)return;
+function fallingTouchRole(input){
+  if(S.falling!==true)return;
   const box=cv.getBoundingClientRect(),{xAt,top,bottom,coverTop}=fallingLayout();
-  const y=e.clientY-box.top,x=e.clientX-box.left;
+  const y=input.clientY-box.top,x=input.clientX-box.left;
   if(y<coverTop||bottom<=top)return;
   const left=xAt(0,y),width=xAt(4,y)-left;
   const col=Math.floor((x-left)/width*4);
-  if(col<0||col>=4)return;
-  e.preventDefault();press(ROLES[col],songTime(e.timeStamp>1e12?performance.now():e.timeStamp));
-});
+  return ROLES[col];
+}
 
 function draw(now){const c=ctx,W=view.W,H=view.H,L=view.L,g=G;if(!L)return;const pn=performance.now();
   if(S.falling===true){drawFalling(now,pn);return;}
@@ -4322,7 +4365,8 @@ function danCondState(cond){const red=evalTier(cond,'red',D.st,D.tot),gold=evalT
   let state;if(red.fail)state='fail';else if(mode==='down')state=gold&&!gold.fail?'gold':(frac<=.3?'warn':'red');else state=goldOk?'gold':redOk?'red':'prog';
   return{red,gold,v,frac,mR,mG,mode,state};}
 function drawDanBars(y0,pn){const c=ctx,W=view.W,x0=16,x1=W-16;let y=y0;
-  c.font=`700 13px ${FB}`;c.fillStyle='#f2bc3d';c.fillText(D.dan.name,x0,y+13);let hx=x0+c.measureText(D.dan.name).width+16;
+  const name=murechoText(D.dan.name);
+  c.font=`700 13px ${FB}`;c.fillStyle='#f2bc3d';c.fillText(name,x0,y+13);let hx=x0+c.measureText(name).width+16;
   for(let i=0;i<3;i++){c.beginPath();c.arc(hx+i*18,y+9,6,0,TAU);c.fillStyle=i<D.idx?'#f2bc3d':i===D.idx?'#f2ecdc':'#3c4784';c.fill();}
   c.font=`500 13px ${FB}`;c.fillStyle='#a2a8ca';c.fillText(fit(c,`${D.idx+1}曲目 / 3　${G.chart.set.title}`,x1-hx-260),hx+56,y+13);
   c.textAlign='right';c.font=`700 12px ${FB}`;c.fillStyle='#ff8a7a';c.fillText('▼ 合格',x1-70,y+13);c.fillStyle='#f2bc3d';c.fillText('▼ 金合格',x1,y+13);c.textAlign='left';
@@ -4357,7 +4401,8 @@ function drawDanBars(y0,pn){const c=ctx,W=view.W,x0=16,x1=W-16;let y=y0;
     if(s.gold){c.fillStyle=s.gold.fail?'#8a7a52':'#f2bc3d';c.fillText(st(s.gold,'金'),tx,y+35);}
     y+=rowH+6;}}
 function drawDanPills(y0){const c=ctx,W=view.W;let x=16,y=y0;
-  c.font=`700 12px ${FB}`;c.fillStyle='#f2bc3d';c.fillText(D.dan.name,16,y+12);let hx=16+c.measureText(D.dan.name).width+14;
+  const name=murechoText(D.dan.name);
+  c.font=`700 12px ${FB}`;c.fillStyle='#f2bc3d';c.fillText(name,16,y+12);let hx=16+c.measureText(name).width+14;
   for(let i=0;i<3;i++){c.beginPath();c.arc(hx+i*16,y+8,5,0,TAU);c.fillStyle=i<D.idx?'#f2bc3d':i===D.idx?'#f2ecdc':'#3c4784';c.fill();}
   c.font=`500 12px ${FB}`;c.fillStyle='#a2a8ca';c.fillText(`${D.idx+1}曲目 / 3`,hx+46,y+12);y+=24;
   for(const cond of D.conds){const K=COND[cond.key],red=evalTier(cond,'red',D.st,D.tot),gold=evalTier(cond,'gold',D.st,D.tot);if(!red)continue;
@@ -4400,7 +4445,7 @@ function calFinish(){$('#calStart').disabled=false;$('#calBeat').style.setProper
   const ap=$('#calApply');ap.hidden=false;ap.textContent=`オフセットを ${s(CAL.result)} にする`;}
 $('#calStart').addEventListener('click',calStart);
 $('#calApply').addEventListener('click',()=>{if(CAL.result==null)return;S.offset=CAL.result;saveS();renderSettings();$('#calApply').hidden=true;toast(`オフセットを ${S.offset>0?'+':''}${S.offset}ms にしました`);});
-$('#calPad').addEventListener('pointerdown',e=>{if(CAL.on){e.preventDefault();calTap(e.timeStamp>1e12?performance.now():e.timeStamp);}});
+$('#calPad').addEventListener('pointerdown',e=>{if(CAL.on){e.preventDefault();calTap(inputTime(e));}});
 
 /* ================= タイトル画面 ================= */
 function titleOpen(){return!$('#title').hidden&&!$('#title').classList.contains('out');}
@@ -4553,12 +4598,9 @@ $('#resetRec').addEventListener('click',()=>{$('#resetConfirm').hidden=false;});
 $('#resetNo').addEventListener('click',()=>{$('#resetConfirm').hidden=true;});
 $('#resetYes').addEventListener('click',()=>{Lib.best={};Lib.recent=[];Lib.danBest={};Lib.unlocks={};Lib.played={};store.set('kt.best',{});store.set('kt.recent',[]);store.set('kt.danBest',{});store.set('kt.unlocks',{});store.set('kt.played',{});$('#resetConfirm').hidden=true;refreshAll();toast('記録をリセットしました');});
 $('#stageMenu').addEventListener('click',()=>{if(G&&!G.finished)pauseGame();else if(!G||G.finished){if($('#result').hidden)closeStage();}});
-// iPhone Safari は速い連打をダブルタップの拡大と判定し、パッドのタップを取りこぼすため、パッドのタッチを既定の動作に渡さない
-// パッドの入力：タッチ端末は touchstart で受け付ける（速い連打・同時押しでも届きやすい。pointerdown だと Safari で取りこぼすため）
-// マウスは pointerdown で受け付ける
 // 診断用（URLに ?debug=1 を付けたときだけ）：入力の受付数・無視数・最後のタップのずれ(ms)を表示する
 const DBG=new URLSearchParams(location.search).has('debug'),dbg={inputs:0,ignored:0,last:'-',hist:[],spikes:[],silent:0,silentLast:'-'};
-const padPress=(role,t)=>{dbg.inputs++;if(!(G&&!G.paused&&!G.auto)){dbg.ignored++;return;}const st=songTime(t);
+const padPress=(role,t)=>{dbg.inputs++;if(!(G&&!G.finished&&!G.failed&&!G.paused&&!G.auto&&$('#pause').hidden)){dbg.ignored++;return;}const st=songTime(t);
   if(DBG&&G.targets){let best=null;for(let i=G.cursor;i<G.targets.length&&i<G.cursor+40;i++){const x=G.targets[i];if(x.judged)continue;if(best===null||Math.abs(x.t-st)<Math.abs(best-st))best=x.t;}if(best!==null){const d=Math.round(st-best);dbg.last=d+'ms';dbg.hist.push(d);if(dbg.hist.length>12)dbg.hist.shift();}}
   if(!DBG){press(role,st);return;}
   // 診断：押したのに判定が1つも増えなかった回数と、そのときの最も近いノーツとのずれ
@@ -4569,11 +4611,44 @@ if(DBG){const box=el('div',{id:'dbgBox',style:'position:fixed;left:6px;top:6px;z
   let fLast=performance.now(),fSum=0,fN=0,fMax=0;
   (function frameMeter(){const n=performance.now(),d=n-fLast;fLast=n;fSum+=d;fN++;if(d>fMax)fMax=d;if(d>100&&G&&G.perfZero){dbg.spikes.push(Math.round(n-G.perfZero));if(dbg.spikes.length>5)dbg.spikes.shift();}requestAnimationFrame(frameMeter);})();
   setInterval(()=>{const avg=fN?Math.round(fSum/fN):0;box.textContent=`入力 ${dbg.inputs} / 無視 ${dbg.ignored} / 判定なし ${dbg.silent}（直近 ${dbg.silentLast}） / フレーム平均 ${avg}ms 最大 ${Math.round(fMax)}ms / 100ms超の止まり（音声開始から ms）: ${dbg.spikes.join(' ')||'-'} / 直近のずれ ms: ${dbg.hist.join(' ')||'-'}`;fSum=0;fN=0;fMax=0;},500);}
-for(const b of document.querySelectorAll('#pads button')){
-  b.addEventListener('touchstart',e=>{e.preventDefault();const ts=e.timeStamp>1e12?performance.now():e.timeStamp;for(const tch of e.changedTouches)if(tch.target===b)padPress(b.dataset.role,ts);},{passive:false});
-  b.addEventListener('touchend',e=>e.preventDefault(),{passive:false});
-  b.addEventListener('pointerdown',e=>{if(e.pointerType==='touch')return;e.preventDefault();padPress(b.dataset.role,e.timeStamp>1e12?performance.now():e.timeStamp);});
+const pads=$('#pads'),padButtons=[...pads.querySelectorAll('button')],activeTouches=new Set();
+function padRole(input){
+  const node=input.target.nodeType===1?input.target:input.target.parentElement;
+  const button=node?.closest('button[data-role]');
+  if(button)return button.dataset.role;
+  // 余白やパッド同士の隙間も、一番近い列の入力として扱う。
+  let closest=null,distance=Infinity;
+  for(const b of padButtons){
+    const box=b.getBoundingClientRect(),d=Math.abs(input.clientX-(box.left+box.width/2));
+    if(d<distance){closest=b;distance=d;}
+  }
+  return closest?.dataset.role;
 }
+function listenForHits(surface,roleAt){
+  surface.addEventListener('touchstart',e=>{
+    const t=inputTime(e);
+    for(const touch of e.changedTouches){
+      if(!surface.contains(touch.target)||activeTouches.has(touch.identifier))continue;
+      const role=roleAt(touch);
+      if(!role)continue;
+      e.preventDefault();
+      activeTouches.add(touch.identifier);
+      padPress(role,t);
+    }
+  },{passive:false});
+  surface.addEventListener('pointerdown',e=>{
+    // 同じ接触から pointerdown と touchstart の両方が届くことがある。
+    if(e.button!==0||(e.pointerType==='touch'&&typeof TouchEvent!=='undefined')||e.sourceCapabilities?.firesTouchEvents)return;
+    const role=roleAt(e);
+    if(role){e.preventDefault();padPress(role,inputTime(e));}
+  });
+}
+listenForHits(pads,padRole);
+listenForHits(cv,fallingTouchRole);
+for(const type of ['touchend','touchcancel'])window.addEventListener(type,e=>{
+  for(const touch of e.changedTouches)activeTouches.delete(touch.identifier);
+},true);
+window.addEventListener('blur',()=>activeTouches.clear());
 // 演奏中のピンチ拡大・ページの動きを止める（Safari のジェスチャーでプレイが中断されるのを防ぐ）
 for(const t of ['gesturestart','gesturechange','gestureend'])document.addEventListener(t,e=>{if(document.body.classList.contains('playing'))e.preventDefault();},{passive:false});
 document.addEventListener('touchmove',e=>{if(document.body.classList.contains('playing'))e.preventDefault();},{passive:false});
@@ -4584,14 +4659,14 @@ window.addEventListener('keydown',e=>{
     if(e.key==='Escape'){e.preventDefault();charPanel.close();}
     return;
   }
-  if(CAL.on&&(S.keys.includes(e.code)||e.code==='Space')){e.preventDefault();if(!e.repeat)calTap(e.timeStamp>1e12?performance.now():e.timeStamp);return;}
+  if(CAL.on&&(S.keys.includes(e.code)||e.code==='Space')){e.preventDefault();if(!e.repeat)calTap(inputTime(e));return;}
   if(!$('#stage').hidden&&!$('#result').hidden){if(performance.now()-(UI.resultAt||0)<800)return;const ki=S.keys.indexOf(e.code);
     if(e.key==='Enter'||ki===1||ki===2){e.preventDefault();const b=$('#resultCard .ov-btns .btn.primary');if(b)b.click();}
     else if(e.key==='Escape'||ki===0||ki===3){e.preventDefault();const bs=document.querySelectorAll('#resultCard .ov-btns .btn');const b=bs[1]||bs[0];if(b)b.click();}return;}
   if(UI.binding!=null){e.preventDefault();if(e.code!=='Escape')bindKey(UI.binding,e.code);UI.binding=null;renderSettings();renderDetail();return;}
   if(!$('#stage').hidden){
     if(e.code==='Escape'){e.preventDefault();if(G&&G.paused)resumeGame();else if(G&&!G.finished)pauseGame();else if((G&&G.prac)||(!G&&!D))closeStage();return;}
-    const i=S.keys.indexOf(e.code);if(i>=0){e.preventDefault();if(e.repeat)return;if(G&&!G.paused&&!G.auto)press(ROLES[i],songTime(e.timeStamp>1e12?performance.now():e.timeStamp));}
+    const i=S.keys.indexOf(e.code);if(i>=0){e.preventDefault();if(e.repeat)return;if(G&&!G.paused&&!G.auto)press(ROLES[i],songTime(inputTime(e)));}
     return;}
   if(e.defaultPrevented||e.ctrlKey||e.metaKey||e.altKey)return;
   const ae=document.activeElement,tag=ae?ae.tagName:'';
@@ -4756,7 +4831,7 @@ async function loadRepositorySongs(direct=false){
     if(direct)toast(status.textContent,failed?'err':undefined);
   }catch(error){
     Lib.loadWarn.push('リポジトリ読込: '+error.message);
-    status.textContent='取得できませんでした：'+error.message;
+    status.textContent=murechoText('取得できませんでした：'+error.message);
     if(direct){refreshAll();toast(status.textContent,'err');}
   }finally{
     repositoryLoading=false;button.disabled=false;finishLibraryWait();
