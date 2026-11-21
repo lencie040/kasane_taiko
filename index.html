@@ -1254,6 +1254,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
         <div class="setting"><label for="setSudden">サドプラ（4レーンの上側を隠す）</label><div class="inline"><input id="setSudden" type="range" min="0" max="80" step="1" value="0"><output id="outSudden" for="setSudden"></output></div></div>
         <div class="setting"><label for="setLaneW">レーンの幅（4レーン落下のとき）</label><div class="inline"><input id="setLaneW" type="range" min="40" max="300" step="1" value="100"><output id="outLaneW" for="setLaneW"></output></div></div>
         <label class="switch"><input type="checkbox" id="setLowFx"> さらに軽くする（演奏画面の画質を下げ、背景や演出を簡略化。スマホはオフでも軽量表示）</label>
+        <label class="switch"><input type="checkbox" id="setMissingGlyphs"> Murecho非対応の文字を〼で表示</label>
         <label class="switch"><input type="checkbox" id="setBalance"> 曲の音量を解析して自動で揃え、ノーツSEとのバランスも整える</label>
         <label class="switch"><input type="checkbox" id="setRecord"> 録画機能（演奏を録画してmp4で保存。通常の曲と全難易度同時再生が対象です）</label>
         <label class="switch"><input type="checkbox" id="setNoiseEdit"> 編集モード（封印ノーツ・曲フォルダ）</label>
@@ -1351,7 +1352,7 @@ const glyphSegments=typeof Intl.Segmenter==='function'?new Intl.Segmenter('ja',{
 const hasMurechoGlyph=char=>MURECHO_GLYPHS.has(char)||/\s/u.test(char);
 function murechoText(value){
   const text=String(value??'');
-  if(typeof MURECHO_GLYPHS==='undefined')return text;
+  if(!S.missingGlyphs||typeof MURECHO_GLYPHS==='undefined')return text;
   const chars=[...text];
   if(chars.every(hasMurechoGlyph))return text;
   if(!glyphSegments)return chars.map(char=>hasMurechoGlyph(char)?char:'〼').join('');
@@ -1374,7 +1375,7 @@ function diffRange(d,min,mid,max){return d>5?mid+(max-mid)*(d-5)/5:d<5?mid-(mid-
 function segAt(segs,t){if(!segs.length)return null;if(t<segs[0].time)return segs[0];let lo=0,hi=segs.length-1,a=0;while(lo<=hi){const m=(lo+hi)>>1;if(segs[m].time<=t+1){a=m;lo=m+1;}else hi=m-1;}return segs[a];}
 
 /* ================= 設定・記録 ================= */
-const S=Object.assign({keys:['KeyD','KeyF','KeyJ','KeyK'],skipKeys:['KeyL','KeyS'],speed:1,offset:0,music:.8,se:.7,auto:false,noiseEdit:false,falling:false,sudden:0,laneWidth:100,record:false,balance:true,unlockAll:false},store.get('kt.settings',{}));
+const S=Object.assign({keys:['KeyD','KeyF','KeyJ','KeyK'],skipKeys:['KeyL','KeyS'],speed:1,offset:0,music:.8,se:.7,auto:false,noiseEdit:false,falling:false,sudden:0,laneWidth:100,record:false,balance:true,unlockAll:false,missingGlyphs:false},store.get('kt.settings',{}));
 S.opt=Object.assign({mirror:false,rand:0,hidden:false},S.opt||{});if(!S.fx)S.fx='high';
 const LOWFX=()=>S.fx==='low'||UI.touch||G?.chart.multiRow;
 function saveS(){store.set('kt.settings',S);}
@@ -3239,6 +3240,7 @@ function renderSettings(){
   $('#outLaneW').textContent=$('#setLaneW').value+'%';
   $('#setFalling').value=S.falling!==true?'taiko':S.perspective===true?'perspective':'flat';
   $('#setNoiseEdit').checked=S.noiseEdit===true;
+  $('#setMissingGlyphs').checked=S.missingGlyphs===true;
   $('#setAuto').checked=S.auto;$('#setUnlock').checked=S.unlockAll;$('#setLowFx').checked=S.fx==='low';$('#setRecord').checked=S.record===true;$('#setRecord').disabled=!recSupported();
   if(!CAL.on&&CAL.result==null)$('#calSub').textContent=`いまのオフセット: ${S.offset>0?'+':''}${S.offset}ms`;}
 
@@ -3382,7 +3384,7 @@ function renderCharPicker(){
   }
   const selectedId=selected?.id??null;
   // 曲の読み込み中に一覧が再描画されても、選択ボタンのフォーカスを保持する。
-  const signature=JSON.stringify([selectedId,choices]);
+  const signature=JSON.stringify([S.missingGlyphs,selectedId,choices]);
   if(signature===renderedCharChoices)return;
   renderedCharChoices=signature;
 
@@ -3452,18 +3454,30 @@ function finalizeChord(tg){G.openChord=null;const b=tg.buf;let kind,why=null;
   if(b.dup||b.d!==tg.reqD||b.k!==tg.reqK){kind='bad';why='mismatch';}
   else{const worst=Math.max(...b.offs.map(Math.abs));kind=worst<=TOKU_WIN?'tokuryo':worst<=G.win.good?'good':worst<=G.win.ok?'ok':'bad';}
   judge(tg,kind,b.offs.reduce((a,x)=>a+x,0)/b.offs.length,why);}
-function nearestTarget(t,color){
+function nearestTarget(t,color,stream=false){
   const W=G.win,T=G.targets;
-  let target=null,distance=Infinity;
+  let target=null,distance=Infinity,firstMatching=null,matching=null,matchingGood=false;
   for(let i=G.cursor;i<T.length;i++){
     const x=T[i],off=x.t-t;
-    if(off>W.bad||off>distance)break;
+    if(off>W.bad||(!stream&&off>distance))break;
     if(x.judged||off< -W.bad)continue;
     const d=Math.abs(off);
     if(d<distance||(d===distance&&target.type==='single'&&target.color!==color&&(x.type==='chord'||x.color===color))){
       target=x;distance=d;
     }
+    if(stream&&x.type==='single'&&x.color===color&&d<=W.ok){
+      firstMatching??=x;
+      if(!matching||(!matchingGood&&d<=W.good)){matching=x;matchingGood=d<=W.good;}
+    }
   }
+  if(!matching||target.type!=='single')return target;
+  // 次の同色ノーツの直前まで、まだ可に入る手前のノーツを優先する。
+  if(target.color===color){
+    if(firstMatching.t<t&&t<target.t&&distance>=(target.t-firstMatching.t)/4)return firstMatching;
+    return matching;
+  }
+  // 次の異色ノーツがまだ判定線に届いていない間は、手前の同色を優先する。
+  if(matchingGood||distance>W.good||(matching.t<t&&t<target.t))return matching;
   return target;
 }
 function press(role,t,auto){
@@ -3471,8 +3485,17 @@ function press(role,t,auto){
   G.flash[role]=performance.now();playSE(color==='d'?'don':'ka');
   if(G.openChord&&t>G.openChord.gatherEnd)finalizeChord(G.openChord);
   if(!auto)expireTargets(t);
+  const stream=UI.touch&&!auto;
+  const gathering=G.openChord;
+  let tg=gathering?null:nearestTarget(t,color,stream);
+  if(stream&&gathering&&gathering.buf.d===gathering.reqD&&gathering.buf.k===gathering.reqK){
+    const next=nearestTarget(t,color);
+    if(next&&next.t>gathering.t&&(next.type==='chord'||next.color===color)&&
+      Math.abs(t-next.t)<=G.win.ok&&Math.abs(t-next.t)<Math.abs(t-gathering.t)){
+      finalizeChord(gathering);tg=next;
+    }
+  }
   const oc=G.openChord;
-  const tg=oc?null:nearestTarget(t,color);
   const big=G.absorb;
   if(big&&big.color===color&&big.role!==role&&t>=big.t&&t-big.t<=30&&(!tg||Math.abs(t-big.noteTime)<Math.abs(t-tg.t))){
     G.absorb=null;for(const st of D?[G.st,D.st]:[G.st])st.score+=big.pts;G.st.bigBoth=(G.st.bigBoth||0)+1;fxBig();return;
@@ -3576,8 +3599,8 @@ function updateFallingDanHud(now){
     }
   }
 }
-function openStage(){stopPreview();$('#stage').hidden=false;$('#stage').classList.toggle('touch',UI.touch);document.body.classList.add('playing');$('#result').hidden=true;$('#pause').hidden=true;$('#pads').hidden=libraryWait||!UI.touch||S.falling===true;setupFallingDanHud();layoutStage();startLoop();}
-function closeStage(){stopRecord();if(AUTOALL_FALLING){S.falling=true;AUTOALL_FALLING=null;}songLoad++;libraryWait=false;cancelAnimationFrame(rafId);rafId=0;stopSong();G=null;D=null;$('#stage').hidden=true;setupFallingDanHud();document.body.classList.remove('playing');refreshAll();}
+function openStage(){stopPreview();clearHitContacts();$('#stage').hidden=false;$('#stage').classList.toggle('touch',UI.touch);document.body.classList.add('playing');$('#result').hidden=true;$('#pause').hidden=true;$('#pads').hidden=libraryWait||!UI.touch||S.falling===true;setupFallingDanHud();layoutStage();startLoop();}
+function closeStage(){stopRecord();clearHitContacts();if(AUTOALL_FALLING){S.falling=true;AUTOALL_FALLING=null;}songLoad++;libraryWait=false;cancelAnimationFrame(rafId);rafId=0;stopSong();G=null;D=null;$('#stage').hidden=true;setupFallingDanHud();document.body.classList.remove('playing');refreshAll();}
 function startLoop(){if(!rafId)rafId=requestAnimationFrame(frame);}
 function stopSong(){if(G&&G.src){try{G.src.stop();}catch(e){}G.src=null;}}
 function fadeMusic(sec){if(!G||!G.gain||!AC)return;try{const g=G.gain.gain;g.cancelScheduledValues(AC.currentTime);g.setValueAtTime(g.value,AC.currentTime);g.linearRampToValueAtTime(0,AC.currentTime+sec);G.src.stop(AC.currentTime+sec+.05);}catch(e){}}
@@ -4648,6 +4671,11 @@ $('#setLowFx').addEventListener('change',e=>{
   saveS();
   if(!$('#stage').hidden)layoutStage();
 });
+$('#setMissingGlyphs').addEventListener('change',e=>{
+  S.missingGlyphs=e.target.checked;
+  saveS();
+  refreshAll();
+});
 $('#setRecord').addEventListener('change',e=>{S.record=e.target.checked;saveS();if(e.target.checked&&!recSupported())toast('このブラウザは録画に対応していません','err');});
 $('#setNoiseEdit').addEventListener('change',e=>{S.noiseEdit=e.target.checked;saveS();renderSongList();renderDetail();});
 $('#setAuto').addEventListener('change',e=>{S.auto=e.target.checked;saveS();renderDetail();});
@@ -4669,7 +4697,10 @@ if(DBG){const box=el('div',{id:'dbgBox',style:'position:fixed;left:6px;top:6px;z
   let fLast=performance.now(),fSum=0,fN=0,fMax=0;
   (function frameMeter(){const n=performance.now(),d=n-fLast;fLast=n;fSum+=d;fN++;if(d>fMax)fMax=d;if(d>100&&G&&G.perfZero){dbg.spikes.push(Math.round(n-G.perfZero));if(dbg.spikes.length>5)dbg.spikes.shift();}requestAnimationFrame(frameMeter);})();
   setInterval(()=>{const avg=fN?Math.round(fSum/fN):0;box.textContent=`入力 ${dbg.inputs} / 無視 ${dbg.ignored} / 判定なし ${dbg.silent}（直近 ${dbg.silentLast}） / フレーム平均 ${avg}ms 最大 ${Math.round(fMax)}ms / 100ms超の止まり（音声開始から ms）: ${dbg.spikes.join(' ')||'-'} / 直近のずれ ms: ${dbg.hist.join(' ')||'-'}`;fSum=0;fN=0;fMax=0;},500);}
-const pads=$('#pads'),padButtons=[...pads.querySelectorAll('button')],activeTouches=new Set();
+const pads=$('#pads'),padButtons=[...pads.querySelectorAll('button')];
+const touchStarts=new Map(),contactStarts=[];
+const CONTACT_PAIR_MS=24,CONTACT_PAIR_PX=4;
+function clearHitContacts(){touchStarts.clear();contactStarts.length=0;}
 function padRole(input){
   const node=input.target.nodeType===1?input.target:input.target.parentElement;
   const button=node?.closest('button[data-role]');
@@ -4682,31 +4713,64 @@ function padRole(input){
   }
   return closest?.dataset.role;
 }
+function startHitContact(source,id,input,role,t){
+  const now=performance.now(),{clientX:x,clientY:y}=input;
+  while(contactStarts.length&&now-contactStarts[0].receivedAt>120)contactStarts.shift();
+  // 先に届いたイベントで叩き、別形式で届いた同じ接触だけを1対1で除く。
+  let pair=-1,delta=Infinity;
+  for(let i=0;i<contactStarts.length;i++){
+    const other=contactStarts[i],dt=Math.abs(other.t-t);
+    if(other.source!==source&&dt<=CONTACT_PAIR_MS&&t<=other.end&&dt<delta&&
+      Math.abs(x-other.x)<=CONTACT_PAIR_PX&&Math.abs(y-other.y)<=CONTACT_PAIR_PX){
+      pair=i;delta=dt;
+    }
+  }
+  if(pair>=0){contactStarts.splice(pair,1);return;}
+  contactStarts.push({source,id,x,y,t,end:Infinity,receivedAt:now});
+  padPress(role,t);
+}
+function endHitContact(source,id,t){
+  for(const start of contactStarts){
+    if(start.source===source&&start.id===id&&start.end===Infinity&&t>=start.t)start.end=t;
+  }
+}
 function listenForHits(surface,roleAt){
   surface.addEventListener('touchstart',e=>{
     const t=inputTime(e);
     for(const touch of e.changedTouches){
-      if(!surface.contains(touch.target)||activeTouches.has(touch.identifier))continue;
+      if(!surface.contains(touch.target))continue;
       const role=roleAt(touch);
       if(!role)continue;
       e.preventDefault();
-      activeTouches.add(touch.identifier);
-      padPress(role,t);
+      const id=touch.identifier,last=touchStarts.get(id);
+      if(last!=null&&Math.abs(t-last)<=CONTACT_PAIR_MS)continue;
+      touchStarts.set(id,t);
+      startHitContact('touch',id,touch,role,t);
     }
   },{passive:false});
   surface.addEventListener('pointerdown',e=>{
-    // 同じ接触から pointerdown と touchstart の両方が届くことがある。
-    if(e.button!==0||(e.pointerType==='touch'&&typeof TouchEvent!=='undefined')||e.sourceCapabilities?.firesTouchEvents)return;
+    if(e.button!==0||(e.pointerType!=='touch'&&e.sourceCapabilities?.firesTouchEvents))return;
     const role=roleAt(e);
-    if(role){e.preventDefault();padPress(role,inputTime(e));}
+    if(!role)return;
+    e.preventDefault();
+    const t=inputTime(e);
+    if(e.pointerType==='touch')startHitContact('pointer',e.pointerId,e,role,t);
+    else padPress(role,t);
   });
 }
 listenForHits(pads,padRole);
 listenForHits(cv,fallingTouchRole);
 for(const type of ['touchend','touchcancel'])window.addEventListener(type,e=>{
-  for(const touch of e.changedTouches)activeTouches.delete(touch.identifier);
+  const t=inputTime(e);
+  for(const touch of e.changedTouches){
+    touchStarts.delete(touch.identifier);
+    endHitContact('touch',touch.identifier,t);
+  }
 },true);
-window.addEventListener('blur',()=>activeTouches.clear());
+for(const type of ['pointerup','pointercancel'])window.addEventListener(type,e=>{
+  if(e.pointerType==='touch')endHitContact('pointer',e.pointerId,inputTime(e));
+},true);
+window.addEventListener('blur',clearHitContacts);
 // 演奏中のピンチ拡大・ページの動きを止める（Safari のジェスチャーでプレイが中断されるのを防ぐ）
 for(const t of ['gesturestart','gesturechange','gestureend'])document.addEventListener(t,e=>{if(document.body.classList.contains('playing'))e.preventDefault();},{passive:false});
 document.addEventListener('touchmove',e=>{if(document.body.classList.contains('playing'))e.preventDefault();},{passive:false});
