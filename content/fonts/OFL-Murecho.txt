@@ -1,14 +1,8 @@
-Dela Maru Gothic UI subset
-Copyright yattyann, The Dela Gothic Project Authors (https://github.com/syakuzen/DelaGothic)
-Upstream release: https://yattyann.booth.pm/items/7047772
-Source web font: https://fontsapi.zeoseven.com/848/main/result.css
-Subset to the UI and bundled song titles for Kasane Taiko.
-
-Copyright 2020 The Dela Gothic Project Authors (https://github.com/syakuzen/DelaGothic)
+Copyright 2021 The Murecho Project Authors (https://github.com/positype/Murecho-Project)
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:
-https://openfontlicense.org
+https://scripts.sil.org/OFL
 
 
 -----------------------------------------------------------
