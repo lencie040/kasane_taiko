@@ -196,6 +196,12 @@ function chartRadarVolume(measurements) {
   return .90 * paceScore + .10 * countScore;
 }
 
+function chartRadarTechnique(technique) {
+  const score = technique / 2.45;
+  // Preserve resolution across technical charts and ease into the 100 limit.
+  return score <= .85 ? score : .85 - .15 * Math.expm1(-((score - .85) / .15));
+}
+
 // The expected one-hand pace rises with the chart's baseline skill level.
 // Use a transition band so adjacent BPMs never create a hard rating jump.
 function alternatingHandLoad(targets, baseline) {
@@ -306,12 +312,13 @@ function estimateKasaneDifficulty(chart, course, sealAt) {
   const alternation = alternatingHandLoad(chart.targets, baseline) * (1 - Math.min(.78, 1.45 * f.recovery));
   const technique = colorTechnique + alternation;
   const load = baseline + alternation;
-  // Leave headroom for unusually dense charts without a long flat ceiling.
-  const stars = load <= 11.7 ? load : 12.9 - 1.2 * Math.exp(-(load - 11.7) / 1.2);
+  // Above 11, a smaller difference in load earns the next tenth of a star.
+  const stars = load + .20 * Math.max(0, load - 11);
   const level = course === 'kasane'
     ? Math.max(1, Math.min(10, Math.round(1 + (load - 4) * .83 + 2.1 * f.chords)))
     : Math.max(1, Math.round(stars * 10) / 10);
-  return { level, burst:f.burst, quantity, technique, rhythm, visibility, simultaneous, sealed, radarVolume:chartRadarVolume(f) };
+  return { level, burst:f.burst, quantity, technique, rhythm, visibility, simultaneous, sealed,
+    radarVolume:chartRadarVolume(f), radarTechnique:chartRadarTechnique(technique) };
 }
 
 const chartDifficultyMeasurements = new WeakMap();
