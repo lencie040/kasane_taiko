@@ -201,25 +201,33 @@ function chartRadarVolume(measurements) {
 function alternatingHandLoad(targets, baseline) {
   const skill = Math.max(0, Math.min(1, (baseline - 1) / 11));
   const transitionStart = 141 - 31 * skill;
-  let chain = 0, notes = 0, local = 0, highest = 0, total = 0;
+  let repeats = 0, recentNotes = 0, recentCost = 0, peakCost = 0;
+  let totalCost = 0, totalFastCost = 0;
   for (let i = 1; i < targets.length; i++) {
     const previous = targets[i - 1], current = targets[i];
     const gap = current.t - previous.t;
     const repeated = previous.type === 'single' && current.type === 'single' && previous.color === current.color;
     const progress = repeated ? Math.max(0, Math.min(1, (transitionStart - gap) / 16)) : 0;
     const demand = progress * progress * (3 - 2 * progress);
-    // Extreme speeds contribute through physical density as well. Keep the
-    // strongest coordination weight near the switch to alternating hands.
-    const coordination = .54 + .46 * Math.max(0, Math.min(1, (gap - 60) / 30));
-    const cost = demand * Math.min(1, chain / 310) * coordination;
-    chain = demand > 0 ? Math.min(310, chain + demand * gap) : 0;
-    total += cost;
+    // Count consecutive repeats so a faster run cannot lose weight because
+    // the same number of hits takes less time. Each extra hit adds less load.
+    repeats = demand > 0 ? repeats + demand : 0;
+    const lengthLoad = -Math.expm1(-repeats / 4);
+    const cost = demand * lengthLoad;
+    totalCost += cost;
+    // Faster than about 14 hits per second, maintaining alternating strokes
+    // requires more control. One isolated rush should still weigh less.
+    const speedLoad = 2 * Math.max(0, 72 - gap) / Math.max(36, gap);
+    totalFastCost += cost * speedLoad;
     const decay = Math.exp(-gap / 650);
-    notes = notes * decay + 1;
-    local = local * decay + cost;
-    highest = Math.max(highest, local / Math.max(5, notes));
+    recentNotes = recentNotes * decay + 1;
+    recentCost = recentCost * decay + cost;
+    peakCost = Math.max(peakCost, recentCost / Math.max(5, recentNotes));
   }
-  return .70 * total / Math.max(1, targets.length - 1) + .68 * highest;
+  const intervals = Math.max(1, targets.length - 1);
+  const fastRepeats = totalFastCost / intervals;
+  const recurringSpeed = fastRepeats * Math.min(1, fastRepeats / .12);
+  return .72 * totalCost / intervals + .40 * peakCost + .95 * Math.log1p(5 * recurringSpeed);
 }
 
 function measureSealDifficulty(targets, sealAt) {
