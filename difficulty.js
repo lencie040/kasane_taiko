@@ -4,7 +4,17 @@ function similarIntervals(a, b) {
   return Math.abs(a - b) <= Math.max(3, Math.min(a, b) * .055);
 }
 
-function rhythmChange(gap, previous, earlier) {
+function rhythmSubdivision(gap, beat) {
+  if (!(beat > 0 && gap > 0 && gap <= 850)) return null;
+  // 48 ticks per beat represent common binary and ternary subdivisions.
+  const ticks = Math.round(gap * 48 / beat);
+  if (!ticks || !similarIntervals(gap, ticks * beat / 48)) return null;
+  if (ticks % 12 === 0) return 'standard';
+  if (ticks % 3 === 0) return 'binary';
+  return ticks % 2 === 0 ? 'ternary' : null;
+}
+
+function rhythmChange(gap, previous, earlier, subdivision, previousSubdivision) {
   const shortest = Math.min(gap, previous);
   const longest = Math.max(gap, previous);
   if (shortest <= 0 || longest > 850 || similarIntervals(gap, previous)) return 0;
@@ -14,7 +24,15 @@ function rhythmChange(gap, previous, earlier) {
   // 16ths to 24ths, even when the difference in timing is larger.
   const gridDistance = Math.abs(change - Math.round(change));
   const irregular = Math.max(0, (gridDistance - .08) / .42);
-  const shift = .6 * Math.min(1, change) + .85 * irregular;
+  let shift = .6 * Math.min(1, change) + .85 * irregular;
+  if (subdivision === 'standard' && previousSubdivision === 'standard') {
+    // Common 8th/16th patterns on the same grid need less timing adjustment.
+    const fast = Math.max(0, Math.min(1, (118 - shortest) / 65));
+    shift *= .24 + .5 * fast + .64 * irregular;
+  } else if (subdivision && previousSubdivision && subdivision !== previousSubdivision
+    && (subdivision === 'ternary' || previousSubdivision === 'ternary')) {
+    shift += .4 + .15 * (subdivision === 'binary' || previousSubdivision === 'binary');
+  }
   const urgency = .35 + .65 * Math.max(0, Math.min(1, (380 - shortest) / 270));
   const predictable = earlier > 0 && similarIntervals(gap, earlier);
   return shift * urgency * (predictable ? .7 : 1);
@@ -25,23 +43,25 @@ function rhythmChange(gap, previous, earlier) {
 function measureChartDifficulty(chart) {
   const targets = chart.targets;
   if (!targets.length) {
-    return { burst:0, sustained:0, quickThree:0, quickFive:0, pace:0, color:0, rhythm:0,
-      peakColor:0, peakRhythm:0, chords:0, chordReading:0,
+    return { burst:0, sustained:0, fastRunRate:0, quickThree:0, quickFive:0, pace:0, color:0, rhythm:0,
+      peakColor:0, peakRhythm:0, peakGridMix:0, offbeatEntries:0, chords:0, chordReading:0,
       speedChanges:0, lowScroll:0, highScroll:0, strikes:0 };
   }
 
   const sections = new Map();
   const firstTime = targets[0].t;
-  const starts = [0, 0];
-  const weights = [0, 0];
+  const windows = [1000, 1600, 2400, 4000].map(duration => ({ duration, start:0, weight:0 }));
+  const [burstWindow, shortStream, longStream, sustainedWindow] = windows;
   const charges = [];
-  const windows = [1000, 4000];
   const scrollRates = [];
+  const timing = chart.segs ?? [];
   const lastColorRuns = [0, 0, 0];
   let previousMask = 0, priorGap = 0, earlierGap = 0, run = 0, lastRun = 0;
+  let timingIndex = 0, previousBeat = 0, previousSubdivision = null, previousOffbeat = false;
   let strikes = 0, chordStrikes = 0, chordReading = 0, color = 0, rhythm = 0, speedChanges = 0;
   let exposure = 0, recentColor = 0, recentRhythm = 0, peakColor = 0, peakRhythm = 0;
-  let quickThree = 0, quickFive = 0;
+  let offbeatEntries = 0, recentBinary = 0, recentTernary = 0, peakGridMix = 0;
+  let quickThree = 0, quickFive = 0, fastRunRate = 0;
 
   for (const [i, current] of targets.entries()) {
     const previous = targets[i - 1];
@@ -73,13 +93,23 @@ function measureChartDifficulty(chart) {
       // Weigh variation in the lengths of d/k groups, including cases where
       // a color returns with a different length than its last appearance.
       const changedLength = lastColorRuns[previousMask] && lastColorRuns[previousMask] !== run;
+      const transitionSpeed = .14 + .86 * Math.max(0, Math.min(1, (195 - gap) / 130));
       colorCost = (.28 + (run > 1 ? .35 : 0) + (lastRun && lastRun !== run ? .3 : 0)
-        + (changedLength ? .45 : 0)) * (.18 + .82 * hurried);
+        + (changedLength ? .45 : 0)) * transitionSpeed;
       lastColorRuns[previousMask] = run;
       lastRun = run;
       run = 1;
     }
-    const rhythmCost = rhythmChange(gap, priorGap, earlierGap);
+    while (timing[timingIndex + 1]?.time <= current.t + 1) timingIndex++;
+    const segment = timing[timingIndex];
+    const beat = segment?.bl ?? 0;
+    const subdivision = beat === previousBeat ? rhythmSubdivision(gap, beat) : null;
+    const rhythmCost = rhythmChange(gap, priorGap, earlierGap, subdivision, previousSubdivision);
+    const halfBeats = beat > 0 ? (current.t - segment.rt) * 2 / beat : 0;
+    const offbeat = Math.abs(halfBeats - Math.round(halfBeats)) >= .42;
+    if (subdivision === 'standard' && offbeat && !previousOffbeat && gap >= beat * .375 && gap <= beat * 1.5) {
+      offbeatEntries++;
+    }
     color += colorCost;
     rhythm += rhythmCost;
     // A short technical passage can determine the difficulty of a whole
@@ -91,6 +121,11 @@ function measureChartDifficulty(chart) {
     const sample = Math.max(4, exposure);
     peakColor = Math.max(peakColor, recentColor / sample);
     peakRhythm = Math.max(peakRhythm, recentRhythm / sample);
+    // Mixing binary and ternary subdivisions within a phrase remains hard
+    // when ordinary notes separate their fastest groups.
+    recentBinary = recentBinary * decay + (subdivision === 'binary' ? 1 : 0);
+    recentTernary = recentTernary * decay + (subdivision === 'ternary' ? 1 : 0);
+    peakGridMix = Math.max(peakGridMix, Math.min(recentBinary, recentTernary) / Math.max(5, exposure));
     if (previous && previous.speed > 0 && current.speed > 0) {
       speedChanges += Math.min(1, Math.abs(Math.log2(current.speed / previous.speed))) * hurried;
     }
@@ -98,6 +133,9 @@ function measureChartDifficulty(chart) {
     previousMask = mask;
     earlierGap = priorGap;
     priorGap = gap;
+    previousBeat = beat;
+    previousSubdivision = subdivision;
+    previousOffbeat = offbeat;
 
     // Simultaneity adds coordination cost without treating four simultaneous
     // strikes like four consecutive notes at the same timestamp.
@@ -109,13 +147,19 @@ function measureChartDifficulty(chart) {
       peak = [0, 0];
       sections.set(section, peak);
     }
-    windows.forEach((duration, window) => {
-      weights[window] += charge;
-      while (current.t - targets[starts[window]].t >= duration) {
-        weights[window] -= charges[starts[window]++];
+    for (const window of windows) {
+      window.weight += charge;
+      while (current.t - targets[window.start].t >= window.duration) {
+        window.weight -= charges[window.start++];
       }
-      peak[window] = Math.max(peak[window], weights[window] * 1000 / duration);
-    });
+    }
+    peak[0] = Math.max(peak[0], burstWindow.weight);
+    peak[1] = Math.max(peak[1], sustainedWindow.weight / 4);
+    // Count sequential targets here and account for stacked strikes in the
+    // separate chord factors.
+    const streamRate = 1000 * (.35 * (i - shortStream.start + 1) / shortStream.duration
+      + .65 * (i - longStream.start + 1) / longStream.duration);
+    fastRunRate = Math.max(fastRunRate, streamRate);
   }
 
   const peaks = [...sections.values()];
@@ -127,8 +171,9 @@ function measureChartDifficulty(chart) {
   const duration = Math.max(2000, targets.at(-1).t - firstTime + 400);
   scrollRates.sort((a, b) => a - b);
   const scrollAt = p => scrollRates[Math.floor((scrollRates.length - 1) * p)] || 0;
-  return { burst, sustained, quickThree, quickFive, pace:charges.reduce((a, b) => a + b, 0) * 1000 / duration,
-    color:color / targets.length, rhythm:rhythm / targets.length, peakColor, peakRhythm,
+  return { burst, sustained, fastRunRate, quickThree, quickFive, pace:charges.reduce((a, b) => a + b, 0) * 1000 / duration,
+    color:color / targets.length, rhythm:rhythm / targets.length, peakColor, peakRhythm, peakGridMix,
+    offbeatEntries:offbeatEntries / targets.length,
     chords:chordStrikes / strikes, chordReading:chordReading / targets.length,
     speedChanges:speedChanges / targets.length, lowScroll:scrollAt(.15), highScroll:scrollAt(.85), strikes };
 }
@@ -170,16 +215,23 @@ function estimateKasaneDifficulty(chart, course, sealAt) {
 
   // Weigh a fast group of a few hits when it is much quicker than the
   // surrounding one-second runs. Regular density still contributes separately.
-  const shortSpeed = .62 * f.quickThree + .38 * f.quickFive;
   const usualSpeed = Math.max(7, 1.22 * f.burst);
+  const nearbySpeed = f.quickFive || f.quickThree;
+  // An isolated triplet carries less weight than one inside a fast passage.
+  const support = Math.max(.12 * nearbySpeed, 1.25 * (nearbySpeed - usualSpeed), .9 * (nearbySpeed - 10));
+  const shortSpeed = Math.min(.62 * f.quickThree + .38 * nearbySpeed, nearbySpeed + support);
   const shortBurst = Math.min(2.2, 2.8 * Math.log(Math.max(1, shortSpeed / usualSpeed)));
   const effectiveBurst = f.burst - .45 * Math.max(0, f.burst - 12);
   const effectiveSustained = f.sustained - .50 * Math.max(0, f.sustained - 7);
+  const runLoad = -.32 * Math.expm1(-Math.max(0, f.fastRunRate - 8) / 2);
+  const enduranceLoad = runLoad + .27 * Math.max(0, f.fastRunRate - 17) + .09 * Math.max(0, f.sustained - 12);
+  const endurance = 1.55 * Math.tanh(enduranceLoad / 1.55);
   const quantity = 2.45 * Math.log1p(effectiveBurst) + 1.30 * Math.log1p(effectiveSustained)
-    + .27 * Math.log1p(f.pace) + .25 * Math.log1p(f.strikes / 140) + shortBurst;
+    + .27 * Math.log1p(f.pace) + .25 * Math.log1p(f.strikes / 140) + shortBurst + endurance;
   const patternWeight = .70 + .30 * Math.min(1, f.burst / 13);
   const technique = patternWeight * (1.35 * f.color + 1.35 * f.peakColor);
-  const rhythm = patternWeight * (1.50 * f.rhythm + 1.35 * f.peakRhythm);
+  const syncopation = .95 * Math.tanh(19.5 * Math.max(0, f.offbeatEntries - .025));
+  const rhythm = patternWeight * (1.50 * f.rhythm + 1.35 * f.peakRhythm + 1.85 * f.peakGridMix + syncopation);
   const simultaneous = 1.05 * f.chords + .72 * f.chordReading;
   const base = -2.22 + quantity + technique + rhythm + simultaneous;
   const lowComfort = 62 + 4 * Math.max(1, base);
