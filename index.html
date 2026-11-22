@@ -2691,7 +2691,10 @@ function backToSongs(){
 
 function renderSongList({direction=0,jump=false}={}){
   const list=$('#songlist'),folders=effectiveFolders();
-  const animate=!matchMedia('(prefers-reduced-motion: reduce)').matches&&
+  const entries=arcadeEntries(),count=entries.length;
+  // 2項目だけの一覧では、選択が変わるたびに上下を入れ替えない。
+  const fixedOrder=count===2;
+  const animate=!fixedOrder&&!matchMedia('(prefers-reduced-motion: reduce)').matches&&
     typeof list.animate==='function'&&list.getClientRects().length>0;
   const focused=document.activeElement;
   const restoreFocus=list.contains(focused);
@@ -2701,7 +2704,6 @@ function renderSongList({direction=0,jump=false}={}){
     row,key:row.dataset.entry,offset:Number(row.dataset.offset),bounds:row.getBoundingClientRect()
   })):[];
   folderToolbar(folders);
-  const entries=arcadeEntries(),count=entries.length;
   $('#listCount').textContent=`${entries.filter(entry=>entry.set).length}曲`;
   const touch=UI.touch||matchMedia('(pointer: coarse)').matches;
   $('#navHint').textContent=touch?'上下にスワイプして移動':`カ（${keyLabel(S.keys[0])}・${keyLabel(S.keys[3])}）で移動、ドンで決定`;
@@ -2711,7 +2713,7 @@ function renderSongList({direction=0,jump=false}={}){
   for(const[id,v]of[['lvMin',UI.lvMin],['lvMax',UI.lvMax]]){const input=$('#'+id);if(document.activeElement!==input)input.value=v??'';}
   if(!count){list.replaceChildren(el('li',{class:'empty'},'条件に合う曲がありません'));return;}
 
-  const index=arcadeIndex(entries),visible=Math.min(7,count),above=Math.floor(visible/2);
+  const index=arcadeIndex(entries),visible=Math.min(7,count),above=fixedOrder?index:Math.floor(visible/2);
   const rows=[];
   for(let offset=-above;offset<visible-above;offset++){
     const entry=entries[(index+offset+count)%count],selected=offset===0;
@@ -2722,7 +2724,7 @@ function renderSongList({direction=0,jump=false}={}){
       else{selectSet(entry.set.key,true);showCoursePicker();}
     };
     const row=entry.folder?folderStrip(entry.folder,selected,choose):songStrip(entry.set,selected,choose);
-    row.style.setProperty('--strip-shift',offset*1.55+'%');
+    if(!fixedOrder)row.style.setProperty('--strip-shift',offset*1.55+'%');
     row.dataset.offset=offset;
     row.dataset.entry=entry.folder?.back?`back:${UI.folder}:${entry.index}`:entry.folder?'folder:'+entry.folder.id:'song:'+entry.set.key;
     if(selected)(row.matches('button,[role=button]')?row:row.querySelector('.folder-entry')).setAttribute('aria-current','true');
