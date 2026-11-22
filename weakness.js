@@ -113,7 +113,7 @@ function relatedWeaknessExercises(origin, pattern, charts, sealsFor) {
     const song = songs.get(chart.set.key);
     if (best && (!song || best.distance < song.distance)) songs.set(chart.set.key, best);
   }
-  return [...songs.values()].sort((a, b) => a.distance - b.distance).slice(0, 2).map(({chart,t}) => ({
+  return [...songs.values()].sort((a, b) => a.distance - b.distance).slice(0, 4).map(({chart,t}) => ({
     chart, ...weaknessRange(chart, t, t),
   }));
 }

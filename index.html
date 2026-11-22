@@ -3806,7 +3806,7 @@ function showWeaknessResult(res,targets){
     const after=weaknessJudgments(targets,origin.focusFrom,origin.to),change=compareWeaknessResults(origin.before,after);
     const stats=[['bad','不可'],['ok','可']].map(([key,label])=>el('div',null,
       el('dt',null,label),el('dd',null,`${origin.before[key]} → ${after[key]}`)));
-    card.append(el('strong',{role:'status'},change>0?'前回より改善！':change<0?'もう一度、元の難所に挑戦':'前回と同じ判定数'),
+    card.append(el('strong',{role:'status'},change>0?'初回より改善！':change<0?'もう一度、元の難所に挑戦':'初回と同じ判定数'),
       el('dl',{class:'weakness-compare','aria-label':'元の難所の初回と再挑戦の比較'},stats));
   }else{
     card.append(judgeRows(res.st,res.st.notes,res.st.chordNotes));
@@ -3815,7 +3815,9 @@ function showWeaknessResult(res,targets){
   }
   const next=el('button',{class:'btn primary',type:'button',onclick:()=>playWeaknessRound(lesson,last?index:index+1)},
     last?'元の難所をもう一度':lesson.rounds[index+1]===origin?'元の難所に挑戦':'次の類題へ');
-  card.append(el('div',{class:'ov-btns'},next,el('button',{class:'btn',type:'button',onclick:closeStage},'曲選択へ')));
+  card.append(el('div',{class:'ov-btns'},next,
+    last&&index>0?el('button',{class:'btn',type:'button',onclick:()=>playWeaknessRound(lesson,0)},'似た配置をもう一度'):null,
+    el('button',{class:'btn',type:'button','data-result-back':true,onclick:closeStage},'曲選択へ')));
   $('#result').hidden=false;UI.resultAt=performance.now();next.focus({preventScroll:true});
 }
 
@@ -3842,7 +3844,7 @@ function showResult(res){cancelAnimationFrame(rafId);rafId=0;const{chart,st}=res
           el('div',{class:'gbar'},el('i',{style:`--w:${(st.gauge/100).toFixed(1)}%`}),el('b',{style:`--c:${CLEAR[chart.course]/100}%`})))),
       el('div',{class:'res-right'},judgeRows(st,st.notes,st.chordNotes),histBlock(st,res.win||WIN_HARD))));
   if(res.weakness)card.append(weaknessOffer(res));
-  card.append(el('div',{class:'ov-btns'},el('button',{class:'btn primary',onclick:()=>{$('#result').hidden=true;runSong(chart,res.prac);}},'もう一度'),el('button',{class:'btn',onclick:closeStage},'曲選択へ'),el('span',{class:'res-keys'},`ドン（${keyLabel(S.keys[1])}・${keyLabel(S.keys[2])}）でもう一度、カ（${keyLabel(S.keys[0])}・${keyLabel(S.keys[3])}）で戻る`)));
+  card.append(el('div',{class:'ov-btns'},el('button',{class:'btn primary',onclick:()=>{$('#result').hidden=true;runSong(chart,res.prac);}},'もう一度'),el('button',{class:'btn','data-result-back':true,onclick:closeStage},'曲選択へ'),el('span',{class:'res-keys'},`ドン（${keyLabel(S.keys[1])}・${keyLabel(S.keys[2])}）でもう一度、カ（${keyLabel(S.keys[0])}・${keyLabel(S.keys[3])}）で戻る`)));
   $('#result').hidden=false;UI.resultAt=performance.now();countUp(scoreEl,st.score);}
 function showDanResult(){cancelAnimationFrame(rafId);rafId=0;if(!D)return;const d=D.dan,st=D.st,complete=D.results.length===d.songs.length;
   let red=complete,gold=complete;const rows=el('tbody');
@@ -3877,7 +3879,7 @@ function showDanResult(){cancelAnimationFrame(rafId);rafId=0;if(!D)return;const 
       el('div',{class:'res-right'},judgeRows(st,D.tot.notes,D.tot.chordNotes),
         D.conds.length?el('div',{class:'tbl-wrap'},el('table',null,el('thead',null,el('tr',null,el('th',null,'条件'),el('th',null,'結果'),el('th',null,'合格'),el('th',null,'金合格'))),rows)):null)),
     el('div',{class:'ov-btns'},el('button',{class:'btn primary',onclick:()=>{const dd=d;$('#result').hidden=true;closeStage();startDan(dd);}},'もう一度挑戦'),
-      el('button',{class:'btn',onclick:()=>{closeStage();setTab('dan');}},'段位道場へ'),
+      el('button',{class:'btn','data-result-back':true,onclick:()=>{closeStage();setTab('dan');}},'段位道場へ'),
       red&&!D.auto&&unlockC?el('button',{class:'btn gold',onclick:()=>{closeStage();UI.folder=preferredSongFolder(unlockC.set,effectiveFolders());UI.filt='all';$('#filter').value='';setTab('select');UI.selChart=unlockC.uid;selectSet(unlockC.set.key,false);showCoursePicker();}},'解禁した譜面を見る'):null));
   $('#result').hidden=false;UI.resultAt=performance.now();countUp(scoreEl,st.score,1300);if(red)setTimeout(()=>playJingle('danpass'),350);else if(!D.failCond)setTimeout(()=>playJingle('danfail'),350);}
 
@@ -4868,7 +4870,7 @@ window.addEventListener('keydown',e=>{
   if(!$('#stage').hidden&&!$('#result').hidden){if(performance.now()-(UI.resultAt||0)<800)return;const ki=S.keys.indexOf(e.code);
     if(e.key==='Enter'&&document.activeElement?.matches('#resultCard button'))return;
     if(e.key==='Enter'||ki===1||ki===2){e.preventDefault();const b=$('#resultCard .ov-btns .btn.primary');if(b)b.click();}
-    else if(e.key==='Escape'||ki===0||ki===3){e.preventDefault();const bs=document.querySelectorAll('#resultCard .ov-btns .btn');const b=bs[1]||bs[0];if(b)b.click();}return;}
+    else if(e.key==='Escape'||ki===0||ki===3){e.preventDefault();$('#resultCard [data-result-back]')?.click();}return;}
   if(UI.binding!=null){e.preventDefault();if(e.code!=='Escape')bindKey(UI.binding,e.code);UI.binding=null;renderSettings();renderDetail();return;}
   if(!$('#stage').hidden){
     if(e.code==='Escape'){e.preventDefault();if(G&&G.paused)resumeGame();else if(G&&!G.finished)pauseGame();else if((G&&G.prac)||(!G&&!D))closeStage();return;}
