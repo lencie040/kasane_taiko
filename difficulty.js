@@ -312,8 +312,10 @@ function estimateKasaneDifficulty(chart, course, sealAt) {
   const alternation = alternatingHandLoad(chart.targets, baseline) * (1 - Math.min(.78, 1.45 * f.recovery));
   const technique = colorTechnique + alternation;
   const load = baseline + alternation;
-  // Above 11, a smaller difference in load earns the next tenth of a star.
-  const stars = load + .20 * Math.max(0, load - 11);
+  // Use closer steps starting at 11, then slow the rise smoothly for harder charts.
+  const upperLoad = Math.max(0, load - 11);
+  const upperStars = Math.min(.7, upperLoad) + Math.log1p(Math.max(0, upperLoad - .7));
+  const stars = Math.min(11, load) + 1.10 * upperStars;
   const level = course === 'kasane'
     ? Math.max(1, Math.min(10, Math.round(1 + (load - 4) * .83 + 2.1 * f.chords)))
     : Math.max(1, Math.round(stars * 10) / 10);
