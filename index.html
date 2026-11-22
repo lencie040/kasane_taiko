@@ -1265,7 +1265,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 
 <script src="content/fonts/murecho-glyphs.js"></script>
 <script src="difficulty.js"></script>
-<script src="weakness.js?v=core"></script>
+<script src="weakness.js?v=context"></script>
 <script src="editor-tempo.js"></script>
 <script src="editor.js"></script>
 <script>
@@ -3803,9 +3803,10 @@ function showWeaknessResult(res,targets){
   cancelAnimationFrame(rafId);rafId=0;setResultChar(null);
   const step=res.prac.weakness,{lesson,index,round}=step,{origin}=lesson;
   const last=round===origin;
+  const from=fmtTime(last?round.focusFrom:round.from),to=fmtTime(round.to);
   const card=$('#resultCard');card.className='ov-card weakness-round';card.replaceChildren();
   card.append(el('h2',null,weaknessRoundLabel(step)),
-    el('p',null,`${round.chart.set.title} ・ ${round.chart.meta.version} ・ ${fmtTime(round.focusFrom)}〜${fmtTime(round.to)}`));
+    el('p',null,`${round.chart.set.title} ・ ${round.chart.meta.version} ・ ${from}〜${to}`));
   if(last){
     const after=weaknessJudgments(targets,origin.focusFrom,origin.to),change=compareWeaknessResults(origin.before,after);
     const stats=[['bad','不可'],['ok','可']].map(([key,label])=>el('div',null,
@@ -3814,6 +3815,8 @@ function showWeaknessResult(res,targets){
       el('dl',{class:'weakness-compare','aria-label':'元の難所の初回と再挑戦の比較'},stats));
   }else{
     card.append(judgeRows(res.st,res.st.notes,res.st.chordNotes));
+    const focusFrom=fmtTime(round.focusFrom),focusTo=fmtTime(round.focusTo);
+    card.append(el('p',{class:'res-note'},`似ている配置は ${focusFrom===focusTo?focusFrom+' 付近':focusFrom+'〜'+focusTo}`));
     const next=lesson.rounds[index+1];
     card.append(el('p',{class:'res-note'},`次は ${next===origin?'元の難所':'類題'} ・ ${next.chart.set.title}`));
   }

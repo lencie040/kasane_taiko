@@ -35,6 +35,18 @@ function weaknessRange(chart, first, last) {
   return { from:Math.max(0, focusFrom - 4500, Math.min(focusFrom, previous.start)), to, focusFrom };
 }
 
+function relatedPracticeRange(chart, focusFrom, focusTo) {
+  const firstBar = weaknessMeasure(chart, focusFrom);
+  const lastBar = weaknessMeasure(chart, focusTo);
+  const previous = weaknessMeasure(chart, firstBar.start - 2);
+  const next = weaknessMeasure(chart, lastBar.end + 2);
+  // Use surrounding bars for context without making very slow sections long.
+  const contextLimit = 3000;
+  const start = Math.max(0, focusFrom - contextLimit, Math.round(previous.start));
+  const end = Math.min(chart.length, focusTo + contextLimit, Math.round(next.end) - 1);
+  return { from:Math.min(focusFrom, start), to:Math.max(focusTo, end) };
+}
+
 function weaknessPattern(targets, index, sealsAt) {
   const target = targets[index], previous = targets[index - 1], next = targets[index + 1];
   const before = previous ? Math.min(500, target.t - previous.t) : 500;
@@ -190,14 +202,16 @@ function relatedWeaknessExercises(origin, exercise, charts, sealsFor) {
         if (keys[index] !== reference[0] || !reference.every((key, i) => key === keys[index + i])) continue;
         const distance = weaknessPhraseDistance(phrase, chart, index) + penalty + (flipped ? .32 : 0);
         if (!Number.isFinite(distance) || (best && distance >= best.distance)) continue;
-        const from = chart.targets[index].t, to = chart.targets[index + size - 1].t;
-        best = { chart, from, to, focusFrom:from, distance, mirrored:!!flipped };
+        const focusFrom = chart.targets[index].t, focusTo = chart.targets[index + size - 1].t;
+        best = { chart, focusFrom, focusTo, distance, mirrored:!!flipped };
       }
     }
     const song = songs.get(chart.set.key);
     if (best && (!song || best.distance < song.distance)) songs.set(chart.set.key, best);
   }
-  return [...songs.values()].sort((a, b) => a.distance - b.distance).slice(0, 4);
+  return [...songs.values()].sort((a, b) => a.distance - b.distance).slice(0, 4).map(round => ({
+    ...round, ...relatedPracticeRange(round.chart, round.focusFrom, round.focusTo),
+  }));
 }
 
 function compareWeaknessResults(before, after) {
