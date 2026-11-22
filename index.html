@@ -461,6 +461,18 @@ kbd.gk{font-size:14px;padding:1px 7px}kbd.gk.d{color:#ff8a72;border-color:var(--
 .hist-wrap{display:grid;gap:6px}
 .hist{width:100%;height:110px;display:block;border-radius:10px;background:var(--ink);border:1px solid var(--line)}
 .res-note{margin:0;color:var(--mute);font-size:13px}
+.weakness-offer{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px 16px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel-2)}
+.weakness-offer strong,.weakness-round h2{color:#ffdb92}
+.weakness-round{display:grid;gap:12px}
+.weakness-round h2,.weakness-round p{margin:0}
+.weakness-round h2{font-size:clamp(22px,5vw,30px)}
+.weakness-round .jrows{max-width:540px;width:100%}
+.weakness-compare{display:flex;flex-wrap:wrap;gap:8px;margin:0}
+.weakness-compare div{display:grid;gap:4px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel-2)}
+.weakness-compare dt{font-size:12px;color:var(--mute)}
+.weakness-compare dd{margin:0;font:700 22px var(--f-num)}
+#stage #result,#stage #result *{touch-action:pan-y}
+@media(max-width:720px),(max-height:520px){#stage #result{align-items:start}}
 .res-songs{list-style:none;margin:0;padding:0;display:grid;gap:4px;width:100%}
 .res-songs li{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:8px;align-items:center;font-size:13.5px;background:var(--panel-2);border-radius:8px;padding:6px 10px}
 .res-songs li.dim{opacity:.5}
@@ -1022,7 +1034,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 #result.has-char[hidden]{display:none}
 .res-char-out{flex:0 0 auto;width:min(30vw,280px);height:auto;max-height:78dvh;object-fit:contain;border-radius:16px;filter:drop-shadow(0 6px 14px rgba(0,0,0,.35))}
 #result.has-char>.ov-card{min-width:0;flex:0 1 900px}
-@media (max-width:700px){#result.has-char{flex-direction:column;gap:8px}.res-char-out{width:min(60vw,220px);max-height:30dvh}}
+@media (max-width:700px){#stage #result.has-char{flex-direction:column;justify-content:flex-start;align-items:center;gap:8px}#result.has-char>.ov-card{flex:0 0 auto}.res-char-out{width:min(60vw,220px);max-height:30dvh}}
 .char-result{display:flex;gap:12px;align-items:center;padding:10px;border-radius:14px;border:2px solid #482d3e;background:#fff8df;color:#452638;margin:8px 0}
 .char-result-text{display:grid;gap:2px;min-width:0}
 .char-result-text small{font-size:12px}
@@ -1253,6 +1265,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 
 <script src="content/fonts/murecho-glyphs.js"></script>
 <script src="difficulty.js"></script>
+<script src="weakness.js"></script>
 <script src="editor-tempo.js"></script>
 <script src="editor.js"></script>
 <script>
@@ -3404,17 +3417,20 @@ function renderCharPicker(){
 let G=null,D=null,rafId=0;const cv=$('#cv'),ctx=cv.getContext('2d');const view={W:0,H:0,dpr:1,L:null};
 function newStats(notes,chordNotes,course){return{notes,chordNotes,gu:10000/Math.max(1,notes*.75),badMul:BADMUL[course]||2,tokuryo:0,good:0,ok:0,bad:0,roll:0,rollDrum:0,combo:0,maxCombo:0,score:0,gauge:0,judged:0,chordJudged:0,offSum:0,offN:0,offs:[],chordHit:0,chordMiss:0,mismatch:0};}
 function newRun(chart,prac){
-  if(!chart.multiRow)loadNoise(chart);
+  const training=prac?.weakness?.round, replay=training?.targets;
+  if(!chart.multiRow&&!replay)loadNoise(chart);
   const ab=abFor(chart,prac);
-  const tsrc=prac?chart.targets.filter(t=>(prac.from<=0||t.t>=prac.from)&&t.t<=prac.to):chart.targets,rsrc=prac?chart.rolls.filter(r=>(prac.from<=0||r.end>=prac.from)&&r.t<=prac.to):chart.rolls;
+  const source=replay||chart.targets;
+  const tsrc=prac?source.filter(t=>(prac.from<=0||t.t>=prac.from)&&t.t<=prac.to):source,rsrc=prac?chart.rolls.filter(r=>(prac.from<=0||r.end>=prac.from)&&r.t<=prac.to):chart.rolls;
   let nN=0,nC=0;for(const t of tsrc){if(t.type==='chord'){nN+=t.notes.length;nC+=t.notes.length;}else nN++;}
   const baseWin=(chart.course==='easy'||chart.course==='normal')?WIN_SOFT:WIN_HARD;
-  return{chart,prac:prac||null,win:ab?{...baseWin,good:ab.fx.good}:baseWin,
-    targets:applySeal(applyOpts(tsrc.map(t=>({...t,notes:t.notes?t.notes.map(n=>({...n})):null,judged:false,res:null,buf:null}))),ab?ab.fx.seal:0),hidden:!D&&!!S.opt.hidden,
+  const targets=tsrc.map(t=>({...t,notes:t.notes?t.notes.map(n=>({...n})):null,judged:false,res:null,buf:null,autoDone:false}));
+  return{chart,prac:prac||null,win:training?.win||(ab?{...baseWin,good:ab.fx.good}:baseWin),
+    targets:training?targets:applySeal(applyOpts(targets),ab?ab.fx.seal:0),hidden:!training&&!D&&!!S.opt.hidden,
     rolls:rsrc.map(r=>({...r,count:0,done:false})),cursor:0,st:Object.assign(newStats(nN,nC,chart.course),{ab}),
     base:Math.ceil(1000000/Math.max(1,chart.stats.notes)/10)*10,openChord:null,absorb:null,pop:null,flash:{},lanes:chart.stats.maxLanes,
     fx:{parts:[],rings:[],flyers:[],scorePops:[],banner:null,stamp:null,rollPop:0},disp:0,prevScore:0,kiaiAmt:0,lastCombo:0,comboAt:0,gaugeFlash:0,
-    endAt:prac?prac.to+1200:chart.length+1800,now:-3000,paused:false,finished:false,failed:false,auto:S.auto,autoSide:0,synced:false};}
+    endAt:prac?prac.to+1200:chart.length+1800,now:-3000,paused:false,finished:false,failed:false,auto:!training&&S.auto,autoSide:0,synced:false};}
 /* 演奏オプション（段位道場では使わない）。同時押しは列ごと入れ替えるので「ドン2・カッ2まで」は崩れない */
 function applyOpts(targets){if(D)return targets;const o=S.opt,p=o.rand===2?.5:o.rand===1?.25:0;if(!o.mirror&&!p)return targets;
   const flip=c=>c==='d'?'k':'d';
@@ -3635,7 +3651,16 @@ let songLoad=0;
 async function runSong(chart,prac){
   const ticket=++songLoad;
   if($('#stage').hidden)openStage();G=null;UI.loading=murechoText(`読み込み中 — ${chart.set.title}`);startLoop();
-  let buf;try{buf=await getAudio(chart);}catch(e){if(ticket===songLoad){closeStage();toast(e.message,'err');}return;}
+  let buf;try{buf=await getAudio(chart);}catch(e){
+    if(ticket!==songLoad)return;
+    const step=prac?.weakness;
+    if(step&&!step.round.targets){
+      step.lesson.rounds.splice(step.index,1);
+      toast(`「${chart.set.title}」の音源を読み込めなかったため、次の課題に進みます`,'err');
+      playWeaknessRound(step.lesson,step.index);
+    }else{closeStage();toast(e.message,'err');}
+    return;
+  }
   if(ticket!==songLoad||$('#stage').hidden)return;
   G=newRun(chart,prac);if(D){G.auto=D.auto;G.disp=D.st.score;G.lastCombo=D.st.combo;}
   layoutStage();
@@ -3648,7 +3673,12 @@ async function runSong(chart,prac){
 function finishSong(){if(!G||G.finished)return;G.finished=true;fadeMusic(.8);
   const finishedRun=G;setTimeout(()=>stopRecord(finishedRun),900);// 音の減衰が入るよう少し後で止める
   const res={chart:G.chart,st:G.st,auto:G.auto,win:G.win,prac:G.prac};const alive=()=>G===finishedRun&&!$('#stage').hidden;
+  if(G.prac?.weakness){setTimeout(()=>{if(alive())showWeaknessResult(res,finishedRun.targets);},900);return;}
   if(G.prac){const pr=G.prac;if(pr.loop){pr.n=(pr.n||1)+1;setTimeout(()=>{if(alive()&&G&&G.prac===pr)runSong(G.chart,pr);},700);}else setTimeout(()=>{if(alive())showResult(res);},900);return;}
+  if(!D&&!G.auto){
+    const exercise=detectWeakness(G.chart,G.targets,G.st);
+    if(exercise)res.weakness={...exercise,targets:G.targets};
+  }
   const cs={stats:{chordNotes:G.st.chordNotes}};
   let stamp=D?.failCond?'danfail':crownFor(G.st,cs,!!D||G.st.gauge>=CLEAR[G.chart.course]);
   if(D&&stamp==='clear')stamp=null;
@@ -3734,6 +3764,61 @@ function drawHist(cvh,st,win){if(!cvh.isConnected)return;const r=cvh.getBounding
 function offsetLine(st){if(st.offN<20)return null;const a=st.offSum/st.offN;if(Math.abs(a)<=8)return el('p',{class:'res-note'},'タイミングはほぼ合っています');
   const nv=S.offset+Math.round(a);return el('p',{class:'res-note'},`${a>0?'遅め':'早め'}に叩いています。オフセットを ${nv>0?'+':''}${nv}ms にすると合いやすくなります`);}
 function rankBadge(score){const rk=rankOf(score);if(!rk)return null;return el('div',{class:'rank'+(rk[0]>=1000000?' rainbow':''),style:`--rk:${rk[3]}`},el('b',null,rk[1]),el('small',null,rk[2]+rk[1]));}
+
+function beginWeaknessLesson(res){
+  if($('#result').hidden)return;
+  const origin={...res.weakness,chart:res.chart,win:res.win};
+  const charts=Lib.charts.filter(c=>!isLocked(c)&&c.targets.length&&(c.set.demo||findFile(c.set,c.audio,c.dir,'audio')));
+  const rounds=relatedWeaknessExercises(origin.chart,origin.pattern,charts,chart=>{
+    const data=noiseData(chart);
+    if(!data||!Object.keys(data).length)return ()=>null;
+    return (target,index)=>{
+      const sides=noiseEligible(target)?data?.[noiseId(target,index)]:null;
+      return Array.isArray(sides)?sides:null;
+    };
+  });
+  rounds.push(origin);
+  playWeaknessRound({origin,rounds},0);
+}
+function playWeaknessRound(lesson,index){
+  const round=lesson.rounds[index];
+  ensureAudio();D=null;$('#result').hidden=true;
+  runSong(round.chart,{from:round.from,to:round.to,rate:1,loop:false,weakness:{lesson,index,round}});
+}
+function weaknessRoundLabel({lesson,index,round}){
+  return `弱点道場 ${index+1}/${lesson.rounds.length} ・ ${round===lesson.origin?'元の難所':'類題'}`;
+}
+function weaknessOffer(res){
+  const weakness=res.weakness,label=weakness.kind==='bad'?'不可':'可';
+  return el('section',{class:'weakness-offer','aria-label':'弱点道場'},
+    el('div',null,el('strong',null,'弱点道場'),
+      el('p',{class:'res-note'},`${fmtTime(weakness.focusFrom)}〜${fmtTime(weakness.to)} ・ ${label}${weakness.before[weakness.kind]} ・ ${WEAKNESS_PATTERNS[weakness.pattern.kind]}`)),
+    el('button',{class:'btn',type:'button',onclick:()=>beginWeaknessLesson(res)},'弱点に挑戦'));
+}
+function showWeaknessResult(res,targets){
+  cancelAnimationFrame(rafId);rafId=0;setResultChar(null);
+  const step=res.prac.weakness,{lesson,index,round}=step,{origin}=lesson;
+  const last=round===origin;
+  const card=$('#resultCard');card.className='ov-card weakness-round';card.replaceChildren();
+  card.append(el('h2',null,weaknessRoundLabel(step)),
+    el('p',null,`${round.chart.set.title} ・ ${round.chart.meta.version} ・ ${fmtTime(round.focusFrom)}〜${fmtTime(round.to)}`));
+  if(last){
+    const after=weaknessJudgments(targets,origin.focusFrom,origin.to),change=compareWeaknessResults(origin.before,after);
+    const stats=[['bad','不可'],['ok','可']].map(([key,label])=>el('div',null,
+      el('dt',null,label),el('dd',null,`${origin.before[key]} → ${after[key]}`)));
+    card.append(el('strong',{role:'status'},change>0?'前回より改善！':change<0?'もう一度、元の難所に挑戦':'前回と同じ判定数'),
+      el('dl',{class:'weakness-compare','aria-label':'元の難所の初回と再挑戦の比較'},stats));
+  }else{
+    card.append(judgeRows(res.st,res.st.notes,res.st.chordNotes));
+    const next=lesson.rounds[index+1];
+    card.append(el('p',{class:'res-note'},`次は ${next===origin?'元の難所':'類題'} ・ ${next.chart.set.title}`));
+  }
+  const next=el('button',{class:'btn primary',type:'button',onclick:()=>playWeaknessRound(lesson,last?index:index+1)},
+    last?'元の難所をもう一度':lesson.rounds[index+1]===origin?'元の難所に挑戦':'次の類題へ');
+  card.append(el('div',{class:'ov-btns'},next,el('button',{class:'btn',type:'button',onclick:closeStage},'曲選択へ')));
+  $('#result').hidden=false;UI.resultAt=performance.now();next.focus({preventScroll:true});
+}
+
 function showResult(res){cancelAnimationFrame(rafId);rafId=0;const{chart,st}=res;const potBefore=calcPotential();const clear=st.gauge>=CLEAR[chart.course];const crown=crownFor(st,{stats:{chordNotes:st.chordNotes}},clear);
   let newBest=false;const prevBest=(Lib.best[chart.uid]||{}).score||0;
   if(!res.auto&&!res.prac){markPlayed(chart.set);const b=Lib.best[chart.uid]||{score:0,crown:null};const nb={score:Math.max(b.score,st.score),crown:(CROWN_RANK[crown]||0)>(CROWN_RANK[b.crown]||0)?crown:b.crown,potZen:st.score>b.score?ZEN_CROWNS.includes(crown):!!b.potZen};newBest=st.score>b.score;Lib.best[chart.uid]=nb;store.set('kt.best',Lib.best);
@@ -3755,8 +3840,9 @@ function showResult(res){cancelAnimationFrame(rafId);rafId=0;const{chart,st}=res
         potLine,
         el('div',{class:'gwrap'},el('div',{class:'glab'},el('span',null,`魂ゲージ（クリア ${CLEAR[chart.course]/100}%）`),el('b',null,(st.gauge/100).toFixed(1)+'%')),
           el('div',{class:'gbar'},el('i',{style:`--w:${(st.gauge/100).toFixed(1)}%`}),el('b',{style:`--c:${CLEAR[chart.course]/100}%`})))),
-      el('div',{class:'res-right'},judgeRows(st,st.notes,st.chordNotes),histBlock(st,res.win||WIN_HARD))),
-    el('div',{class:'ov-btns'},el('button',{class:'btn primary',onclick:()=>{$('#result').hidden=true;runSong(chart,res.prac);}},'もう一度'),el('button',{class:'btn',onclick:closeStage},'曲選択へ'),el('span',{class:'res-keys'},`ドン（${keyLabel(S.keys[1])}・${keyLabel(S.keys[2])}）でもう一度、カ（${keyLabel(S.keys[0])}・${keyLabel(S.keys[3])}）で戻る`)));
+      el('div',{class:'res-right'},judgeRows(st,st.notes,st.chordNotes),histBlock(st,res.win||WIN_HARD))));
+  if(res.weakness)card.append(weaknessOffer(res));
+  card.append(el('div',{class:'ov-btns'},el('button',{class:'btn primary',onclick:()=>{$('#result').hidden=true;runSong(chart,res.prac);}},'もう一度'),el('button',{class:'btn',onclick:closeStage},'曲選択へ'),el('span',{class:'res-keys'},`ドン（${keyLabel(S.keys[1])}・${keyLabel(S.keys[2])}）でもう一度、カ（${keyLabel(S.keys[0])}・${keyLabel(S.keys[3])}）で戻る`)));
   $('#result').hidden=false;UI.resultAt=performance.now();countUp(scoreEl,st.score);}
 function showDanResult(){cancelAnimationFrame(rafId);rafId=0;if(!D)return;const d=D.dan,st=D.st,complete=D.results.length===d.songs.length;
   let red=complete,gold=complete;const rows=el('tbody');
@@ -4251,7 +4337,8 @@ function draw(now){const c=ctx,W=view.W,H=view.H,L=view.L,g=G;if(!L)return;const
   const countTop=top+fh+8,countEnd=drawPlayCounts(countTop,false);
   const countBottom=countTop+view.countH;
   const mismatch=g.pop?.why==='mismatch'&&pn-g.pop.t<900;
-  const tags=[mismatch?'押した数・色が違います':'',g.prac?`練習 ×${g.prac.rate} ${fmtTime(g.prac.from)}〜${fmtTime(g.prac.to)}${g.prac.loop?`（${g.prac.n||1}回目）`:''}`:'',g.auto?'オート演奏':'',optLabel(),S.speed!==1?`×${S.speed.toFixed(1)}`:''].filter(Boolean).join('　');
+  const practice=g.prac?.weakness?weaknessRoundLabel(g.prac.weakness):g.prac?`練習 ×${g.prac.rate} ${fmtTime(g.prac.from)}〜${fmtTime(g.prac.to)}${g.prac.loop?`（${g.prac.n||1}回目）`:''}`:'';
+  const tags=[mismatch?'押した数・色が違います':'',practice,g.auto?'オート演奏':'',g.prac?.weakness?'':optLabel(),S.speed!==1?`×${S.speed.toFixed(1)}`:''].filter(Boolean).join('　');
   let danTop=countBottom+5;
   if(tags){
     c.save();c.font=`700 12px ${FB}`;c.fillStyle=mismatch?'#ffd1c9':'#f2ecdc';c.strokeStyle='#21182e';c.lineWidth=4;c.lineJoin='round';
@@ -4362,6 +4449,7 @@ function drawHud(now,pn){const c=ctx,W=view.W,g=G,C=COURSES[g.chart.course],gz=v
   c.textBaseline='middle';c.fillStyle='#15101a';c.fillText(lab,25,27);c.font=`700 14px ${FB}`;c.fillStyle='#f2ecdc';c.fillText(fit(c,g.chart.set.title,gz.x-40-bw),28+bw,27);c.textBaseline='alphabetic';
   const st=D?D.st:g.st;g.disp+=(st.score-g.disp)*.2;if(Math.abs(st.score-g.disp)<1)g.disp=st.score;
   c.font=`600 28px ${FN}`;c.fillStyle='#f2ecdc';const sTxt=fmtNum(g.disp);c.fillText(sTxt,16,74);const sw=c.measureText(sTxt).width;
+  if(g.prac?.weakness){c.font=`700 12px ${FB}`;c.fillText(weaknessRoundLabel(g.prac.weakness),16,92);}
   g.fx.scorePops=g.fx.scorePops.filter(p=>pn-p.t<650);const sp=g.fx.scorePops[g.fx.scorePops.length-1];
   if(sp){const dt=pn-sp.t;c.globalAlpha=1-dt/650;c.font=`600 13px ${FN}`;c.fillStyle='#f6c35c';c.fillText('+'+fmtNum(sp.v),26+sw,68-dt*.015);c.globalAlpha=1;}
   let clearV=CLEAR[g.chart.course]/10000;if(D){const gc=D.conds.find(x=>x.key==='gauge');clearV=gc?gc.red.v/100:0;}
@@ -4768,7 +4856,7 @@ for(const type of ['pointerup','pointercancel'])window.addEventListener(type,e=>
 window.addEventListener('blur',clearHitContacts);
 // 演奏中のピンチ拡大・ページの動きを止める（Safari のジェスチャーでプレイが中断されるのを防ぐ）
 for(const t of ['gesturestart','gesturechange','gestureend'])document.addEventListener(t,e=>{if(document.body.classList.contains('playing'))e.preventDefault();},{passive:false});
-document.addEventListener('touchmove',e=>{if(document.body.classList.contains('playing'))e.preventDefault();},{passive:false});
+document.addEventListener('touchmove',e=>{if(document.body.classList.contains('playing')&&!e.target.closest('#result'))e.preventDefault();},{passive:false});
 window.addEventListener('keydown',e=>{
   if(titleOpen()){if(/^(Tab|Shift|Control|Alt|Meta)/.test(e.key))return;if(e.key==='Enter'&&document.activeElement&&document.activeElement.id==='tsGuide')return;e.preventDefault();dismissTitle();return;}
   if(guideOpen()){if(e.key==='Escape'){e.preventDefault();closeGuide();}return;}
@@ -4778,6 +4866,7 @@ window.addEventListener('keydown',e=>{
   }
   if(CAL.on&&(S.keys.includes(e.code)||e.code==='Space')){e.preventDefault();if(!e.repeat)calTap(inputTime(e));return;}
   if(!$('#stage').hidden&&!$('#result').hidden){if(performance.now()-(UI.resultAt||0)<800)return;const ki=S.keys.indexOf(e.code);
+    if(e.key==='Enter'&&document.activeElement?.matches('#resultCard button'))return;
     if(e.key==='Enter'||ki===1||ki===2){e.preventDefault();const b=$('#resultCard .ov-btns .btn.primary');if(b)b.click();}
     else if(e.key==='Escape'||ki===0||ki===3){e.preventDefault();const bs=document.querySelectorAll('#resultCard .ov-btns .btn');const b=bs[1]||bs[0];if(b)b.click();}return;}
   if(UI.binding!=null){e.preventDefault();if(e.code!=='Escape')bindKey(UI.binding,e.code);UI.binding=null;renderSettings();renderDetail();return;}

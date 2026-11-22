@@ -188,7 +188,7 @@ def build(output):
     if output == ROOT or output == CONTENT or ROOT.is_relative_to(output) or output.is_relative_to(CONTENT):
         raise ValueError('出力先はリポジトリ本体と content/ の外に指定してください')
     output.mkdir(parents=True, exist_ok=True)
-    for name in ['index.html', 'difficulty.js', 'editor.js', 'editor.css', 'editor-tempo.js']:
+    for name in ['index.html', 'difficulty.js', 'weakness.js', 'editor.js', 'editor.css', 'editor-tempo.js']:
         shutil.copy2(ROOT / name, output / name)
     assets = output / 'content'
     assets.mkdir(exist_ok=True)
