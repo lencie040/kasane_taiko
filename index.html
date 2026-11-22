@@ -288,13 +288,13 @@ body:has(#tab-medley:not([hidden])){animation:none}
 .radar-axis dt{font-size:clamp(10px,2.7vw,12px);font-weight:750;line-height:1.15}
 .radar-axis dd{margin:0;font:700 15px/1 var(--f-num);color:#ffdf93}
 .radar-axis.is-zero dd{color:#d4adc9}
-.radar-axis:nth-child(1),.radar-axis:nth-child(4){left:50%;translate:-50% 0}
-.radar-axis:nth-child(1){top:0}
-.radar-axis:nth-child(4){bottom:0}
-.radar-axis:nth-child(2),.radar-axis:nth-child(3){left:73%;translate:0 -50%}
-.radar-axis:nth-child(5),.radar-axis:nth-child(6){right:73%;translate:0 -50%}
-.radar-axis:nth-child(2),.radar-axis:nth-child(6){top:33%}
-.radar-axis:nth-child(3),.radar-axis:nth-child(5){top:67%}
+.radar-axis:nth-child(1){top:0;left:50%;translate:-50% 0}
+.radar-axis:nth-child(2),.radar-axis:nth-child(5){top:39.5%;translate:0 -50%}
+.radar-axis:nth-child(2){left:75%}
+.radar-axis:nth-child(5){right:75%}
+.radar-axis:nth-child(3),.radar-axis:nth-child(4){top:81%;translate:-50% 0}
+.radar-axis:nth-child(3){left:64%}
+.radar-axis:nth-child(4){left:36%}
 @media(max-width:680px){.chart-analysis{grid-template-columns:minmax(0,1fr)}}
 .play-row .btn.primary{box-shadow:0 4px 0 #9b2a14;transition:transform .08s,box-shadow .08s}
 .play-row .btn.primary:active{transform:translateY(3px);box-shadow:0 1px 0 #9b2a14}
@@ -3005,19 +3005,18 @@ function drawDensity(cvd,c,sel){if(!cvd.isConnected)return;const r=cvd.getBoundi
 
 // Each axis has a fixed reference so profiles stay comparable across charts.
 const CHART_RADAR_AXES=[
-  ['quantity','物量',14,'ノーツの数や、密度の高い区間の負荷'],
-  ['technique','技術',1.65,'ドン・カッの複合や色の切り替えの難しさ'],
-  ['rhythm','リズム',2.15,'音符間隔の変化や裏拍の難しさ'],
-  ['visibility','視認難',.48,'見た目BPMや速度変化による見づらさ'],
-  ['simultaneous','同時押し',.85,'同時押しの頻度と押し分けの難しさ'],
-  ['sealed','封印ノーツ',1.5,'封印の配置や片手に偏ることによる難しさ'],
+  ['物量',{quantity:14},'ノーツの数や、密度の高い区間の負荷'],
+  ['技術',{technique:1.65},'ドン・カッの複合や色の切り替えの難しさ'],
+  ['リズム',{rhythm:2.15},'音符間隔の変化や裏拍の難しさ'],
+  ['視認難',{visibility:.48},'見た目BPMや速度変化による見づらさ'],
+  ['ギミック',{simultaneous:.85,sealed:1.5},'同時押しと封印ノーツによる負荷'],
 ];
 function drawChartRadar(canvas,scores){
   const c=canvas.getContext('2d');if(!c)return;
   c.scale(2,2);
   const x=165,y=114,radius=76;
   const ends=scores.map((_,i)=>{
-    const angle=i*Math.PI/3-Math.PI/2;
+    const angle=i*2*Math.PI/scores.length-Math.PI/2;
     return [Math.cos(angle)*radius,Math.sin(angle)*radius];
   });
   const polygon=values=>{
@@ -3048,10 +3047,13 @@ function drawChartRadar(canvas,scores){
 }
 function chartRadar(chart){
   const rating=rateChart(chart);
-  const scores=CHART_RADAR_AXES.map(([key,,max])=>Math.round(clamp(rating[key]/max,0,1)*100));
+  const scores=CHART_RADAR_AXES.map(([,references])=>{
+    const load=Object.entries(references).reduce((total,[key,reference])=>total+rating[key]/reference,0);
+    return Math.round(clamp(load,0,1)*100);
+  });
   const canvas=el('canvas',{width:660,height:456,'aria-hidden':true});
   drawChartRadar(canvas,scores);
-  const axes=CHART_RADAR_AXES.map(([,label,,hint],i)=>el('div',
+  const axes=CHART_RADAR_AXES.map(([label,,hint],i)=>el('div',
     {class:'radar-axis'+(scores[i]?'':' is-zero'),title:hint},el('dt',null,label),el('dd',null,String(scores[i]))));
   return el('figure',{class:'chart-radar','aria-labelledby':'chartRadarHeading'},
     el('figcaption',null,el('h3',{id:'chartRadarHeading'},'譜面レーダー'),el('span',null,'0〜100 ・ 外側ほど特徴が強い')),
