@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "folders": [
+    {
+      "id": "7a0a0694-d4bc-4a4e-b49d-3e0d586260bd",
+      "name": "全曲",
+      "parent": "",
+      "color": "#ffffff"
+    },
+    {
+      "id": "627506c1-fbf6-4fc8-97e9-b44835e7ba97",
+      "name": "tkk_8619 OST/OCT",
+      "parent": "",
+      "color": "#aaffff"
+    },
+    {
+      "id": "f6ed3e49-66e9-42ab-8650-482ed9703d09",
+      "name": "Yume_AK OST/OCT",
+      "parent": "",
+      "color": "#7777ff"
+    },
+    {
+      "id": "a85597d7-ae4f-495b-8964-b01fe54f9ec3",
+      "name": "Lencie OST/OCT",
+      "parent": "",
+      "color": "#ffffaa"
+    },
+    {
+      "id": "ea7eacaf-6988-45af-aa4a-a3a9e6e2f85f",
+      "name": "HavIs OST/OCT",
+      "parent": "",
+      "color": "#ff7777"
+    },
+    {
+      "id": "c5717ade-eab9-4bd7-a473-152b1c7efc88",
+      "name": "失格曲",
+      "parent": "",
+      "color": "#000000",
+      "textColor": "#ff0000"
+    },
+    {
+      "id": "b37d09db-72c5-4a77-b511-85ced5ac433e",
+      "name": "国際列車チャイム",
+      "parent": "",
+      "color": "#55ff55"
+    },
+    {
+      "id": "44aee889-13ef-465c-bdfe-e51ecb7e0e54",
+      "name": "松電キャラクターズテーマ",
+      "parent": "",
+      "color": "#55ff55"
+    },
+    {
+      "id": "55a0e062-9e63-4ace-a346-6a6c0f1ff7f6",
+      "name": "発車メロディ",
+      "parent": "",
+      "color": "#55ff55"
+    },
+    {
+      "id": "4d34e92e-0c4c-47e1-b225-0238a5311c02",
+      "name": "ボーカロイド・音声合成",
+      "parent": "",
+      "color": "#efefef"
+    },
+    {
+      "id": "804b66f6-a9d1-4c1f-a93b-3e7496b47a48",
+      "name": "ゲームミュージック",
+      "parent": "",
+      "color": "#e96bff"
+    }
+  ]
+}
