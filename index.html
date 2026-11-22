@@ -2364,7 +2364,16 @@ function crownOf(c){const b=Lib.best[c.uid];return b&&b.crown?CROWN[b.crown]:nul
 function chip(c){const locked=isLocked(c);return el('span',{class:'chip'+(locked?' locked':''),style:`--cc:${COURSES[c.course].color}`},locked?'重 封印':COURSES[c.course].jp,locked?null:el('b',null,levelText(c)),crownOf(c)?el('span',{class:'cr'},crownOf(c)):null,sealBadge(c));}
 
 /* ---- 並び順と絞り込み ---- */
-function lvKey(s){let mx=0,kas=0;for(const c of s.charts){if(c.course==='kasane'){if(!isLocked(c))kas=Math.max(kas,c.level||0);}else mx=Math.max(mx,c.level||0);}return mx+kas*.001;}
+const levelFilterRange=()=>[UI.lvMin??-Infinity,UI.lvMax??Infinity];
+const isLevelSort=()=>UI.sort==='lvAsc'||UI.sort==='lvDesc';
+function highestStandardChart(charts,range,course){
+  let highest=null;
+  for(const chart of charts){
+    if(chart.course==='kasane'||(course&&chart.course!==course)||!inLevelRange(chart.level,range))continue;
+    if(!highest||chart.level>highest.level)highest=chart;
+  }
+  return highest;
+}
 function hasUnclear(s){return s.charts.some(c=>!isLocked(c)&&!(Lib.best[c.uid]&&Lib.best[c.uid].crown));}
 const emptyFolders=()=>({version:1,folders:[],assignments:Object.create(null)});
 const UNASSIGNED='@unassigned';
@@ -2548,13 +2557,27 @@ function visibleSets(){const q=norm($('#filter').value),f=UI.filt||'all',srt=UI.
   if(f==='kasane')list=list.filter(s=>s.charts.some(c=>c.course==='kasane'));
   else if(f==='unclear')list=list.filter(hasUnclear);
   else if(f==='fav')list=list.filter(s=>Lib.fav[s.key]);
-  if(UI.lvMin!=null||UI.lvMax!=null){let lo=UI.lvMin??-Infinity,hi=UI.lvMax??Infinity;if(lo>hi)[lo,hi]=[hi,lo];
-    list=list.filter(s=>s.charts.some(c=>c.course!=='kasane'&&(c.level||0)>=lo&&(c.level||0)<=hi));}
   const folders=effectiveFolders();
   if(folders.folders.length&&!q)list=list.filter(s=>UI.folder&&songInFolder(s,folders,UI.folder));
+  const filterByLevel=UI.lvMin!=null||UI.lvMax!=null,sortByLevel=isLevelSort();
+  const levels=new Map();
+  if(filterByLevel||sortByLevel){
+    const range=levelFilterRange();
+    for(const set of list){
+      const level=highestStandardChart(set.charts,range)?.level??null;
+      const kasane=sortByLevel?set.charts.reduce((best,c)=>c.course==='kasane'&&!isLocked(c)?Math.max(best,c.level??0):best,0):0;
+      levels.set(set,{level,kasane});
+    }
+    if(filterByLevel)list=list.filter(set=>levels.get(set).level!==null);
+  }
+  // Compare internal levels before using the unlocked Kasane rank to break ties.
+  const byLevel=(a,b)=>{
+    const first=levels.get(a),second=levels.get(b);
+    return (first.level??0)-(second.level??0)||first.kasane-second.kasane;
+  };
   const order=new Map(Lib.sets.map((s,i)=>[s,i])),pl=s=>Lib.played[s.key]||{t:0,n:0},col=new Intl.Collator('ja');
   const cmp={added:(a,b)=>(!!a.demo-!!b.demo)||order.get(a)-order.get(b),title:(a,b)=>col.compare(a.title,b.title),artist:(a,b)=>col.compare(a.artist||'',b.artist||'')||col.compare(a.title,b.title),
-    lvDesc:(a,b)=>lvKey(b)-lvKey(a),lvAsc:(a,b)=>lvKey(a)-lvKey(b),bpm:(a,b)=>b.charts[0].bpm[1]-a.charts[0].bpm[1],len:(a,b)=>b.charts[0].length-a.charts[0].length,
+    lvDesc:(a,b)=>byLevel(b,a),lvAsc:byLevel,bpm:(a,b)=>b.charts[0].bpm[1]-a.charts[0].bpm[1],len:(a,b)=>b.charts[0].length-a.charts[0].length,
     recent:(a,b)=>pl(b).t-pl(a).t,plays:(a,b)=>pl(b).n-pl(a).n}[srt]||(()=>0);
   return list.sort((a,b)=>cmp(a,b)||order.get(a)-order.get(b));}
 function saveUIPrefs(){store.set('kt.ui',{sort:UI.sort,filt:UI.filt,lvMin:UI.lvMin??null,lvMax:UI.lvMax??null});}
@@ -2593,9 +2616,11 @@ function diffTile(course,c,extra){
     c?sealBadge(c):null);
 }
 function songChips(set){
-  const standard=BASE_COURSES.map(course=>diffTile(course,chartForSlot(set,course),false));
+  const range=isLevelSort()?levelFilterRange():null;
+  const chartForBadge=course=>(range&&highestStandardChart(set.charts,range,course))||chartForSlot(set,course);
+  const standard=BASE_COURSES.map(course=>diffTile(course,chartForBadge(course),false));
   /* 裏・重はおにの右に詰めて表示する */
-  const special=['ura','kasane'].map(course=>chartForSlot(set,course)).filter(Boolean).map(c=>diffTile(c.course,c,true));
+  const special=['ura','kasane'].map(chartForBadge).filter(Boolean).map(c=>diffTile(c.course,c,true));
   return [...standard,...special];
 }
 function arcadeEntries(){
