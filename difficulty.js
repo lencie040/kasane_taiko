@@ -43,7 +43,7 @@ function rhythmChange(gap, previous, earlier, subdivision, previousSubdivision) 
 function measureChartDifficulty(chart) {
   const targets = chart.targets;
   if (!targets.length) {
-    return { burst:0, sustained:0, fastRunRate:0, quickThree:0, quickFive:0, pace:0, color:0, rhythm:0,
+    return { burst:0, sustained:0, fastRunRate:0, quickThree:0, quickFive:0, pace:0, recovery:0, color:0, rhythm:0,
       peakColor:0, peakRhythm:0, peakGridMix:0, offbeatEntries:0, chords:0, chordReading:0,
       speedChanges:0, lowScroll:0, highScroll:0, strikes:0 };
   }
@@ -61,11 +61,12 @@ function measureChartDifficulty(chart) {
   let strikes = 0, chordStrikes = 0, chordReading = 0, color = 0, rhythm = 0, speedChanges = 0;
   let exposure = 0, recentColor = 0, recentRhythm = 0, peakColor = 0, peakRhythm = 0;
   let offbeatEntries = 0, recentBinary = 0, recentTernary = 0, peakGridMix = 0;
-  let quickThree = 0, quickFive = 0, fastRunRate = 0;
+  let quickThree = 0, quickFive = 0, fastRunRate = 0, recoveryMs = 0;
 
   for (const [i, current] of targets.entries()) {
     const previous = targets[i - 1];
     const gap = previous ? current.t - previous.t : Infinity;
+    if (previous) recoveryMs += Math.max(0, gap - 160);
     if (i >= 2) quickThree = Math.max(quickThree, 2000 / (current.t - targets[i - 2].t));
     if (i >= 4) quickFive = Math.max(quickFive, 4000 / (current.t - targets[i - 4].t));
     const chord = current.type === 'chord';
@@ -168,14 +169,26 @@ function measureChartDifficulty(chart) {
   const count = Math.min(bursts.length, Math.max(3, Math.ceil(bursts.length * .12)));
   const burst = bursts.slice(0, count).reduce((a, b) => a + b, 0) / count;
   const sustained = stamina[Math.floor((stamina.length - 1) * .3)];
-  const duration = Math.max(2000, targets.at(-1).t - firstTime + 400);
+  const span = targets.at(-1).t - firstTime;
+  const duration = Math.max(2000, span + 400);
   scrollRates.sort((a, b) => a - b);
   const scrollAt = p => scrollRates[Math.floor((scrollRates.length - 1) * p)] || 0;
   return { burst, sustained, fastRunRate, quickThree, quickFive, pace:charges.reduce((a, b) => a + b, 0) * 1000 / duration,
     color:color / targets.length, rhythm:rhythm / targets.length, peakColor, peakRhythm, peakGridMix,
     offbeatEntries:offbeatEntries / targets.length,
     chords:chordStrikes / strikes, chordReading:chordReading / targets.length,
-    speedChanges:speedChanges / targets.length, lowScroll:scrollAt(.15), highScroll:scrollAt(.85), strikes };
+    speedChanges:speedChanges / targets.length, lowScroll:scrollAt(.15), highScroll:scrollAt(.85), strikes,
+    recovery:recoveryMs / Math.max(1, span) };
+}
+
+function chartRadarVolume(measurements) {
+  const { sustained, fastRunRate, pace, recovery, strikes } = measurements;
+  const sustainedPace = .48 * sustained + .32 * fastRunRate + .20 * pace;
+  // Long gaps allow recovery. Short bursts still count through the multi-second peak.
+  const effectivePace = sustainedPace * (1 - .45 * recovery);
+  const paceScore = effectivePace <= 14 ? effectivePace / 16 : 1 - .125 * Math.exp(-(effectivePace - 14) / 4);
+  const countScore = 1 - 2 ** (-strikes / 100);
+  return .90 * paceScore + .10 * countScore;
 }
 
 function measureSealDifficulty(targets, sealAt) {
@@ -248,7 +261,7 @@ function estimateKasaneDifficulty(chart, course, sealAt) {
   const level = course === 'kasane'
     ? Math.max(1, Math.min(10, Math.round(1 + (load - 4) * .83 + 2.1 * f.chords)))
     : Math.max(1, Math.round(stars * 10) / 10);
-  return { level, burst:f.burst, quantity, technique, rhythm, visibility, simultaneous, sealed };
+  return { level, burst:f.burst, quantity, technique, rhythm, visibility, simultaneous, sealed, radarVolume:chartRadarVolume(f) };
 }
 
 const chartDifficultyMeasurements = new WeakMap();
