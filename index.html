@@ -274,6 +274,28 @@ body:has(#tab-medley:not([hidden])){animation:none}
 .dens-lab .legend{font-weight:500}
 .dens-lab .legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin:0 4px 0 10px;vertical-align:-1px}
 .dens{width:100%;height:64px;display:block;border-radius:8px;background:var(--ink);border:1px solid var(--line)}
+.chart-analysis{display:grid;grid-template-columns:minmax(270px,.9fr) minmax(0,1fr);gap:12px;margin:16px;align-items:stretch}
+.chart-analysis-side{min-width:0;display:grid;align-content:center;gap:12px}
+.chart-analysis :is(.stats,.dens-wrap){margin:0}
+.chart-radar{margin:0;min-width:0;padding:12px 12px 10px;border:1px solid #794762;border-radius:13px;background:radial-gradient(ellipse at 50% 56%,#512443,#30192f 75%);color:#fff3e0}
+.chart-radar figcaption{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:3px 10px}
+.chart-radar h3{margin:0;font-size:16px;font-weight:900}
+.chart-radar figcaption span{font-size:11px;color:#e8cadf}
+.radar-plot{position:relative;width:min(100%,330px);margin:8px auto 0}
+.radar-plot canvas{display:block;width:100%;height:auto}
+.radar-axes{position:absolute;inset:0;margin:0;list-style:none}
+.radar-axis{position:absolute;display:grid;justify-items:center;gap:1px;white-space:nowrap}
+.radar-axis dt{font-size:clamp(10px,2.7vw,12px);font-weight:750;line-height:1.15}
+.radar-axis dd{margin:0;font:700 15px/1 var(--f-num);color:#ffdf93}
+.radar-axis.is-zero dd{color:#d4adc9}
+.radar-axis:nth-child(1),.radar-axis:nth-child(4){left:50%;translate:-50% 0}
+.radar-axis:nth-child(1){top:0}
+.radar-axis:nth-child(4){bottom:0}
+.radar-axis:nth-child(2),.radar-axis:nth-child(3){left:73%;translate:0 -50%}
+.radar-axis:nth-child(5),.radar-axis:nth-child(6){right:73%;translate:0 -50%}
+.radar-axis:nth-child(2),.radar-axis:nth-child(6){top:33%}
+.radar-axis:nth-child(3),.radar-axis:nth-child(5){top:67%}
+@media(max-width:680px){.chart-analysis{grid-template-columns:minmax(0,1fr)}}
 .play-row .btn.primary{box-shadow:0 4px 0 #9b2a14;transition:transform .08s,box-shadow .08s}
 .play-row .btn.primary:active{transform:translateY(3px);box-shadow:0 1px 0 #9b2a14}
 .dan{transition:border-color .15s}.dan:hover{border-color:var(--line-2)}
@@ -2981,6 +3003,61 @@ function drawDensity(cvd,c,sel){if(!cvd.isConnected)return;const r=cvd.getBoundi
   const sealLegend=cvd.parentElement?.querySelector('.seal-legend');if(sealLegend)sealLegend.hidden=!sealed.size;
   x.fillStyle='#ff426f';for(const i of sealed)x.fillRect(i*bw,0,Math.max(2,bw-1),3);}
 
+// Each axis has a fixed reference so profiles stay comparable across charts.
+const CHART_RADAR_AXES=[
+  ['quantity','物量',14,'ノーツの数や、密度の高い区間の負荷'],
+  ['technique','技術',1.65,'ドン・カッの複合や色の切り替えの難しさ'],
+  ['rhythm','リズム',2.15,'音符間隔の変化や裏拍の難しさ'],
+  ['visibility','視認難',.48,'見た目BPMや速度変化による見づらさ'],
+  ['simultaneous','同時押し',.85,'同時押しの頻度と押し分けの難しさ'],
+  ['sealed','封印ノーツ',1.5,'封印の配置や片手に偏ることによる難しさ'],
+];
+function drawChartRadar(canvas,scores){
+  const c=canvas.getContext('2d');if(!c)return;
+  c.scale(2,2);
+  const x=165,y=114,radius=76;
+  const ends=scores.map((_,i)=>{
+    const angle=i*Math.PI/3-Math.PI/2;
+    return [Math.cos(angle)*radius,Math.sin(angle)*radius];
+  });
+  const polygon=values=>{
+    c.beginPath();
+    ends.forEach(([dx,dy],i)=>{
+      const ratio=values[i];
+      if(i===0)c.moveTo(x+dx*ratio,y+dy*ratio);
+      else c.lineTo(x+dx*ratio,y+dy*ratio);
+    });
+    c.closePath();
+  };
+  for(const ring of [.25,.5,.75,1]){
+    polygon(ends.map(()=>ring));c.strokeStyle=ring===1?'#bb8bab':'#855371';c.stroke();
+  }
+  c.beginPath();
+  for(const [dx,dy] of ends){c.moveTo(x,y);c.lineTo(x+dx,y+dy);}
+  c.strokeStyle='#986987';c.stroke();
+  const values=scores.map(score=>score/100);
+  polygon(values);
+  const fill=c.createLinearGradient(100,42,236,192);
+  fill.addColorStop(0,'#ffcf756d');fill.addColorStop(1,'#f36e9561');
+  c.fillStyle=fill;c.fill();c.strokeStyle='#ffe098';c.lineWidth=2;c.lineJoin='round';c.stroke();
+  c.fillStyle='#fff2cb';
+  ends.forEach(([dx,dy],i)=>{
+    if(!values[i])return;
+    c.beginPath();c.arc(x+dx*values[i],y+dy*values[i],3,0,Math.PI*2);c.fill();
+  });
+}
+function chartRadar(chart){
+  const rating=rateChart(chart);
+  const scores=CHART_RADAR_AXES.map(([key,,max])=>Math.round(clamp(rating[key]/max,0,1)*100));
+  const canvas=el('canvas',{width:660,height:456,'aria-hidden':true});
+  drawChartRadar(canvas,scores);
+  const axes=CHART_RADAR_AXES.map(([,label,,hint],i)=>el('div',
+    {class:'radar-axis'+(scores[i]?'':' is-zero'),title:hint},el('dt',null,label),el('dd',null,String(scores[i]))));
+  return el('figure',{class:'chart-radar','aria-labelledby':'chartRadarHeading'},
+    el('figcaption',null,el('h3',{id:'chartRadarHeading'},'譜面レーダー'),el('span',null,'0〜100 ・ 外側ほど特徴が強い')),
+    el('div',{class:'radar-plot'},canvas,el('dl',{class:'radar-axes'},axes)));
+}
+
 /* osu! 標準外の封印は、同梱設定・公開設定・ブラウザ内の編集から読み込む。 */
 function noiseData(c){return store.get(noiseKey(c),c.archiveNoise??{});}
 function hasSealedNotes(c){const data=noiseData(c);return c.targets.some((t,i)=>{if(!noiseEligible(t))return false;const v=data&&data[noiseId(t,i)];return Array.isArray(v)&&(t.type==='single'?[t]:t.notes).some((n,j)=>v[j]==='left'||v[j]==='right');});}
@@ -3103,15 +3180,17 @@ function renderDetail(){const d=$('#detail');$('#arcadeMenu').hidden=!!UI.choose
   if(UI.courseSlot===3)d.append(el('p',{class:'opt-note course-variants'},'右カツ10回で裏、左右のカツ同時押し10回で重。もう一度でおにに戻ります。'));
   const actions=el('div',{class:'play-row arcade-cta'});d.append(actions);
   const bpm=c.bpm[0]===c.bpm[1]?`${c.bpm[0]}`:`${c.bpm[0]}–${c.bpm[1]}`;
-  d.append(el('dl',{class:'stats'},
+  const stats=el('dl',{class:'stats'},
     el('div',null,el('dt',null,'ノーツ'),el('dd',null,fmtNum(c.stats.notes))),
     el('div',null,el('dt',null,'同時押し'),el('dd',null,c.stats.chords?`${c.stats.chords}箇所`:'なし')),
     el('div',null,el('dt',null,'BPM'),el('dd',null,bpm)),
-    el('div',null,el('dt',null,'長さ'),el('dd',null,fmtTime(c.length)))));
+    el('div',null,el('dt',null,'長さ'),el('dd',null,fmtTime(c.length))));
   const dc=el('canvas',{class:'dens','aria-label':'譜面の流れ'});
-  d.append(el('div',{class:'dens-wrap'},el('div',{class:'dens-lab'},el('span',null,'譜面の流れ'),
+  const density=el('div',{class:'dens-wrap'},el('div',{class:'dens-lab'},el('span',null,'譜面の流れ'),
     el('span',{class:'legend'},el('i',{style:'background:rgba(162,168,202,.8)'}),'ノーツ',c.stats.chords?el('i',{style:'background:var(--gold)'}):null,c.stats.chords?'同時押し':null,
-      el('i',{style:'background:var(--roll)'}),'連打',el('i',{style:'background:rgba(238,74,43,.45)'}),'ゴーゴー',el('span',{class:'seal-legend',hidden:true},el('i',{style:'background:#ff426f'}),'封印'))),dc));
+      el('i',{style:'background:var(--roll)'}),'連打',el('i',{style:'background:rgba(238,74,43,.45)'}),'ゴーゴー',el('span',{class:'seal-legend',hidden:true},el('i',{style:'background:#ff426f'}),'封印'))),dc);
+  d.append(el('section',{class:'chart-analysis','aria-label':'譜面の分析'},chartRadar(c),
+    el('div',{class:'chart-analysis-side'},stats,density)));
   requestAnimationFrame(()=>drawDensity(dc,c));
   if(S.noiseEdit===true)d.append(el('button',{class:'btn gold',type:'button',onclick:()=>{setTab('editor');chartEditor.openChart(c);}},'エディットモードで開く'));
   if(!isLocked(c)){d.append(optRow());d.append(pracBlock(c,dc));}
