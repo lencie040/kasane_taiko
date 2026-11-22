@@ -20,6 +20,7 @@ function createKasaneEditor(game) {
   let selection = new Set(), history = [], future = [], clipboard = [], dirty = false;
   let pending = null, gesture = null, geometry, playing = null, raf = 0, lastTick = 0, estimate = null;
   let quoted = null, quoteDrag = null;
+  let librarySignature='', librarySongs=[], librarySetKey='', libraryChartUid='';
 
   pane.innerHTML = `
     <div class="ed-heading">
@@ -27,12 +28,33 @@ function createKasaneEditor(game) {
       <div class="ed-actions"><button id="edNew" class="btn">新規譜面</button><button id="edSave" class="btn">下書きを保存</button><button id="edRestore" class="btn">下書きを開く</button></div>
     </div>
     <div class="ed-card ed-source">
-      <label class="ed-wide">既存譜面<select id="edLibrary" aria-label="開く譜面"></select></label>
-      <button class="btn" id="edOpen">開く</button>
-      <button class="btn" id="edNewDiff">同じ曲に新規譜面</button>
+      <button class="btn primary" id="edBrowse" aria-haspopup="dialog">既存譜面を選ぶ</button>
       <label class="btn gold ed-upload">音源を選ぶ<input id="edAudio" type="file" accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac,.opus,.webm"></label>
       <span id="edAudioName"></span>
     </div>
+    <dialog id="edLibrary" class="ed-library" aria-labelledby="edLibraryTitle">
+      <div class="ed-heading">
+        <h3 id="edLibraryTitle">既存譜面を選ぶ</h3>
+        <button class="btn small" id="edLibraryClose">閉じる</button>
+      </div>
+      <label class="ed-wide ed-library-search">検索
+        <input id="edLibrarySearch" type="search" placeholder="曲名・作者・難易度" autocomplete="off">
+      </label>
+      <div class="ed-library-grid">
+        <fieldset>
+          <legend>曲 <small id="edLibraryCount" aria-live="polite"></small></legend>
+          <div id="edLibrarySongs" class="ed-library-list"></div>
+        </fieldset>
+        <fieldset>
+          <legend>難易度</legend>
+          <div id="edLibraryCharts" class="ed-library-list"></div>
+        </fieldset>
+      </div>
+      <div class="ed-actions ed-library-actions">
+        <button class="btn primary" id="edOpen" disabled>譜面を開く</button>
+        <button class="btn" id="edNewDiff" disabled>同じ曲に新規譜面</button>
+      </div>
+    </dialog>
     <details class="ed-card" id="edMetadata" open><summary>曲・譜面情報</summary>
       <div class="ed-meta">
         <label>曲名<input id="edTitle" autocomplete="off"></label>
@@ -603,6 +625,9 @@ function createKasaneEditor(game) {
   }
   async function openChart(chart,newDifficulty=false) {
     if(!chart||!allowReplace())return;
+    librarySetKey=chart.set.key;libraryChartUid=chart.uid;
+    if(field('Library').open)field('Library').close();
+    else field('LibrarySearch').value='';
     const token=++audioJob;
     pause();
     say('譜面を読み込み中…');
@@ -643,20 +668,102 @@ function createKasaneEditor(game) {
     }catch(error){if(token===audioJob)say('このブラウザで音源を読み込めませんでした。',true);}
   }
   function open() {
-    const library=field('Library'), selected=library.value;
-    const charts=game.charts();
-    const signature=JSON.stringify(charts.map(c=>[c.uid,c.set.title,c.meta.version]));
-    if(library.dataset.signature!==signature){
-      const options=charts.map(c=>opt(c.uid,`${c.set.title} / ${c.meta.version}`));
-      library.replaceChildren(opt('','譜面を選択…'),...options);
-      library.dataset.signature=signature;
-      library.value=charts.some(c=>c.uid===selected)?selected:'';
-    }
-    field('Open').disabled=!library.value;
-    field('NewDiff').disabled=!library.value;
+    if(field('Library').open)syncLibrary();
     renderFolderOptions();
     if(field('Quote').open)syncQuoteLibrary();
     draw();
+  }
+  function syncLibrary(force=false) {
+    const charts=game.charts();
+    const signature=JSON.stringify(charts.map(c=>[
+      c.uid,c.set.title,c.set.artist,c.set.file,c.set.aliases,c.meta.creator,c.course,c.level,
+      game.text(c.set.title),game.text(c.set.artist),game.text(c.meta.version),game.text(c.meta.creator),
+    ]));
+    if(!force&&signature===librarySignature)return;
+    librarySignature=signature;
+    const sets=new Map();
+    for(const chart of charts){
+      const set=chart.set;
+      if(!sets.has(set.key))sets.set(set.key,{set,charts:[]});
+      sets.get(set.key).charts.push(chart);
+    }
+    const order=new Intl.Collator('ja',{numeric:true});
+    librarySongs=[...sets.values()].sort((a,b)=>order.compare(a.set.title,b.set.title)||order.compare(a.set.artist,b.set.artist));
+    renderLibrarySongs();
+  }
+  function libraryChoice(name,value,checked,title,detail,onChange,badge) {
+    const row=document.createElement('label');
+    row.className='ed-library-choice';
+    const input=document.createElement('input');
+    input.type='radio';input.name=name;input.value=value;input.checked=checked;
+    input.addEventListener('change',onChange);
+    const text=document.createElement('span');
+    const heading=document.createElement('strong');
+    heading.textContent=game.text(title);text.append(heading);
+    if(detail){
+      const sub=document.createElement('small');sub.textContent=game.text(detail);text.append(sub);
+    }
+    row.append(input,text);
+    if(badge)row.append(badge);
+    return row;
+  }
+  function libraryMessage(text) {
+    const message=document.createElement('p');message.className='ed-library-empty';message.textContent=text;
+    return message;
+  }
+  function renderLibrarySongs() {
+    const terms=game.norm(field('LibrarySearch').value).split(' ').filter(Boolean);
+    const results=librarySongs.flatMap(({set,charts})=>{
+      const song=[set.title,set.artist,set.titleAscii,set.artistAscii,set.file,...(set.aliases||[])].join(' ');
+      const matches=charts.filter(c=>{
+        const text=game.norm([song,c.meta.version,c.meta.creator,game.courseInfo[c.course].jp,game.levelText(c)].join(' '));
+        return terms.every(term=>text.includes(term));
+      });
+      return matches.length?[{set,charts:matches}]:[];
+    });
+    const current=results.find(result=>result.set.key===librarySetKey)||(results.length===1?results[0]:null);
+    const list=field('LibrarySongs');
+    const focused=list.contains(document.activeElement)?document.activeElement.value:null;
+    const scroll=list.scrollTop;
+    const rows=results.map(result=>libraryChoice('ed-song',result.set.key,result===current,result.set.title,
+      [result.set.artist,`${result.charts.length}譜面`].filter(Boolean).join(' ・ '),()=>showLibraryCharts(result)));
+    list.replaceChildren(...(rows.length?rows:[libraryMessage(librarySongs.length?'一致する曲がありません。':'読み込まれた曲はありません。')]));
+    if(focused)rows.find(row=>row.firstElementChild.value===focused)?.firstElementChild.focus({preventScroll:true});
+    list.scrollTop=scroll;
+    field('LibraryCount').textContent=`${results.length}曲`;
+    showLibraryCharts(current);
+  }
+  function showLibraryCharts(result) {
+    const list=field('LibraryCharts');
+    const focused=list.contains(document.activeElement)?document.activeElement.value:null;
+    const scroll=list.dataset.set===result?.set.key?list.scrollTop:0;
+    list.dataset.set=result?.set.key||'';
+    field('Open').disabled=field('NewDiff').disabled=!result;
+    if(!result){list.replaceChildren(libraryMessage('曲を選んでください。'));return;}
+    librarySetKey=result.set.key;
+    const charts=game.sortCharts(result.charts);
+    const selected=charts.find(c=>c.uid===libraryChartUid)||charts[0];
+    libraryChartUid=selected.uid;
+    list.replaceChildren(...charts.map(c=>{
+      const course=game.courseInfo[c.course],badge=document.createElement('span');
+      badge.className='ed-library-course';
+      badge.style.setProperty('--ed-course',course.color);
+      badge.textContent=`${course.jp} ${game.levelText(c)}`;
+      return libraryChoice('ed-chart',c.uid,c===selected,c.meta.version,c.meta.creator,()=>{libraryChartUid=c.uid;},badge);
+    }));
+    if(focused===selected.uid)list.querySelector('input:checked')?.focus({preventScroll:true});
+    list.scrollTop=scroll;
+  }
+  function browseLibrary() {
+    const dialog=field('Library'),search=field('LibrarySearch');
+    syncLibrary(true);
+    dialog.showModal();
+    if(!matchMedia('(pointer:coarse)').matches)search.focus();
+    const list=field('LibrarySongs'),selected=list.querySelector('input:checked')?.closest('label');
+    if(selected){
+      const option=selected.getBoundingClientRect(),bounds=list.getBoundingClientRect();
+      list.scrollTop+=Math.max(0,option.bottom-bounds.bottom)+Math.min(0,option.top-bounds.top);
+    }
   }
   function renderFolderOptions() {
     const box=field('Folders'),data=game.effectiveFolders();
@@ -935,9 +1042,32 @@ function createKasaneEditor(game) {
     field(id).addEventListener('input',()=>{draft.meta[key]=field(id).value;mark();});
   }
   field('New').onclick=()=>{if(allowReplace())replaceDraft(newDraft());};
-  field('Library').onchange=()=>{field('Open').disabled=field('NewDiff').disabled=!field('Library').value;};
-  field('Open').onclick=()=>openChart(game.charts().find(c=>c.uid===field('Library').value));
-  field('NewDiff').onclick=()=>openChart(game.charts().find(c=>c.uid===field('Library').value),true);
+  field('Browse').onclick=browseLibrary;
+  field('LibraryClose').onclick=()=>field('Library').close();
+  field('Library').addEventListener('keydown',event=>{
+    if(event.key!=='Escape'||event.isComposing)return;
+    event.preventDefault();field('Library').close();
+  });
+  field('LibrarySearch').oninput=()=>{field('LibrarySongs').scrollTop=0;renderLibrarySongs();};
+  field('LibrarySearch').addEventListener('keydown',event=>{
+    if(event.isComposing||!['ArrowDown','Enter'].includes(event.key))return;
+    const list=field('LibrarySongs');
+    const first=list.querySelector('input:checked')||list.querySelector('input');
+    if(first){event.preventDefault();first.focus();}
+  });
+  field('LibrarySongs').addEventListener('keydown',event=>{
+    if(event.key!=='Enter'||!event.target.matches('input'))return;
+    event.preventDefault();
+    if(!event.target.checked)event.target.click();
+    field('LibraryCharts').querySelector('input:checked')?.focus();
+  });
+  field('LibraryCharts').addEventListener('keydown',event=>{
+    if(event.key==='Enter'&&event.target.matches('input')){
+      event.preventDefault();field('Open').click();
+    }
+  });
+  field('Open').onclick=()=>openChart(game.charts().find(c=>c.uid===libraryChartUid));
+  field('NewDiff').onclick=()=>openChart(game.charts().find(c=>c.uid===libraryChartUid),true);
   field('EstimateDifficulty').onclick=safeAction(estimateDifficulty);
   field('Quote').addEventListener('toggle',()=>{if(field('Quote').open)syncQuoteLibrary();});
   field('QuoteSet').onchange=updateQuoteCharts;
@@ -1074,7 +1204,7 @@ function createKasaneEditor(game) {
     if(commit([...draft.objects,...placed])){selection=new Set(placed.map(o=>o.id));refreshSelection();draw();}
   }
   document.addEventListener('keydown',event=>{
-    if(pane.hidden||!document.querySelector('#stage')?.hidden||!document.querySelector('#title')?.hidden||
+    if(pane.hidden||field('Library').open||!document.querySelector('#stage')?.hidden||!document.querySelector('#title')?.hidden||
       event.target?.closest?.('input,select,textarea,[contenteditable=true]'))return;
     const key=event.key.toLowerCase(),mod=event.ctrlKey||event.metaKey;
     let action=null;

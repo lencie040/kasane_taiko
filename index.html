@@ -4981,7 +4981,7 @@ $('#downloadConverted').addEventListener('click',async()=>{
 
 /* ================= 起動 ================= */
 const chartEditor=createKasaneEditor({
-  pane:$('#tab-editor'),charts:()=>Lib.charts,courseInfo:COURSES,parseOsu,parseLevel,
+  pane:$('#tab-editor'),charts:()=>Lib.charts,courseInfo:COURSES,parseOsu,parseLevel,sortCharts,levelText,norm,text:murechoText,
   loadNoise,saveNoise,noiseId,noiseEligible,findFile,decodeText,demoOsu,nk,
   audio:()=>ensureAudio(),decodeAudio:decodeGameAudio,getAudio,hit:playSE,noiseData,sameVersion,effectiveFolders,folderTrail,
   saveDraft:(draft)=>IDB.tx('readwrite',s=>s.put(draft,'editor-draft'),'repository'),
