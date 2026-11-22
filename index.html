@@ -2647,10 +2647,10 @@ function arcadeIndex(entries){
   if(index>=0)return index;
   return Math.max(0,entries.findIndex(entry=>!entry.folder?.back));
 }
-function selectArcadeEntry(entry){UI.returnFolder=null;
+function selectArcadeEntry(entry,movement){UI.returnFolder=null;
   if(entry.folder){
-    UI.folderCursor=entry.index;UI.selSet=null;UI.selChart=null;stopPreview();renderSongList();
-  }else selectSet(entry.set.key,true);
+    UI.folderCursor=entry.index;UI.selSet=null;UI.selChart=null;stopPreview();renderSongList(movement);
+  }else selectSet(entry.set.key,true,movement);
 }
 function songStrip(set,selected,choose){
   const top=sortCharts(set.charts).filter(c=>!isLocked(c)).pop()||set.charts[0],fav=!!Lib.fav[set.key];
@@ -2689,7 +2689,7 @@ function backToSongs(){
   $('#songlist .song.is-on')?.focus({preventScroll:true});
 }
 
-function renderSongList(){
+function renderSongList({direction=0,jump=false}={}){
   const list=$('#songlist'),folders=effectiveFolders();
   const animate=!matchMedia('(prefers-reduced-motion: reduce)').matches&&
     typeof list.animate==='function'&&list.getClientRects().length>0;
@@ -2697,7 +2697,7 @@ function renderSongList(){
   const restoreFocus=list.contains(focused);
   const focusedKey=restoreFocus?focused.closest('[data-entry]')?.dataset.entry:null;
   const wasFavorite=focused?.classList.contains('fav');
-  const previous=animate?[...list.children].filter(row=>row.dataset.entry).map(row=>({
+  const previous=animate&&!jump?[...list.children].filter(row=>row.dataset.entry).map(row=>({
     row,key:row.dataset.entry,offset:Number(row.dataset.offset),bounds:row.getBoundingClientRect()
   })):[];
   folderToolbar(folders);
@@ -2734,12 +2734,15 @@ function renderSongList(){
     const favorite=wasFavorite?rows.find(row=>row.dataset.entry===focusedKey)?.querySelector('.fav'):null;
     (favorite||selected.querySelector('.folder-entry')||selected).focus({preventScroll:true});
   }
-  if(previous.length)animateSongStrips(list,rows,previous,selected);
+  if(animate&&jump){
+    for(const row of rows)row.animate([{opacity:.7,transform:`translateY(${direction*16}px)`},
+      {opacity:1,transform:'none'}],{duration:150,easing:'ease-out'});
+  }else if(previous.length)animateSongStrips(list,rows,previous,selected,direction);
 }
-function animateSongStrips(list,rows,previous,selected){
+function animateSongStrips(list,rows,previous,selected,direction){
   const positions=new Map(previous.map(item=>[item.key,item]));
   const prior=positions.get(selected.dataset.entry);
-  const direction=UI.arcadeDirection||Math.sign(prior?.offset||0);
+  direction=direction||Math.sign(prior?.offset||0);
   if(!direction||prior?.offset===0)return;
 
   const bounds=list.getBoundingClientRect();
@@ -2769,6 +2772,8 @@ function animateSongStrips(list,rows,previous,selected){
     departing.classList.add('song-outgoing');
     delete departing.dataset.entry;
     departing.inert=true;departing.setAttribute('aria-hidden','true');
+    departing.removeAttribute('aria-current');
+    departing.querySelector('[aria-current]')?.removeAttribute('aria-current');
     Object.assign(departing.style,{left:`${old.left-bounds.left-list.clientLeft}px`,
       top:`${old.top-bounds.top-list.clientTop}px`,width:`${old.width}px`,height:`${old.height}px`});
     list.prepend(departing);
@@ -2778,9 +2783,9 @@ function animateSongStrips(list,rows,previous,selected){
     motion.finished.then(remove,remove);
   }
 }
-function selectSet(key,user){UI.folderCursor=null;const changed=UI.selSet!==key;UI.selSet=key;const s=Lib.sets.find(x=>x.key===key);if(!s)return;
+function selectSet(key,user,movement){UI.folderCursor=null;const changed=UI.selSet!==key;UI.selSet=key;const s=Lib.sets.find(x=>x.key===key);if(!s)return;
   if(!s.charts.some(c=>c.uid===UI.selChart)){const sc=sortCharts(s.charts);const standard=sc.filter(c=>BASE_COURSES.includes(c.course)&&!isLocked(c));UI.selChart=(standard.at(-1)||sc.find(c=>!isLocked(c))||sc[0]).uid;}
-  if(user&&(changed||!preview)){UI.gesture=true;ensureAudio();playPreview(s.charts[0]);}renderSongList();renderDetail();}
+  if(user&&(changed||!preview)){UI.gesture=true;ensureAudio();playPreview(s.charts[0]);}renderSongList(movement);renderDetail();}
 function menuMove(dSong,dCourse,silent){
   const step=dCourse||dSong;if(!step)return;
   resetRimSequence();
@@ -2789,8 +2794,7 @@ function menuMove(dSong,dCourse,silent){
     if(!entries.length)return;
     UI.gesture=true;ensureAudio();playSE('ka');
     const next=(arcadeIndex(entries)+step+entries.length)%entries.length;
-    UI.arcadeDirection=Math.sign(step);
-    try{selectArcadeEntry(entries[next]);}finally{UI.arcadeDirection=0;}
+    selectArcadeEntry(entries[next],{direction:Math.sign(step)});
     return;
   }
   const set=currentSet();if(!set)return;
@@ -2836,13 +2840,32 @@ function bindKey(i,code){
   all[i]=code;S.keys=all.slice(0,4);S.skipKeys=all.slice(4);saveS();}
 // 7曲分まとめて移動する（step は +7 で下、-7 で上）
 function jumpSongs(step){
-  const entries=arcadeEntries();if(!entries.length)return;
+  const entries=arcadeEntries(),hasSongs=entries.some(entry=>entry.set);
+  const stops=new Set();
+  entries.forEach((entry,index)=>{
+    if(hasSongs?entry.set:!entry.folder?.back)stops.add(index);
+  });
+  if(!stops.size)return;
+
+  const direction=Math.sign(step),distance=Math.abs(step),current=arcadeIndex(entries);
+  let next=current;
+  if(stops.size<=distance){
+    // 1ページ以内なら上下端へ移動し、端からは反対側へ回る。
+    const [first]=stops,last=[...stops].at(-1);
+    next=direction>0?(current<last?last:first):(current>first?first:last);
+  }else{
+    for(let moved=0;moved<distance;){
+      next=(next+direction+entries.length)%entries.length;
+      if(stops.has(next))moved++;
+    }
+  }
+  if(next===current)return;
+
   UI.gesture=true;ensureAudio();resetRimSequence();
-  const n=entries.length,next=((arcadeIndex(entries)+step)%n+n)%n;
-  UI.arcadeDirection=Math.sign(step);
-  try{selectArcadeEntry(entries[next]);}finally{UI.arcadeDirection=0;}
-  playSkipSE(step>0?'down':'up');}
-// 6曲移動の効果音：下は高→低、上は低→高の短いスウィープ（ﾁｭｲﾝ／ｼｭｲﾝ風）
+  selectArcadeEntry(entries[next],{direction,jump:true});
+  playSkipSE(direction>0?'down':'up');
+}
+// 7曲移動の効果音：下は高→低、上は低→高の短いスウィープ（ﾁｭｲﾝ／ｼｭｲﾝ風）
 function playSkipSE(dir){
   if(!AC)return;
   const t0=AC.currentTime+.01,o=AC.createOscillator(),f=AC.createBiquadFilter(),g=AC.createGain();
