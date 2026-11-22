@@ -10,7 +10,7 @@ function createKasaneEditor(game) {
   const courses = Object.keys(game.courseInfo);
   const initialTiming = () => [{ time:0, value:500, meter:4, inherited:false, effects:0 }];
   const newDraft = () => ({
-    meta:{ title:'', artist:'', creator:'', version:'おに', course:'oni', level:'', file:'' },
+    meta:{ title:'', artist:'', creator:'', version:'おに', course:'oni', file:'' },
     timing:initialTiming(), objects:[], audioFile:null, sourceUid:null, sourceText:'', snap:4, od:5,
     key:'editor:'+(crypto.randomUUID?.()||Date.now().toString(36)+Math.random().toString(36).slice(2)),
     newDifficulty:false,folders:[],
@@ -21,6 +21,7 @@ function createKasaneEditor(game) {
   let pending = null, gesture = null, geometry, playing = null, raf = 0, lastTick = 0, estimate = null;
   let quoted = null, quoteDrag = null;
   let librarySignature='', librarySongs=[], librarySetKey='', libraryChartUid='';
+  let ratingFrame=0;
 
   pane.innerHTML = `
     <div class="ed-heading">
@@ -62,10 +63,12 @@ function createKasaneEditor(game) {
         <label>譜面作者<input id="edCreator" autocomplete="off"></label>
         <label>難易度名<input id="edVersion" autocomplete="off"></label>
         <label>コース<select id="edCourse"></select></label>
-        <label>レベル<input id="edLevel" placeholder="★8 / 重 III" autocomplete="off"></label>
+        <label>推定レベル<output id="edLevel">—</output></label>
         <label>出力名<input id="edFilename" placeholder="曲名"></label>
       </div>
-      <div class="ed-actions"><button class="btn" id="edEstimateDifficulty">難易度を自動推定</button><output id="edEstimatedDifficulty"></output></div>
+      <details class="ed-rating"><summary>難易度の内訳</summary>
+        <p>表示レベルに換算する前の各項目の加点</p><dl id="edRatingBreakdown"></dl>
+      </details>
       <fieldset class="ed-folders"><legend>所属フォルダ（複数選択可）</legend><div id="edFolders"></div></fieldset>
     </details>
     <div class="ed-card ed-compose">
@@ -130,7 +133,11 @@ function createKasaneEditor(game) {
     <p id="edStatus" role="status" aria-live="polite"></p>`;
   const field = name => pane.querySelector('#ed' + name);
   const canvas = field('Timeline'), ctx = canvas.getContext('2d');
-  const metadata = { Title:'title', Artist:'artist', Creator:'creator', Version:'version', Course:'course', Level:'level', Filename:'file' };
+  const metadata = { Title:'title', Artist:'artist', Creator:'creator', Version:'version', Course:'course', Filename:'file' };
+  const ratingParts = [
+    ['quantity','物量'], ['technique','技術'], ['rhythm','リズム'],
+    ['visibility','視認性'], ['simultaneous','同時押し'], ['sealed','封印ノーツ'],
+  ];
   const clean = value => String(value ?? '').replace(/[\r\n\u0000]/g,' ').trim();
   const fileSafe = value => clean(value).replace(/[\\/:*?"<>|]/g,'_').replace(/^[.\s]+|[.\s]+$/g,'').slice(0,130);
   const fileName = () => fileSafe(draft.meta.file.replace(/\.ktz$/i,'') || clean(draft.meta.title)) || '新規譜面';
@@ -194,7 +201,7 @@ function createKasaneEditor(game) {
     if(history.length>80)history.shift();
     future=[];
   }
-  function mark() {dirty=true; refresh();draw();}
+  function mark() {dirty=true;refresh();queueRating();draw();}
   function restoreHistory(from,to) {
     if(!from.length)return;
     to.push(snapshot());Object.assign(draft,from.pop());
@@ -275,7 +282,6 @@ function createKasaneEditor(game) {
     field('Test').disabled=!buffer||!draft.objects.length;
     field('Export').disabled=!buffer||!draft.objects.length;
     field('SaveSeal').hidden=!original||draft.newDifficulty;
-    field('EstimateDifficulty').disabled=!draft.objects.length;
     field('Undo').disabled=!history.length;field('Redo').disabled=!future.length;
     refreshSelection();
   }
@@ -600,13 +606,13 @@ function createKasaneEditor(game) {
     d.folders=[...(game.effectiveFolders().assignments[chart.set.key]||[])];
     d.meta={title:chart.meta.titleU||chart.meta.title||chart.set.title,artist:chart.meta.artistU||chart.meta.artist||chart.set.artist||'',
       creator:chart.meta.creator,version:chart.meta.version,course:chart.course,
-      file:chart.set.demo?'':chart.set.file,level:String(chart.level??'')};
+      file:chart.set.demo?'':chart.set.file};
     d.timing=readTiming(text);
     if(!d.timing.some(p=>!p.inherited))d.timing.unshift(...initialTiming());
     if(newDifficulty){
       let version='おに（新規）',suffix=2;
       while(chart.set.charts.some(c=>game.sameVersion(c.meta.version,version)))version=`おに（新規 ${suffix++}）`;
-      d.meta.version=version;d.meta.course='oni';d.meta.level='';
+      d.meta.version=version;d.meta.course='oni';
       return d;
     }
     d.objects=chartObjects(chart).map((o,i)=>({...o,id:i+1}));
@@ -617,8 +623,8 @@ function createKasaneEditor(game) {
     draft=value;original=chart;sourceAudio=null;
     nextId=value.objects.reduce((max,o)=>Math.max(max,o.id),0)+1;
     cursor=0;start=0;timingIndex=0;selection.clear();pending=null;gesture=null;history=[];future=[];
-    dirty=false;field('EstimatedDifficulty').textContent='';
-    setBuffer(null);syncFields();selectTool('don');say('');
+    dirty=false;
+    setBuffer(null);syncFields();queueRating();selectTool('don');say('');
   }
   function allowReplace() {
     return !dirty||confirm('現在の編集を閉じます。未保存の変更を破棄しますか？');
@@ -926,11 +932,11 @@ function createKasaneEditor(game) {
     };
     return ['osu file format v14',...Object.entries(output).flatMap(([name,lines])=>['',`[${name}]`,...lines]),''].join('\n');
   }
-  function build(audioName) {
+  function build(audioName,preview=false) {
     if(!draft.objects.length)throw new Error('ノーツを配置してください。');
     const error=validate(draft.objects);
     if(error)throw new Error(error);
-    if(!clean(draft.meta.title))throw new Error('曲名を入力してください。');
+    if(!preview&&!clean(draft.meta.title))throw new Error('曲名を入力してください。');
     const text=osuText(audioName),chart=game.parseOsu(text);
     const stacks=groups(sorted()),noise={};
     chart.targets.forEach((t,i)=>{
@@ -939,36 +945,28 @@ function createKasaneEditor(game) {
     });
     chart.archiveNoise=noise;
     chart.course=chart.stats.chords?'kasane':draft.meta.course;
-    const level=game.parseLevel(draft.meta.level);
-    if(level===undefined||(chart.course==='kasane'&&level!=null&&(!Number.isInteger(level)||level>10))){
-      throw new Error('レベルは通常なら★1〜12.9、重ならI〜Xの範囲で入力してください。');
-    }
-    chart.level=level;
-    return {text,chart,noise,course:chart.course,level};
+    const rating=game.rateChart(chart);
+    chart.level=rating.level;
+    return {text,chart,noise,rating,course:chart.course,level:rating.level};
   }
-  function estimateDifficulty() {
-    const notes=sorted().filter(o=>o.type==='note');
-    if(!notes.length)throw new Error('ドン・カッを配置してから推定してください。');
-    const stacks=groups(notes);
-    let peak=0,previous=notes[0],switches=0,left=0,bursts=0,inputs=0;
-    const weights=notes.map(o=>o.big&&(stacks.get(o.t).length>1)?2:1);
-    for(const [right,o] of notes.entries()){
-      inputs+=weights[right];bursts+=weights[right];
-      while(o.t-notes[left].t>=2000)bursts-=weights[left++];
-      peak=Math.max(peak,bursts/2);
-      if(o.t>previous.t&&o.t-previous.t<300&&o.color!==previous.color)switches++;
-      previous=o;
-    }
-    const density=inputs/Math.max(2,(notes.at(-1).t-notes[0].t)/1000);
-    const stacked=[...stacks.values()].filter(g=>g.length>1);
-    const seals=notes.filter(o=>o.seal).length;
-    const load=1+peak*.55+density*.52+2*switches/notes.length+seals/notes.length;
-    const raw=stacked.length?load*.73+3*stacked.length/stacks.size:load;
-    const level=Math.max(1,Math.min(stacked.length||draft.meta.course==='kasane'?10:12.9,
-      raw>=10&&!stacked.length&&draft.meta.course!=='kasane'?Math.round(raw*10)/10:Math.round(raw)));
-    draft.meta.level=String(level);field('Level').value=draft.meta.level;
-    field('EstimatedDifficulty').textContent=`推定 ${stacked.length||draft.meta.course==='kasane'?['','I','II','III','IV','V','VI','VII','VIII','IX','X'][level]:'★'+level} ・ 最密2秒 ${peak.toFixed(1)} 打/秒`;
-    mark();
+  function queueRating() {
+    cancelAnimationFrame(ratingFrame);
+    ratingFrame=requestAnimationFrame(()=>{
+      const level=field('Level'),breakdown=field('RatingBreakdown');
+      level.value='—';level.removeAttribute('title');breakdown.replaceChildren();
+      if(!draft.objects.length)return;
+      try{
+        const {chart,rating}=build('editor-audio.wav',true);
+        level.value=game.levelText(chart);
+        if(chart.course!=='kasane')level.title=`内部定数 ${rating.level.toFixed(1)}`;
+        breakdown.replaceChildren(...ratingParts.map(([key,label])=>{
+          const part=document.createElement('div');
+          const name=document.createElement('dt'),value=document.createElement('dd');
+          name.textContent=label;value.textContent=rating[key].toFixed(2);
+          part.append(name,value);return part;
+        }));
+      }catch(error){level.value='推定できません';level.title=error.message;}
+    });
   }
   function toWav(audio) {
     const channels=Math.min(2,audio.numberOfChannels), frames=audio.length;
@@ -1068,7 +1066,6 @@ function createKasaneEditor(game) {
   });
   field('Open').onclick=()=>openChart(game.charts().find(c=>c.uid===libraryChartUid));
   field('NewDiff').onclick=()=>openChart(game.charts().find(c=>c.uid===libraryChartUid),true);
-  field('EstimateDifficulty').onclick=safeAction(estimateDifficulty);
   field('Quote').addEventListener('toggle',()=>{if(field('Quote').open)syncQuoteLibrary();});
   field('QuoteSet').onchange=updateQuoteCharts;
   field('QuoteChart').onchange=updateQuoteCharts;

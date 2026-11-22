@@ -27,6 +27,12 @@
   box-shadow: 0 3px #82405a35;
 }
 .ed-card summary { cursor: pointer; font-weight: 900; }
+.ed-rating { margin-top: 10px; font-size: 13px; }
+.ed-rating p { margin: 5px 0; }
+#edLevel { align-self: start; font-size: 18px; font-weight: 900; }
+#edRatingBreakdown { display: flex; flex-wrap: wrap; gap: 5px 14px; margin: 6px 0 0; }
+#edRatingBreakdown div { display: flex; gap: 5px; }
+#edRatingBreakdown dd { margin: 0; font-weight: 800; }
 .ed-meta,.ed-fields,.ed-panels {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

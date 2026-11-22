@@ -1252,6 +1252,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 <div id="drop" hidden>.ktz をここにドロップ</div>
 
 <script src="content/fonts/murecho-glyphs.js"></script>
+<script src="difficulty.js"></script>
 <script src="editor-tempo.js"></script>
 <script src="editor.js"></script>
 <script>
@@ -1320,10 +1321,11 @@ function toast(msg,kind){const d=el('div',{class:kind||''},msg);$('#toast').appe
 function fmtTime(ms){const s=Math.max(0,Math.round(ms/1000));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
 function fmtNum(n){return Math.round(n).toLocaleString('ja-JP');}
 function keyLabel(code){if(!code)return'—';return code.replace(/^Key/,'').replace(/^Digit/,'').replace(/^Numpad/,'Num').replace(/^Arrow/,'');}
-function starValue(level){return level>=10?level.toFixed(1):String(level);}
+function starValue(level){
+  const tenths=Math.round(level*10);
+  return tenths>=100?(tenths/10).toFixed(1):Math.floor(tenths/10)+(tenths%10>=5?'+':'');
+}
 function levelText(c){if(c.level==null)return c.course==='kasane'?'?':'★?';return c.course==='kasane'?ROMAN[c.level]:'★'+starValue(c.level);}
-function parseLevel(s){s=String(s??'').normalize('NFKC').trim().toUpperCase().replace(/[★☆]/g,'');if(!s)return null;const r=ROMAN.indexOf(s);if(r>0)return r;const n=Number(s);if(Number.isInteger(n)&&n>=1&&n<=12)return n;
-  return /^(10|11|12)\.\d$/.test(s)&&n<=12.9?n:undefined;}
 function diffRange(d,min,mid,max){return d>5?mid+(max-mid)*(d-5)/5:d<5?mid-(mid-min)*(5-d)/5:mid;}
 function segAt(segs,t){if(!segs.length)return null;if(t<segs[0].time)return segs[0];let lo=0,hi=segs.length-1,a=0;while(lo<=hi){const m=(lo+hi)>>1;if(segs[m].time<=t+1){a=m;lo=m+1;}else hi=m-1;}return segs[a];}
 
@@ -1512,8 +1514,6 @@ async function loadKtz(name,buf,repoPath=null){
     c.sourcePath=p;
     const course=COURSE_ALIAS[norm(extra.course)];
     if(COURSE_ORDER.includes(course))c.defCourse=course;
-    const lv=parseLevel(extra.level);
-    if(lv!=null)c.defLevel=lv;
     if(extra.noise&&typeof extra.noise==='object'&&!Array.isArray(extra.noise))c.archiveNoise=extra.noise;
     if(c.stats.trimmed)Lib.loadWarn.push(`${name}: 「${c.meta.version}」で同時押しが ドン2・カッ2 を超える箇所があり、${c.stats.trimmed}個のノーツを外しました`);
     c.set=set;set.charts.push(c);}
@@ -1540,12 +1540,11 @@ const IDB={db:null,
 
 /* ================= 難易度と段位の反映 ================= */
 function resolveAll(){
-  const warns=[];
-  for(const c of Lib.charts){let course=c.defCourse||guessCourse(c),level=c.defLevel??null;
-    if(c.stats.chords>0)course='kasane';
-    if(course==='kasane'&&level!=null&&(!Number.isInteger(level)||level>10)){warns.push(`「${c.set.title} / ${c.meta.version}」: 重のレベルは I〜X（1〜10）です。小数や★10を超える値は通常コースで指定してください`);level=null;}
-    c.course=course;c.level=level;}
-  Lib.csvWarn=warns;buildDans();
+  for(const c of Lib.charts){
+    c.course=c.stats.chords>0?'kasane':c.defCourse||guessCourse(c);
+    c.level=rateChart(c).level;
+  }
+  Lib.csvWarn=[];buildDans();
   evaluateCharacters();
 }
 function finishDan(d){
@@ -1771,9 +1770,9 @@ const TPL={
 };
 const CHORD_TOK={A:['d','d'],B:['d','k'],C:['k','k'],E:['d','k','k'],F:['d','d','k'],G:['d','d','k','k']};
 const DEMOS=[
-  {id:'demo-yomatsuri',title:'夜祭りの合図',bpm:150,key:0,seed:3,measures:20,offset:600,kiai:[9,15],rollAt:6,charts:[{version:'かんたん',course:'easy',level:2,style:'easy'},{version:'おに',course:'oni',level:6,style:'oni1'}]},
-  {id:'demo-kawara',title:'瓦屋根ラン',bpm:172,key:3,seed:8,measures:22,offset:600,kiai:[10,17],rollAt:7,charts:[{version:'ふつう',course:'normal',level:4,style:'normal'},{version:'おに',course:'oni',level:7,style:'oni2'}]},
-  {id:'demo-kasane',title:'重ね打ちの夜',bpm:160,key:-2,seed:15,measures:24,offset:600,kiai:[11,19],rollAt:8,charts:[{version:'おに',course:'oni',level:8,style:'oni2'},{version:'重',course:'kasane',level:3,style:'kasane'}]}
+  {id:'demo-yomatsuri',title:'夜祭りの合図',bpm:150,key:0,seed:3,measures:20,offset:600,kiai:[9,15],rollAt:6,charts:[{version:'かんたん',course:'easy',style:'easy'},{version:'おに',course:'oni',style:'oni1'}]},
+  {id:'demo-kawara',title:'瓦屋根ラン',bpm:172,key:3,seed:8,measures:22,offset:600,kiai:[10,17],rollAt:7,charts:[{version:'ふつう',course:'normal',style:'normal'},{version:'おに',course:'oni',style:'oni2'}]},
+  {id:'demo-kasane',title:'重ね打ちの夜',bpm:160,key:-2,seed:15,measures:24,offset:600,kiai:[11,19],rollAt:8,charts:[{version:'おに',course:'oni',style:'oni2'},{version:'重',course:'kasane',style:'kasane'}]}
 ];
 function demoOsu(sp,ch){
   const beat=60000/sp.bpm,meas=beat*4,step=meas/16,rnd=mulberry32(sp.seed*131+ch.style.length*7),T=TPL[ch.style];const ho=[];
@@ -1794,7 +1793,7 @@ function demoOsu(sp,ch){
     '[HitObjects]',...ho].join('\n');}
 function addDemos(){
   for(const sp of DEMOS){const set={key:sp.id,file:sp.title,title:sp.title,titleAscii:sp.id,artist:'重ね太鼓 デモ音源',setId:0,demo:sp,files:{},charts:[]};
-    for(const ch of sp.charts){const c=parseOsu(demoOsu(sp,ch));c.set=set;c.uid=sp.id+'::'+ch.version;c.defCourse=ch.course;c.defLevel=ch.level;set.charts.push(c);}
+    for(const ch of sp.charts){const c=parseOsu(demoOsu(sp,ch));c.set=set;c.uid=sp.id+'::'+ch.version;c.defCourse=ch.course;set.charts.push(c);}
     set.preview=set.charts[0].preview;Lib.sets.push(set);Lib.charts.push(...set.charts);}}
 async function renderDemo(sp){
   const sr=44100,beat=60/sp.bpm,meas=beat*4,off=sp.offset/1000,dur=off+(sp.measures+1)*meas+2;
@@ -2948,12 +2947,25 @@ function drawDensity(cvd,c,sel){if(!cvd.isConnected)return;const r=cvd.getBoundi
 function noiseData(c){return store.get(noiseKey(c),c.archiveNoise??{});}
 function hasSealedNotes(c){const data=noiseData(c);return c.targets.some((t,i)=>{if(!noiseEligible(t))return false;const v=data&&data[noiseId(t,i)];return Array.isArray(v)&&(t.type==='single'?[t]:t.notes).some((n,j)=>v[j]==='left'||v[j]==='right');});}
 function sealBadge(c){return el('span',{class:'seal-badge','data-seal-chart':c.uid,hidden:!hasSealedNotes(c),title:'封印ノーツ搭載譜面','aria-label':'封印ノーツ搭載譜面'},'封印');}
-function updateSealBadges(c){const active=hasSealedNotes(c);for(const badge of document.querySelectorAll('[data-seal-chart]'))if(badge.dataset.sealChart===c.uid)badge.hidden=!active;}
 function noiseEligible(t){return t.type==='single'||(t.type==='chord'&&t.notes.length===2&&t.reqD===1&&t.reqK===1&&!t.notes.some(n=>n.big));}
 function noiseKey(c){return 'kasane-red-noise-v1:'+c.uid;}
 function noiseId(t,i){return i+':'+t.t+':'+(t.type==='single'?t.color+(t.big?'B':''):t.notes.map(n=>n.color+(n.big?'B':'')).join(''));}
+function rateChart(c){
+  const data=c.uid?noiseData(c):c.archiveNoise;
+  const sealAt=data&&Object.keys(data).length?(target,i)=>noiseEligible(target)?data[noiseId(target,i)]:null:null;
+  return estimateKasaneDifficulty(c,c.course,sealAt);
+}
 function loadNoise(c){const data=noiseData(c);c.targets.forEach((t,i)=>{const v=data&&data[noiseId(t,i)];const ns=t.type==='single'?[t]:t.notes;ns.forEach((n,j)=>{n.noise=noiseEligible(t)&&Array.isArray(v)&&['left','right'].includes(v[j])?v[j]:null;});});}
-function saveNoise(c){const data={};c.targets.forEach((t,i)=>{const ns=t.type==='single'?[t]:t.notes;if(noiseEligible(t)&&ns.some(n=>n.noise))data[noiseId(t,i)]=ns.map(n=>n.noise||null);});try{localStorage.setItem(noiseKey(c),JSON.stringify(data));Lib.monthlyDirty=true;updateSealBadges(c);const density=$('#detail .dens');if(density)drawDensity(density,c,UI.pracOpen?UI.prac:null);return true;}catch(e){toast('保存できません。ブラウザの保存容量・設定を確認してください','err');return false;}}
+function saveNoise(c){
+  const data={};
+  c.targets.forEach((t,i)=>{
+    const notes=t.type==='single'?[t]:t.notes;
+    if(noiseEligible(t)&&notes.some(n=>n.noise))data[noiseId(t,i)]=notes.map(n=>n.noise||null);
+  });
+  try{localStorage.setItem(noiseKey(c),JSON.stringify(data));}
+  catch(e){toast('保存できません。ブラウザの保存容量・設定を確認してください','err');return false;}
+  resolveAll();refreshAll();return true;
+}
 function noiseBlocked(t,role){const color=ROLE_COLOR[role],n=t.type==='single'?t:t.notes.find(n=>n.color===color);return !!n&&((n.noise==='left'&&role.endsWith('L'))||(n.noise==='right'&&role.endsWith('R')));}
 function noiseRole(n){return(n.color==='d'?'don':'ka')+(n.noise==='left'?'R':'L');}
 // 発光・粒・枠は小さなキャンバスで共有し、各ノーツには画像を1回転送する。
@@ -3027,7 +3039,7 @@ function renderDetail(){const d=$('#detail');$('#arcadeMenu').hidden=!!UI.choose
       el('span',{class:'k'},C.k),
       el('span',{class:'nm'},el('strong',null,C.jp),c?sealBadge(c):null,
         el('small',null,locked?'封印中':c?.meta.version),
-        c?el('span',{class:'pips','aria-hidden':'true'},Array.from({length:Math.max(10,Math.floor(c.level||0))},(_,i)=>el('i',{class:(i<(c.level||0)?'on':'')+(i>=10&&i<(c.level||0)?' hi':'')}))):null),
+        c?el('span',{class:'pips','aria-hidden':'true'},Array.from({length:Math.max(10,Math.floor(c.level||0))},(_,i)=>el('i',{class:(i<Math.floor(c.level||0)?'on':'')+(i>=10&&i<Math.floor(c.level||0)?' hi':'')}))):null),
       el('span',{class:'lv'},c?levelText(c):'–',c?el('small',null,crownOf(c)||(Lib.best[c.uid]?fmtNum(Lib.best[c.uid].score):'')):null));
     b.addEventListener('click',()=>{
       if(active){menuDecide();return;}
@@ -3177,7 +3189,7 @@ function renderDans(focus=false){
 }
 function chipFor(c,hideDecimal=false){
   const C=COURSES[c.course];
-  const rating=hideDecimal&&c.level!=null?'★'+Math.floor(c.level):levelText(c);
+  const rating=hideDecimal&&c.course!=='kasane'&&c.level>=10?'★'+Math.floor(c.level):levelText(c);
   return el('span',{class:'chip',style:`--cc:${C.color}`},C.jp,el('b',null,rating),hideDecimal?null:sealBadge(c));
 }
 
@@ -4981,7 +4993,7 @@ $('#downloadConverted').addEventListener('click',async()=>{
 
 /* ================= 起動 ================= */
 const chartEditor=createKasaneEditor({
-  pane:$('#tab-editor'),charts:()=>Lib.charts,courseInfo:COURSES,parseOsu,parseLevel,sortCharts,levelText,norm,text:murechoText,
+  pane:$('#tab-editor'),charts:()=>Lib.charts,courseInfo:COURSES,parseOsu,rateChart,sortCharts,levelText,norm,text:murechoText,
   loadNoise,saveNoise,noiseId,noiseEligible,findFile,decodeText,demoOsu,nk,
   audio:()=>ensureAudio(),decodeAudio:decodeGameAudio,getAudio,hit:playSE,noiseData,sameVersion,effectiveFolders,folderTrail,
   saveDraft:(draft)=>IDB.tx('readwrite',s=>s.put(draft,'editor-draft'),'repository'),
