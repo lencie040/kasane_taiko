@@ -1286,7 +1286,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 <div id="drop" hidden>.ktz をここにドロップ</div>
 
 <script src="content/fonts/murecho-glyphs.js"></script>
-<script src="difficulty.js?v=radar-recovery"></script>
+<script src="difficulty.js?v=radar-speed"></script>
 <script src="weakness.js?v=context"></script>
 <script src="editor-tempo.js"></script>
 <script src="editor.js"></script>
@@ -3005,7 +3005,7 @@ function drawDensity(cvd,c,sel){if(!cvd.isConnected)return;const r=cvd.getBoundi
 
 // Each axis has a fixed reference so profiles stay comparable across charts.
 const CHART_RADAR_AXES=[
-  ['物量',{radarVolume:1},'数秒続く密度や総打数、ノーツの間に休める時間を反映'],
+  ['物量',{radarVolume:1},'BPMと音符の細かさによる打間隔、密度が続く長さ、休める時間を反映'],
   ['技術',{technique:1.65},'ドン・カッの複合や色の切り替えの難しさ'],
   ['リズム',{rhythm:2.15},'音符間隔の変化や裏拍の難しさ'],
   ['視認難',{visibility:.48},'見た目BPMや速度変化による見づらさ'],

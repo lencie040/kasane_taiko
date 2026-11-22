@@ -43,7 +43,7 @@ function rhythmChange(gap, previous, earlier, subdivision, previousSubdivision) 
 function measureChartDifficulty(chart) {
   const targets = chart.targets;
   if (!targets.length) {
-    return { burst:0, sustained:0, fastRunRate:0, quickThree:0, quickFive:0, pace:0, recovery:0, color:0, rhythm:0,
+    return { burst:0, sustained:0, fastRunRate:0, quickThree:0, quickFive:0, pace:0, recovery:0, fastHitPressure:0, color:0, rhythm:0,
       peakColor:0, peakRhythm:0, peakGridMix:0, offbeatEntries:0, chords:0, chordReading:0,
       speedChanges:0, lowScroll:0, highScroll:0, strikes:0 };
   }
@@ -61,12 +61,15 @@ function measureChartDifficulty(chart) {
   let strikes = 0, chordStrikes = 0, chordReading = 0, color = 0, rhythm = 0, speedChanges = 0;
   let exposure = 0, recentColor = 0, recentRhythm = 0, peakColor = 0, peakRhythm = 0;
   let offbeatEntries = 0, recentBinary = 0, recentTernary = 0, peakGridMix = 0;
-  let quickThree = 0, quickFive = 0, fastRunRate = 0, recoveryMs = 0;
+  let quickThree = 0, quickFive = 0, fastRunRate = 0, recoveryMs = 0, fastHitPressure = 0;
 
   for (const [i, current] of targets.entries()) {
     const previous = targets[i - 1];
     const gap = previous ? current.t - previous.t : Infinity;
-    if (previous) recoveryMs += Math.max(0, gap - 160);
+    if (previous) {
+      recoveryMs += Math.max(0, gap - 160);
+      fastHitPressure += Math.max(0, Math.min(32, 1000 / gap) - 16);
+    }
     if (i >= 2) quickThree = Math.max(quickThree, 2000 / (current.t - targets[i - 2].t));
     if (i >= 4) quickFive = Math.max(quickFive, 4000 / (current.t - targets[i - 4].t));
     const chord = current.type === 'chord';
@@ -178,15 +181,17 @@ function measureChartDifficulty(chart) {
     offbeatEntries:offbeatEntries / targets.length,
     chords:chordStrikes / strikes, chordReading:chordReading / targets.length,
     speedChanges:speedChanges / targets.length, lowScroll:scrollAt(.15), highScroll:scrollAt(.85), strikes,
-    recovery:recoveryMs / Math.max(1, span) };
+    recovery:recoveryMs / Math.max(1, span), fastHitPressure:fastHitPressure / Math.max(1, targets.length - 1) };
 }
 
 function chartRadarVolume(measurements) {
-  const { sustained, fastRunRate, pace, recovery, strikes } = measurements;
+  const { sustained, fastRunRate, pace, recovery, fastHitPressure, strikes } = measurements;
   const sustainedPace = .48 * sustained + .32 * fastRunRate + .20 * pace;
-  // Long gaps allow recovery. Short bursts still count through the multi-second peak.
-  const effectivePace = sustainedPace * (1 - .45 * recovery);
-  const paceScore = effectivePace <= 14 ? effectivePace / 16 : 1 - .125 * Math.exp(-(effectivePace - 14) / 4);
+  const effectivePace = (sustainedPace + .24 * fastHitPressure) * (1 - .45 * recovery);
+  // Keep room above ordinary densities for changes between fast hit intervals.
+  const steadyScore = Math.min(1, effectivePace / 14);
+  const speedScore = Math.min(1, Math.max(0, effectivePace - 14) / 12);
+  const paceScore = .68 * steadyScore + .32 * speedScore;
   const countScore = 1 - 2 ** (-strikes / 100);
   return .90 * paceScore + .10 * countScore;
 }
