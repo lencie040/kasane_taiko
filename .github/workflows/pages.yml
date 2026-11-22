@@ -5,6 +5,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
   pages: write
   id-token: write
 concurrency:
@@ -13,6 +14,8 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      PAGES_ARTIFACT: github-pages-${{ github.run_attempt }}
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
@@ -24,7 +27,26 @@ jobs:
       - run: python scripts/build.py
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
+        id: upload
         with:
+          name: ${{ env.PAGES_ARTIFACT }}
           path: .site
+      - name: Wait for the Pages artifact to become available
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact_id }}
+        run: |
+          : "${ARTIFACT_ID:?Missing uploaded Pages artifact ID}"
+          endpoint="repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts?name=${PAGES_ARTIFACT}"
+          for attempt in {1..12}; do
+            if ids=$(gh api "$endpoint" --jq '.artifacts[] | select(.expired == false) | .id') && [ "$ids" = "$ARTIFACT_ID" ]; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::The uploaded Pages artifact did not become available."
+          exit 1
       - uses: actions/deploy-pages@v4
         id: deploy
+        with:
+          artifact_name: ${{ env.PAGES_ARTIFACT }}
