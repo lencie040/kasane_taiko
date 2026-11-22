@@ -1265,7 +1265,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 
 <script src="content/fonts/murecho-glyphs.js"></script>
 <script src="difficulty.js"></script>
-<script src="weakness.js?v=phrase"></script>
+<script src="weakness.js?v=core"></script>
 <script src="editor-tempo.js"></script>
 <script src="editor.js"></script>
 <script>
@@ -3771,7 +3771,7 @@ function beginWeaknessLesson(res){
   if($('#result').hidden)return;
   const origin={...res.weakness,chart:res.chart,win:res.win};
   const charts=Lib.charts.filter(c=>!c.set.demo&&!isLocked(c)&&c.targets.length&&findFile(c.set,c.audio,c.dir,'audio'));
-  const rounds=relatedWeaknessExercises(origin.chart,origin.phrase,charts,chart=>{
+  const rounds=relatedWeaknessExercises(origin.chart,origin,charts,chart=>{
     const data=noiseData(chart);
     if(!data||!Object.keys(data).length)return ()=>null;
     return (target,index)=>{
@@ -3789,7 +3789,8 @@ function playWeaknessRound(lesson,index){
   runSong(round.chart,{from:round.from,to:round.to,rate:1,loop:false,weakness:{lesson,index,round}});
 }
 function weaknessRoundLabel({lesson,index,round}){
-  return `弱点道場 ${index+1}/${lesson.rounds.length} ・ ${round===lesson.origin?'元の難所':'類題'}`;
+  const label=round===lesson.origin?'元の難所':round.mirrored?'類題（ドン・カッ反転）':'類題';
+  return `弱点道場 ${index+1}/${lesson.rounds.length} ・ ${label}`;
 }
 function weaknessOffer(res){
   const weakness=res.weakness,label=weakness.kind==='bad'?'不可':'可';

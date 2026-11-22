@@ -63,6 +63,17 @@ function weaknessRolls(chart, start, end) {
   }));
 }
 
+function makeWeaknessPhrase(chart, targets, left, right, sealsAt) {
+  const notes = targets.slice(left, right + 1);
+  const start = notes[0].t, end = notes.at(-1).t;
+  return {
+    keys:notes.map((target, i) => weaknessNoteKey(target, sealsAt(target, left + i))),
+    gaps:notes.slice(1).map((target, i) => target.t - notes[i].t),
+    span:end - start,
+    rolls:weaknessRolls(chart, start, end),
+  };
+}
+
 function weaknessPhrase(chart, targets, first, last, sealsAt) {
   const firstTime = targets[first].t, lastTime = targets[last].t;
   let left = first, right = last;
@@ -78,14 +89,25 @@ function weaknessPhrase(chart, targets, first, last, sealsAt) {
     else right++;
   }
   if (right - left + 1 < 4) return null;
-  const notes = targets.slice(left, right + 1);
-  const start = notes[0].t, end = notes.at(-1).t;
-  return {
-    keys:notes.map((target, i) => weaknessNoteKey(target, sealsAt(target, left + i))),
-    gaps:notes.slice(1).map((target, i) => target.t - notes[i].t),
-    span:end - start,
-    rolls:weaknessRolls(chart, start, end),
-  };
+  return makeWeaknessPhrase(chart, targets, left, right, sealsAt);
+}
+
+function weaknessCorePhrases(chart, targets, anchors, sealsAt) {
+  const cores = new Map();
+  // Sample misses throughout the cluster. Each fragment retains the miss and
+  // its entry and exit where they exist, even when the whole cluster is unique.
+  const centers = [anchors[0], anchors[Math.floor(anchors.length / 2)], anchors.at(-1)];
+  for (const anchor of new Set(centers)) {
+    for (const [offset, count] of [[-2, 4], [-1, 4], [-1, 3]]) {
+      const left = Math.max(0, Math.min(anchor + offset, targets.length - count));
+      const right = left + count - 1;
+      const key = left + ':' + count;
+      if (!targets[right] || targets[anchor].t - targets[left].t > 1150
+        || targets[right].t - targets[anchor].t > 1150 || cores.has(key)) continue;
+      cores.set(key, makeWeaknessPhrase(chart, targets, left, right, sealsAt));
+    }
+  }
+  return [...cores.values()];
 }
 
 function detectWeakness(chart, targets, stats) {
@@ -109,26 +131,34 @@ function detectWeakness(chart, targets, stats) {
   const range = weaknessRange(chart, misses[first].target.t, misses[last].target.t);
   const sealsAt = target => target.type === 'chord' ? target.notes.map(note => note.noise) : [target.noise];
   const priorities = Object.keys(WEAKNESS_PATTERNS);
-  const patterns = misses.slice(first, last + 1).map(({index}) => weaknessPattern(targets, index, sealsAt));
-  const pattern = patterns.reduce((best, next) => priorities.indexOf(next) < priorities.indexOf(best) ? next : best);
+  const cluster = misses.slice(first, last + 1).map(({index}) => ({index, kind:weaknessPattern(targets, index, sealsAt)}));
+  const pattern = cluster.reduce((best, item) => priorities.indexOf(item.kind) < priorities.indexOf(best) ? item.kind : best, cluster[0].kind);
+  const anchors = cluster.filter(item => item.kind === pattern).map(item => item.index);
   const phrase = weaknessPhrase(chart, targets, misses[first].index, misses[last].index, sealsAt);
-  return { ...range, pattern, phrase, kind, before:weaknessJudgments(targets, range.focusFrom, range.to) };
+  const cores = weaknessCorePhrases(chart, targets, anchors, sealsAt);
+  return { ...range, pattern, phrase, cores, kind, before:weaknessJudgments(targets, range.focusFrom, range.to) };
 }
 
-function weaknessPhraseDistance(phrase, chart, keys, index) {
+function weaknessGapDirection(before, after) {
+  const ratio = after / before;
+  return ratio > 1.24 ? 1 : ratio < 1 / 1.24 ? -1 : 0;
+}
+
+function weaknessPhraseDistance(phrase, chart, index) {
   const targets = chart.targets;
   const start = targets[index].t, end = targets[index + phrase.keys.length - 1].t;
   const scale = (end - start) / phrase.span;
-  if (!(scale >= .85 && scale <= 1.18)) return Infinity;
-  let error = 0;
-  for (let i = 0; i < phrase.keys.length; i++) {
-    if (keys[index + i] !== phrase.keys[i]) return Infinity;
-    if (i === 0) continue;
-    const expected = phrase.gaps[i - 1] * scale;
-    const delta = Math.abs(targets[index + i].t - targets[index + i - 1].t - expected);
-    const tolerance = 4 + expected * .075;
+  if (!(scale >= .72 && scale <= 1.4)) return Infinity;
+  let error = 0, previous = 0;
+  for (const [i, gap] of phrase.gaps.entries()) {
+    const actual = targets[index + i + 1].t - targets[index + i].t;
+    const expected = gap * scale;
+    const delta = Math.abs(actual - expected);
+    const tolerance = 5 + expected * .105;
     if (delta > tolerance) return Infinity;
+    if (i > 0 && weaknessGapDirection(phrase.gaps[i - 1], gap) !== weaknessGapDirection(previous, actual)) return Infinity;
     error += delta / tolerance;
+    previous = actual;
   }
   const rolls = weaknessRolls(chart, start, end);
   if (rolls.length !== phrase.rolls.length || rolls.some((r, i) => {
@@ -139,20 +169,30 @@ function weaknessPhraseDistance(phrase, chart, keys, index) {
   return error / phrase.gaps.length + Math.abs(Math.log2(scale));
 }
 
-function relatedWeaknessExercises(origin, phrase, charts, sealsFor) {
-  if (!phrase?.keys?.length) return [];
+function relatedWeaknessExercises(origin, exercise, charts, sealsFor) {
+  const phrases = [exercise?.phrase, ...(exercise?.cores ?? [])].filter(Boolean).map(phrase => ({
+    phrase, penalty:phrase === exercise.phrase ? 0 : phrase.keys.length >= 4 ? .65 : 1.2,
+    mirrored:phrase.keys.some(key => /[+LR]/.test(key)) ? null : phrase.keys.map(key => key.replace(/[dk]/g, color => color === 'd' ? 'k' : 'd')),
+  }));
+  if (!phrases.length) return [];
   const songs = new Map();
   for (const chart of charts) {
-    if (chart.set.key === origin.set.key || chart.targets.length < phrase.keys.length) continue;
+    if (chart.set.key === origin.set.key || chart.set.demo || chart.targets.length < 3) continue;
     const readSeal = sealsFor(chart);
     const keys = chart.targets.map((target, index) => weaknessNoteKey(target, readSeal(target, index)));
     let best = null;
-    for (let index = 0; index <= keys.length - phrase.keys.length; index++) {
-      if (keys[index] !== phrase.keys[0]) continue;
-      const distance = weaknessPhraseDistance(phrase, chart, keys, index);
-      if (!Number.isFinite(distance) || (best && distance >= best.distance)) continue;
-      const from = chart.targets[index].t, to = chart.targets[index + phrase.keys.length - 1].t;
-      best = { chart, from, to, focusFrom:from, distance };
+    for (const {phrase,penalty,mirrored} of phrases) {
+      const size = phrase.keys.length;
+      if (best && best.distance <= penalty) continue;
+      for (let index = 0; index <= keys.length - size; index++) {
+        const flipped = mirrored && mirrored[0] === keys[index];
+        const reference = flipped ? mirrored : phrase.keys;
+        if (keys[index] !== reference[0] || !reference.every((key, i) => key === keys[index + i])) continue;
+        const distance = weaknessPhraseDistance(phrase, chart, index) + penalty + (flipped ? .32 : 0);
+        if (!Number.isFinite(distance) || (best && distance >= best.distance)) continue;
+        const from = chart.targets[index].t, to = chart.targets[index + size - 1].t;
+        best = { chart, from, to, focusFrom:from, distance, mirrored:!!flipped };
+      }
     }
     const song = songs.get(chart.set.key);
     if (best && (!song || best.distance < song.distance)) songs.set(chart.set.key, best);
