@@ -6,6 +6,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chivo+Mono:wght@400;600&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<link rel="stylesheet" href="editor.css">
 <style>
 @font-face{
   font-family:"Murecho";
@@ -1035,12 +1036,13 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
       <button class="tab" data-tab="dan" id="tabbtn-dan">段位道場</button>
       <button class="tab" data-tab="medley" id="tabbtn-medley">作業用BGM</button>
       <button class="tab" data-tab="records" id="tabbtn-records">記録</button>
-      <button class="tab" data-tab="load" id="tabbtn-load">読み込み・CSV</button>
+      <button class="tab" data-tab="load" id="tabbtn-load">読み込み</button>
       <button class="tab" data-tab="settings" id="tabbtn-settings">設定</button>
+      <button class="tab" data-tab="editor" id="tabbtn-editor" hidden>エディットモード</button>
     </nav>
     <button class="btn ghost" id="guideBtn">遊び方</button>
-    <label class="btn gold" for="fileIn">.osz / CSV を追加</label>
-    <input type="file" id="fileIn" multiple accept=".osz,.zip,.csv" hidden>
+    <label class="btn gold" for="fileIn">.ktz を追加</label>
+    <input type="file" id="fileIn" multiple accept=".ktz" hidden>
   </div>
 </header>
 
@@ -1135,82 +1137,31 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
   </section>
 
   <section class="pane" id="tab-load" hidden>
-    <div>
-      <div class="eyebrow">LIBRARY · CSV</div>
-      <h2 class="h-sec">読み込みと難易度CSV</h2>
-      <p class="lead">.osz はこのブラウザに保存され、次回も残ります。難易度（コースとレベル）と段位道場の内容は CSV で指定します。CSV がなくても遊べますが、レベルは「?」表示になり、重段位は自動で組まれます。</p>
-    </div>
+    <h2 class="h-sec">譜面の読み込み</h2>
+    <p class="lead">.ktz には音源・譜面・曲名・難易度・封印設定がまとまっています。</p>
     <div class="card" style="margin-bottom:16px">
-      <button class="btn primary" id="fetchGithub">GitHubから今すぐ取得</button>
-      <p id="fetchGithubStatus" role="status" aria-live="polite">mainの曲・CSV・封印設定を取得します。編集中の封印設定は優先されます。</p>
+      <div class="row"><button class="btn primary" id="fetchGithub">公開譜面を更新</button><button class="btn gold" id="downloadConverted">リポジトリ譜面を .ktz に一括変換・ダウンロード</button></div>
+      <p id="fetchGithubStatus" role="status" aria-live="polite">公開済みの曲を取得します。</p>
+      <p id="convertedStatus" role="status" aria-live="polite"></p>
+      <p>ダウンロードしたZIPを展開し、中の content/ をリポジトリの content/ に重ねて追加できます。</p>
     </div>
-    <label class="dropzone" for="fileIn"><b>.osz と .csv をここにドロップ</b><span>またはクリックして選ぶ（複数まとめてでも大丈夫です）</span></label>
+    <label class="dropzone" for="fileIn"><b>.ktz をここにドロップ</b><span>またはクリックして選ぶ（複数選択可）</span></label>
     <div class="cards2">
       <div class="card">
         <h3>ライブラリ</h3>
         <ul class="lib" id="libList"></ul>
-        <div class="row"><label class="btn" for="fileIn">.osz を追加</label><button class="btn ghost small" id="clearLib">保存した .osz をすべて削除</button></div>
+        <div class="row"><label class="btn" for="fileIn">.ktz を追加</label><button class="btn ghost small" id="clearLib">ブラウザに保存した譜面をすべて削除</button></div>
         <div id="clearLibConfirm" class="row" hidden><span>本当に削除しますか？</span><button class="btn small primary" id="clearLibYes">削除する</button><button class="btn small" id="clearLibNo">やめる</button></div>
-      </div>
-      <div class="card">
-        <h3>CSV の状態</h3>
-        <div id="csvState"></div>
         <ul class="warns" id="warnList"></ul>
       </div>
       <div class="card">
         <h3>記録のバックアップ</h3>
-        <p>スコア・王冠・段位の合格と解禁・お気に入り・設定・CSV を文字列にして書き出します。ブラウザのデータを消す前や、別のブラウザへ移すときに使ってください。.osz 本体は含まれないので、移した先でもう一度読み込んでください。</p>
+        <p>スコア・王冠・段位・お気に入り・設定を書き出します。譜面を別のブラウザに移すときは .ktz も読み込んでください。</p>
         <div class="row"><button class="btn" id="bkExport">書き出す</button><button class="btn small" id="bkCopy" hidden>コピー</button></div>
-        <textarea id="bkText" spellcheck="false" placeholder="ここに書き出されます。別のブラウザで書き出した文字列を貼り付けて「読み込む」こともできます。"></textarea>
+        <textarea id="bkText" spellcheck="false" placeholder="バックアップを表示・貼り付けできます"></textarea>
         <div class="row"><button class="btn gold" id="bkImport">読み込む</button></div>
         <div id="bkConfirm" class="row" hidden><span>今の記録を、貼り付けた内容で置き換えます。</span><button class="btn small primary" id="bkYes">置き換える</button><button class="btn small" id="bkNo">やめる</button></div>
       </div>
-      <div class="card">
-        <h3>CSV を貼り付けて適用</h3>
-        <p>1行目の見出しで charts.csv か dan.csv かを自動で見分けます。</p>
-        <textarea id="csvPaste" spellcheck="false" placeholder="file,version,course,level,memo&#10;MySong,Oni,oni,9,"></textarea>
-        <div class="row"><button class="btn gold" id="csvApply">適用する</button></div>
-      </div>
-      <div class="card">
-        <h3>テンプレートを作る</h3>
-        <p>いま読み込んでいる譜面から CSV の下書きを作ります。コピーして表計算ソフトで編集してください。</p>
-        <div class="row"><button class="btn" id="tplCharts">charts.csv の下書き</button><button class="btn" id="tplDan">dan.csv の下書き</button></div>
-        <textarea id="tplOut" spellcheck="false" readonly></textarea>
-        <div class="row"><button class="btn small" id="tplCopy">コピー</button><button class="btn small ghost" id="tplToPaste">貼り付け欄へ送る</button></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <h3>charts.csv — 譜面ごとのコースとレベル</h3>
-      <div class="tbl-wrap"><table>
-        <thead><tr><th>列</th><th>内容</th><th>例</th></tr></thead>
-        <tbody>
-          <tr><td><code>file</code></td><td>.osz のファイル名（拡張子なし可）、曲名（Title / TitleUnicode）、または BeatmapSetID のどれか</td><td><code>123456 Artist - Song</code></td></tr>
-          <tr><td><code>version</code></td><td>.osu の難易度名（[Metadata] Version）。<code>*</code> でその曲の全譜面</td><td><code>Inner Oni</code></td></tr>
-          <tr><td><code>course</code></td><td><code>easy</code> <code>normal</code> <code>hard</code> <code>oni</code> <code>ura</code> <code>kasane</code>（かんたん／ふつう／むずかしい／おに／裏／重 でも可）</td><td><code>ura</code></td></tr>
-          <tr><td><code>level</code></td><td>通常コースは ★1〜12.9。★10以上は小数第1位まで指定可。重は I〜X（数字でも可）</td><td><code>10.2</code> / <code>VII</code></td></tr>
-          <tr><td><code>memo</code></td><td>自由記入（読み飛ばします）。<code>#</code> で始まる行はコメント</td><td></td></tr>
-        </tbody>
-      </table></div>
-      <p>同じ時刻に2個以上のノーツがある譜面は、CSV の指定にかかわらず <b>重</b> になります。</p>
-    </div>
-
-    <div class="card">
-      <h3>dan.csv — 重段位の構成と合格条件</h3>
-      <div class="tbl-wrap"><table>
-        <thead><tr><th>列</th><th>内容</th></tr></thead>
-        <tbody>
-          <tr><td><code>id</code> <code>name</code></td><td>段位の識別子と表示名（name を空にすると「重段位 + 3曲目のレベル」）</td></tr>
-          <tr><td><code>song1</code> <code>diff1</code> … <code>song3</code> <code>diff3</code></td><td>各曲の file と version（charts.csv と同じ書き方）。3曲目に重譜面を置きます</td></tr>
-          <tr><td><code>gauge</code></td><td>魂ゲージ。<code>98%</code></td></tr>
-          <tr><td><code>good</code> <code>ok</code> <code>bad</code></td><td>良・可・不可。<code>95%</code> のような割合（全ノーツ数に対する）か <code>12</code> のような個数</td></tr>
-          <tr><td><code>tokuryo</code></td><td>特良。割合は 3曲合計の「同時押しノーツ数」に対する値</td></tr>
-          <tr><td><code>roll</code></td><td>連打数。<code>40</code> のような打数か、<code>秒速12</code>（<code>12/s</code> <code>12ps</code> でも可）のような秒速。秒速は3曲の黄色い連打の長さの合計 × 秒速 で必要打数を出します（風船は含みません）</td></tr>
-          <tr><td><code>combo</code> <code>score</code> <code>hits</code></td><td>最大コンボ・スコア・叩けた数（良＋可＋連打）。combo は割合も可</td></tr>
-        </tbody>
-      </table></div>
-      <p>条件セルは <code>赤合格/金合格</code> の形です。例: <code>bad</code> 列に <code>1%/0.3%</code>、<code>tokuryo</code> 列に <code>85%/95%</code>。<code>&gt;=</code> <code>&lt;=</code> を先頭に付けると向きを変えられます（既定は 良・特良・連打などが「以上」、可・不可が「以下」）。空欄の列は条件なしです。</p>
-      <textarea readonly spellcheck="false" id="danSample"></textarea>
     </div>
 
     <div class="card">
@@ -1220,6 +1171,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
     </div>
   </section>
 
+  <section class="pane" id="tab-editor" hidden></section>
   <section class="pane" id="tab-settings" hidden>
     <div>
       <div class="eyebrow">SETTINGS</div>
@@ -1297,9 +1249,11 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
   <div class="modal-card"><div class="modal-head"><h2 id="guideTitle">遊び方</h2><button class="btn ghost small" id="guideClose">閉じる（Esc）</button></div><div id="howtoBody" class="guide"></div></div>
 </div>
 <div id="toast" aria-live="polite"></div>
-<div id="drop" hidden>ここにドロップして追加</div>
+<div id="drop" hidden>.ktz をここにドロップ</div>
 
 <script src="content/fonts/murecho-glyphs.js"></script>
+<script src="editor-tempo.js"></script>
+<script src="editor.js"></script>
 <script>
 'use strict';
 /* ================= 定数 ================= */
@@ -1358,7 +1312,7 @@ function murechoText(value){
   if(!glyphSegments)return chars.map(char=>hasMurechoGlyph(char)?char:'〼').join('');
   return Array.from(glyphSegments.segment(text),({segment})=>[...segment].every(hasMurechoGlyph)?segment:'〼').join('');
 }
-function norm(s){return String(s??'').normalize('NFKC').toLowerCase().replace(/\.(osz|zip)$/,'').replace(/\s+/g,' ').trim();}
+function norm(s){return String(s??'').normalize('NFKC').toLowerCase().replace(/\.(osz|zip|ktz)$/,'').replace(/\s+/g,' ').trim();}
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
 function el(tag,attrs,...kids){const e=document.createElement(tag);if(attrs)for(const[k,v]of Object.entries(attrs)){if(v==null||v===false)continue;if(k==='class')e.className=v;else if(k==='style')e.style.cssText=v;else if(k.startsWith('on'))e.addEventListener(k.slice(2),v);else e.setAttribute(k,v===true?'':v);}for(const k of kids.flat()){if(k==null||k===false)continue;e.append(k.nodeType?k:document.createTextNode(murechoText(k)));}return e;}
 const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
@@ -1370,7 +1324,6 @@ function starValue(level){return level>=10?level.toFixed(1):String(level);}
 function levelText(c){if(c.level==null)return c.course==='kasane'?'?':'★?';return c.course==='kasane'?ROMAN[c.level]:'★'+starValue(c.level);}
 function parseLevel(s){s=String(s??'').normalize('NFKC').trim().toUpperCase().replace(/[★☆]/g,'');if(!s)return null;const r=ROMAN.indexOf(s);if(r>0)return r;const n=Number(s);if(Number.isInteger(n)&&n>=1&&n<=12)return n;
   return /^(10|11|12)\.\d$/.test(s)&&n<=12.9?n:undefined;}
-function csvCell(v){v=String(v??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}
 function diffRange(d,min,mid,max){return d>5?mid+(max-mid)*(d-5)/5:d<5?mid-(mid-min)*(5-d)/5:mid;}
 function segAt(segs,t){if(!segs.length)return null;if(t<segs[0].time)return segs[0];let lo=0,hi=segs.length-1,a=0;while(lo<=hi){const m=(lo+hi)>>1;if(segs[m].time<=t+1){a=m;lo=m+1;}else hi=m-1;}return segs[a];}
 
@@ -1400,13 +1353,10 @@ function parseCSV(text){
   if(f!==''||row.length){row.push(f);row.line=rowLine;rows.push(row);}
   return rows.filter(r=>r.some(x=>x.trim()!=='')&&!r[0].trim().startsWith('#'));
 }
-function csvKind(text){const rows=parseCSV(text);if(!rows.length)return null;const h=rows[0].map(norm);
-  if(h.some(x=>['song3','曲3'].includes(x)))return'dan';
-  if(h.some(x=>['course','コース','level','レベル','lv'].includes(x)))return'charts';return null;}
 /* 記号・空白の差を無視した比較用（「夜祭り・合図」と「夜祭り 合図」を同じとみなす） */
 function loose(s){return norm(s).replace(/[\s　・･·\-‐－―_~〜～'"“”‘’`!！?？、。,，.．:：;；()（）\[\]［］{}｛｝「」『』【】<>＜＞]/g,'');}
 function setNames(set){if(set._names)return set._names;
-  const raw=[set.file,String(set.file||'').replace(/^\d+\s+/,''),set.title,set.titleAscii,set.titleU,set.key,set.storeName];
+  const raw=[set.file,String(set.file||'').replace(/^\d+\s+/,''),set.title,set.titleAscii,set.titleU,set.key,set.storeName,...(set.aliases||[])];
   for(const a of[set.artist,set.artistAscii])for(const t of[set.title,set.titleAscii,set.titleU])if(a&&t)raw.push(a+' - '+t);
   if(set.setId>0)raw.push(String(set.setId));
   const out=new Set();for(const r of raw){if(!r)continue;const a=norm(r),b=loose(r);if(a)out.add(a);if(b)out.add(b);}
@@ -1416,20 +1366,6 @@ function sameVersion(a,b){return norm(a)===norm(b)||(loose(a)!==''&&loose(a)===l
 function findChart(file,version){
   if(!norm(version)||String(version).trim()==='*'){const cs=Lib.charts.filter(c=>matchSet(file,c.set));return cs.length===1?cs[0]:(cs.find(c=>c.course==='kasane')||null);}
   return Lib.charts.find(c=>matchSet(file,c.set)&&sameVersion(version,c.meta.version))||null;}
-function loadedHint(){const sets=Lib.sets.filter(s=>!s.demo);const list=(sets.length?sets:Lib.sets).slice(0,8).map(s=>`「${s.title}」(${s.charts.map(c=>c.meta.version).join(' / ')})`);
-  return`読み込み済みの曲名と難易度名: ${list.join('、')}${Lib.sets.length>8?' ほか':''}`;}
-function parseChartsCsv(text){
-  const rows=parseCSV(text),warns=[],rules=[];if(!rows.length)return{rules,warns};
-  const head=rows[0].map(norm),col=n=>head.findIndex(h=>n.includes(h));
-  const ci={file:col(['file','osz','song','title','曲','曲名','ファイル']),version:col(['version','diff','難易度名','譜面名','譜面']),course:col(['course','コース']),level:col(['level','レベル','lv','難易度'])};
-  if(ci.file<0||ci.version<0){warns.push('charts.csv: 見出し行に file と version の列が必要です');return{rules,warns};}
-  for(const r of rows.slice(1)){const g=k=>ci[k]>=0?(r[ci[k]]||'').trim():'';
-    const file=g('file');if(!file)continue;
-    let course=null;const cr=norm(g('course'));if(cr){course=COURSE_ALIAS[cr]||null;if(!course)warns.push(`charts.csv ${r.line}行目: コース「${g('course')}」を読めません（easy/normal/hard/oni/ura/kasane）`);}
-    let level=null;const lv=g('level');if(lv){level=parseLevel(lv);if(level===undefined){warns.push(`charts.csv ${r.line}行目: レベル「${lv}」は 1〜12.9（小数は10以上で小数第1位まで、重は I〜X または 1〜10）で書いてください`);level=null;}}
-    rules.push({file,version:g('version')||'*',course,level,line:r.line,used:false});}
-  return{rules,warns};
-}
 function parseCondCell(key,cell){
   // 「/」は赤/金の区切り。ただし「/s」「/秒」は秒速の単位なので区切らない
   const parts=cell.normalize('NFKC').split(/\/(?!(?:s|秒)(?![0-9速]))/i).map(s=>s.trim());
@@ -1459,6 +1395,21 @@ function parseDanCsv(text){
     for(const k of COND_ORDER){const cell=g(k);if(!cell)continue;try{conds.push(parseCondCell(k,cell));}catch(e){warns.push(`dan.csv ${r.line}行目 ${COND[k].jp}: ${e.message}`);}}
     dans.push({id:g('id')||('L'+r.line),name:g('name'),refs,conds,line:r.line});}
   return{dans,warns};
+}
+function parseDanData(data){
+  if(data?.format!==1||!Array.isArray(data.dans))return {dans:[],warns:['dans.json の形式を確認してください']};
+  const dans=[],warns=[];
+  for(const [i,row] of data.dans.entries()){
+    if(!row||!Array.isArray(row.refs)||row.refs.length!==3)continue;
+    const refs=row.refs.map(ref=>({file:String(ref?.file??''),version:String(ref?.version??'')}));
+    const conds=[];
+    for(const k of COND_ORDER){
+      const cell=row.conditions?.[k];if(typeof cell!=='string'||!cell)continue;
+      try{conds.push(parseCondCell(k,cell));}catch(e){warns.push(`dans.json ${i+1}件目 ${COND[k].jp}: ${e.message}`);}
+    }
+    dans.push({id:String(row.id||'L'+(i+2)),name:String(row.name||''),refs,conds,line:i+2});
+  }
+  return {dans,warns};
 }
 
 /* ================= osu 譜面の読み込み ================= */
@@ -1531,36 +1482,51 @@ function findFile(set,name,dir,kind){const files=set.files,keys=Object.keys(file
   if(kind==='audio'){const au=keys.filter(k=>AUDIO_EXT.test(k));if(au.length===1)return files[au[0]];}
   return null;}
 
-async function loadOsz(name,buf,repoPath=null){
+async function loadKtz(name,buf,repoPath=null){
+  if(!/\.ktz$/i.test(name))throw new Error('.ktz 形式を選んでください');
   const zip=await JSZip.loadAsync(buf,{decodeFileName:decodeZipName});
-  const files={},osuPaths=[];zip.forEach((p,f)=>{if(f.dir)return;const k=nk(p);files[k]=f;if(k.endsWith('.osu'))osuPaths.push(p);});
-  if(!osuPaths.length)throw new Error('.osu ファイルが入っていません（.osz の中身を確認してください）');
-  const set={key:null,file:name.replace(/\.(osz|zip)$/i,'').normalize('NFC'),storeName:repoPath?null:name,repoPath,files,charts:[],demo:null};
+  const files=Object.create(null);zip.forEach((p,f)=>{if(!f.dir)files[nk(p)]=f;});
+  const info=files['kasane.json'];
+  if(!info)throw new Error('曲情報 kasane.json がありません');
+  const data=JSON.parse(await info.async('string')),song=data?.song;
+  if(data?.format!==1||typeof song?.title!=='string'||!song.title.trim()||typeof song.key!=='string'||
+     !/^(id\d+$|[nu]:.+|editor:.+)/.test(song.key)||!Array.isArray(data.charts))throw new Error('.ktz の曲情報を読めません');
+  const set={key:song.key,file:name.replace(/\.ktz$/i,'').normalize('NFC'),
+    title:song.title,artist:typeof song.artist==='string'?song.artist:'',
+    aliases:Array.isArray(song.aliases)?song.aliases.filter(x=>typeof x==='string'):[],
+    folderIds:Array.isArray(song.folders)?song.folders.filter(id=>typeof id==='string'):null,
+    folderCatalog:Array.isArray(song.folderCatalog)?parseFolders({version:1,folders:song.folderCatalog}).folders:[],
+    storeName:repoPath?null:name,repoPath,files,charts:[],demo:null};
   const seen=new Set();
-  for(const p of osuPaths){let c;const k=nk(p);
+  for(const extra of data.charts){let c;
+    const p=extra?.path,k=nk(p);
+    if(typeof p!=='string'||!k.endsWith('.osu')||!files[k])continue;
     try{c=parseOsu(decodeText(await files[k].async('uint8array')));}catch(e){Lib.loadWarn.push(`${name} / ${p}: ${e.message}`);continue;}
+    if(typeof extra.version==='string'&&extra.version.trim())c.meta.version=extra.version.trim();
     if(!c.meta.version){const m=/\[([^\]]*)\]\.osu$/i.exec(p.normalize('NFC'));c.meta.version=(m&&m[1].trim())||'(無名)';}
     if(c.mode===2||c.mode===3){Lib.loadWarn.push(`${name}: 「${c.meta.version}」は osu!${c.mode===2?'catch':'mania'} 用なので除外しました`);continue;}
     if(!c.targets.length&&!c.rolls.length){Lib.loadWarn.push(`${name}: 「${c.meta.version}」にノーツがないため除外しました`);continue;}
     let v=c.meta.version,i=2;while(seen.has(norm(v)))v=`${c.meta.version} (${i++})`;
     if(v!==c.meta.version){Lib.loadWarn.push(`${name}: 難易度名「${c.meta.version}」が重複しているため「${v}」として読み込みました`);c.meta.version=v;}seen.add(norm(v));
     c.dir=k.includes('/')?k.slice(0,k.lastIndexOf('/')):'';
+    c.sourcePath=p;
+    const course=COURSE_ALIAS[norm(extra.course)];
+    if(COURSE_ORDER.includes(course))c.defCourse=course;
+    const lv=parseLevel(extra.level);
+    if(lv!=null)c.defLevel=lv;
+    if(extra.noise&&typeof extra.noise==='object'&&!Array.isArray(extra.noise))c.archiveNoise=extra.noise;
     if(c.stats.trimmed)Lib.loadWarn.push(`${name}: 「${c.meta.version}」で同時押しが ドン2・カッ2 を超える箇所があり、${c.stats.trimmed}個のノーツを外しました`);
     c.set=set;set.charts.push(c);}
   if(!set.charts.length)throw new Error('遊べる太鼓譜面がありませんでした（読み込みタブの警告を確認してください）');
   const pick=f=>{for(const c of set.charts)if(c.meta[f])return c.meta[f];return'';};
-  const title=pick('title'),titleU=pick('titleU'),artist=pick('artist'),artistU=pick('artistU');
-  set.title=titleU||title||set.file;set.titleAscii=title;set.titleU=titleU;set.artist=artistU||artist;set.artistAscii=artist;set.setId=set.charts[0].meta.setId;
-  // ローマ字タイトルがあれば従来どおりのキー（記録を引き継ぐ）、なければ日本語タイトルでキーを作る
-  const previous=repoPath&&Lib.sets.find(s=>s.repoPath===repoPath);
-  let key=previous?.key||(set.setId>0?'id'+set.setId:title?'n:'+norm(artist+' - '+title):'u:'+norm((artistU||artist)+' - '+(titleU||set.file)));
-  const clash=Lib.sets.find(s=>s.key===key);
-  if(!previous&&clash&&set.setId<=0&&(clash.storeName||clash.repoPath)&&clash.storeName!==name&&(!repoPath||clash.repoPath!==repoPath))key+='|'+norm(set.file);
-  set.key=key;set.preview=set.charts[0].preview;
+  set.titleAscii=pick('title');set.titleU=pick('titleU');set.artistAscii=pick('artist');
+  set.setId=set.charts[0].meta.setId;set.preview=set.charts[0].preview;
   const bgF=set.charts.map(c=>c.bg&&findFile(set,c.bg,c.dir)).find(Boolean);
   if(bgF&&typeof URL!=='undefined'&&URL.createObjectURL){try{const blob=await bgF.async('blob');set.bgUrl=URL.createObjectURL(blob);}catch(e){}}
   for(const c of set.charts)c.uid=set.key+'::'+c.meta.version;
-  const old=Lib.sets.find(s=>s.key===set.key);if(old){if(repoPath&&!old.repoPath){if(set.bgUrl)URL.revokeObjectURL(set.bgUrl);return old;}removeSet(old,!repoPath&&!!old.storeName&&old.storeName!==name);}
+  const old=Lib.sets.find(s=>s.key===set.key||repoPath&&s.repoPath===repoPath);if(old){if(repoPath&&!old.repoPath){if(set.bgUrl)URL.revokeObjectURL(set.bgUrl);return old;}
+    for(const key of audioCache.keys())if(key.startsWith(old.key+'|'))audioCache.delete(key);
+    removeSet(old,!repoPath&&!!old.storeName&&old.storeName!==name);}
   Lib.sets.push(set);Lib.charts.push(...set.charts);return set;
 }
 function removeSet(set,persist=true){Lib.sets=Lib.sets.filter(s=>s!==set);Lib.charts=Lib.charts.filter(c=>c.set!==set);if(set.bgUrl)URL.revokeObjectURL(set.bgUrl);if(persist&&set.storeName)IDB.del(set.storeName);}
@@ -1574,16 +1540,12 @@ const IDB={db:null,
 
 /* ================= 難易度と段位の反映 ================= */
 function resolveAll(){
-  const{rules,warns}=parseChartsCsv(Lib.chartsCsv);
+  const warns=[];
   for(const c of Lib.charts){let course=c.defCourse||guessCourse(c),level=c.defLevel??null;
-    const rule=rules.find(r=>r.version!=='*'&&matchSet(r.file,c.set)&&sameVersion(r.version,c.meta.version))||rules.find(r=>r.version==='*'&&matchSet(r.file,c.set));
-    if(rule){rule.used=true;if(rule.course)course=rule.course;if(rule.level!=null)level=rule.level;}
-    if(c.stats.chords>0&&course!=='kasane'){if(rule&&rule.course)warns.push(`charts.csv ${rule.line}行目: 「${c.set.title} / ${c.meta.version}」は同時押しがあるため 重 として扱います`);course='kasane';}
+    if(c.stats.chords>0)course='kasane';
     if(course==='kasane'&&level!=null&&(!Number.isInteger(level)||level>10)){warns.push(`「${c.set.title} / ${c.meta.version}」: 重のレベルは I〜X（1〜10）です。小数や★10を超える値は通常コースで指定してください`);level=null;}
     c.course=course;c.level=level;}
-  for(const r of rules)if(!r.used)warns.push(`charts.csv ${r.line}行目: 一致する譜面が読み込まれていません（${r.file} / ${r.version}）`);
   Lib.csvWarn=warns;buildDans();
-  if(Lib.csvWarn.some(w=>w.includes('読み込まれていません')))Lib.csvWarn.push(loadedHint());
   evaluateCharacters();
 }
 function finishDan(d){
@@ -1755,7 +1717,7 @@ function autoDan(c){
   const warn=off.length?`${off.map(([x,r,i])=>`${i}曲目は${lvRangeText(r)}のおに譜面が見つからないため「${x.set.title}」${COURSES[x.course].jp}${x.level!=null?levelText(x):'（★未設定）'}`).join('、')}で代用しています`:null;
   return finishDan({id:c.uid,src:'auto',songs:[s1,s2,c],refs:[s1,s2,c].map(x=>({file:x.set.file,version:x.meta.version})),conds:autoConds(L,[s1,s2,c]),warn});}
 function buildDans(){
-  const{dans:rows,warns}=parseDanCsv(Lib.danCsv);Lib.csvWarn.push(...warns);const out=[];
+  const{dans:rows,warns}=Lib.danData?parseDanData(Lib.danData):parseDanCsv(Lib.danCsv);Lib.csvWarn.push(...warns);const out=[];
   for(const r of rows){const songs=r.refs.map(x=>findChart(x.file,x.version));
     r.refs.forEach((x,i)=>{if(!songs[i])Lib.csvWarn.push(`dan.csv ${r.line}行目: ${i+1}曲目「${x.file} / ${x.version}」が読み込まれていません`);});
     if(songs[2]&&songs[2].stats.chords===0)Lib.csvWarn.push(`dan.csv ${r.line}行目: 3曲目に同時押しがないため、特良の条件は常に満たされます`);
@@ -1883,9 +1845,10 @@ function playSE(n,sample=SE[n]){if(!AC||!sample)return;const s=AC.createBufferSo
 function decodeGameAudio(ab){return new Promise((res,rej)=>{const r=AC.decodeAudioData(ab,res,()=>rej(new Error('音源を再生できない形式でした')));if(r&&r.catch)r.catch(()=>{});});}
 const audioCache=new Map();
 function getAudio(chart){const set=chart.set,key=set.key+'|'+(set.repoHash||'')+'|'+(chart.audio||'');
+  if(set.editorAudio)return Promise.resolve(set.editorAudio);
   if(audioCache.has(key))return audioCache.get(key);
   const p=(async()=>{ensureAudio();if(set.demo)return await renderDemo(set.demo);
-    const f=findFile(set,chart.audio,chart.dir,'audio');if(!f)throw new Error(`音源「${chart.audio}」が .osz の中に見つかりません`);
+    const f=findFile(set,chart.audio,chart.dir,'audio');if(!f)throw new Error(`音源「${chart.audio}」が .ktz の中に見つかりません`);
     return await decodeGameAudio(await f.async('arraybuffer'));})();
   audioCache.set(key,p);p.catch(()=>audioCache.delete(key));
   while(audioCache.size>4)audioCache.delete(audioCache.keys().next().value);return p;}
@@ -2305,9 +2268,9 @@ window.addEventListener('pagehide',stopMedley);
 window.addEventListener('resize',()=>{if(UI.tab==='medley'&&!document.hidden)drawMedleyTimeline();});
 
 /* ================= 画面: 共通 ================= */
-function setTab(t){if(t!=='select'){UI.chooseCourse=false;resetRimSequence();stopPreview();}if(t!=='medley')stopMedley();UI.tab=t;for(const b of document.querySelectorAll('.tab'))b.classList.toggle('is-on',b.dataset.tab===t);
-  for(const id of['select','dan','medley','records','load','settings'])$('#tab-'+id).hidden=id!==t;refreshAll();}
-function refreshAll(){renderSongList();renderDetail();renderDans();renderMedley();renderRecords();renderLoad();renderSettings();renderPotential();renderCharPicker();}
+function setTab(t){if(t==='editor'&&S.noiseEdit!==true)t='settings';if(t!=='select'){UI.chooseCourse=false;resetRimSequence();stopPreview();}if(t!=='medley')stopMedley();if(t!=='editor')chartEditor.pause();UI.tab=t;for(const b of document.querySelectorAll('.tab'))b.classList.toggle('is-on',b.dataset.tab===t);
+  for(const id of['select','dan','medley','records','load','settings','editor'])$('#tab-'+id).hidden=id!==t;refreshAll();}
+function refreshAll(){renderSongList();renderDetail();renderDans();renderMedley();renderRecords();renderLoad();renderSettings();renderPotential();renderCharPicker();if(UI.tab==='editor')chartEditor.open();}
 // ポテンシャル（Arcaea 風）。譜面の定数は ★ の値、スコアは 1,000,000 満点を Arcaea の 10,000,000 換算にして評価する
 // 全良（全特良を含む）のときは、本家と違ってポテンシャルにボーナスを加える
 const ZEN_CROWNS=['zenryo','zentoku'],ZEN_BONUS=.5;
@@ -2431,13 +2394,22 @@ function parseFolders(source){
   for(const [key,value] of Object.entries(source.assignments||{})){
     const assigned=Array.isArray(value)?value:[value];
     const valid=[...new Set(assigned.filter(id=>ids.has(id)))];
-    if(valid.length)result.assignments[key]=valid;
+    if(valid.length||Array.isArray(value))result.assignments[key]=valid;
   }
   return result;
 }
 function effectiveFolders(){
-  const local=store.get('kt.folders',null);
-  try{return local?parseFolders(local):repoFolders;}catch{return repoFolders;}
+  let local=null;
+  try{const saved=store.get('kt.folders',null);if(saved)local=parseFolders(saved);}catch(e){}
+  const base=local||repoFolders,folders=[...base.folders],known=new Set(folders.map(f=>f.id));
+  const assignments={...repoFolders.assignments};
+  for(const s of Lib.sets){
+    for(const f of s.folderCatalog||[])if(!known.has(f.id)){known.add(f.id);folders.push({...f});}
+    if(s.folderIds)assignments[s.key]=s.folderIds;
+  }
+  if(local)Object.assign(assignments,local.assignments);
+  for(const [key,ids] of Object.entries(assignments))assignments[key]=ids.filter(id=>known.has(id));
+  return {...base,folders,assignments};
 }
 function songInFolder(set,data,id){
   const assigned=data.assignments[set.key];
@@ -2559,7 +2531,7 @@ function folderAssignmentControl(set){
   const form=el('form',{onsubmit:event=>{
     event.preventDefault();
     const assigned=new FormData(form).getAll('genre');
-    if(assigned.length)data.assignments[set.key]=assigned;else delete data.assignments[set.key];
+    data.assignments[set.key]=assigned;
     if(saveFolders(data)){
       UI.folder=preferredSongFolder(set,data);
       renderSongList();renderDetail();toast('ジャンルを保存しました');
@@ -2972,24 +2944,18 @@ function drawDensity(cvd,c,sel){if(!cvd.isConnected)return;const r=cvd.getBoundi
   const sealLegend=cvd.parentElement?.querySelector('.seal-legend');if(sealLegend)sealLegend.hidden=!sealed.size;
   x.fillStyle='#ff426f';for(const i of sealed)x.fillRect(i*bw,0,Math.max(2,bw-1),3);}
 
-/* HTML専用の封印ノーツ設定。osuファイルには書き込まない。 */
-function hasSealedNotes(c){const data=store.get(noiseKey(c),c.repoNoise||{});return c.targets.some((t,i)=>{if(!noiseEligible(t))return false;const v=data&&data[noiseId(t,i)];return Array.isArray(v)&&(t.type==='single'?[t]:t.notes).some((n,j)=>v[j]==='left'||v[j]==='right');});}
+/* osu! 標準外の封印は、同梱設定・公開設定・ブラウザ内の編集から読み込む。 */
+function noiseData(c){return store.get(noiseKey(c),c.archiveNoise??{});}
+function hasSealedNotes(c){const data=noiseData(c);return c.targets.some((t,i)=>{if(!noiseEligible(t))return false;const v=data&&data[noiseId(t,i)];return Array.isArray(v)&&(t.type==='single'?[t]:t.notes).some((n,j)=>v[j]==='left'||v[j]==='right');});}
 function sealBadge(c){return el('span',{class:'seal-badge','data-seal-chart':c.uid,hidden:!hasSealedNotes(c),title:'封印ノーツ搭載譜面','aria-label':'封印ノーツ搭載譜面'},'封印');}
 function updateSealBadges(c){const active=hasSealedNotes(c);for(const badge of document.querySelectorAll('[data-seal-chart]'))if(badge.dataset.sealChart===c.uid)badge.hidden=!active;}
 function noiseEligible(t){return t.type==='single'||(t.type==='chord'&&t.notes.length===2&&t.reqD===1&&t.reqK===1&&!t.notes.some(n=>n.big));}
 function noiseKey(c){return 'kasane-red-noise-v1:'+c.uid;}
 function noiseId(t,i){return i+':'+t.t+':'+(t.type==='single'?t.color+(t.big?'B':''):t.notes.map(n=>n.color+(n.big?'B':'')).join(''));}
-function loadNoise(c){const data=store.get(noiseKey(c),c.repoNoise||{});c.targets.forEach((t,i)=>{const v=data&&data[noiseId(t,i)];const ns=t.type==='single'?[t]:t.notes;ns.forEach((n,j)=>{n.noise=noiseEligible(t)&&Array.isArray(v)&&['left','right'].includes(v[j])?v[j]:null;});});}
+function loadNoise(c){const data=noiseData(c);c.targets.forEach((t,i)=>{const v=data&&data[noiseId(t,i)];const ns=t.type==='single'?[t]:t.notes;ns.forEach((n,j)=>{n.noise=noiseEligible(t)&&Array.isArray(v)&&['left','right'].includes(v[j])?v[j]:null;});});}
 function saveNoise(c){const data={};c.targets.forEach((t,i)=>{const ns=t.type==='single'?[t]:t.notes;if(noiseEligible(t)&&ns.some(n=>n.noise))data[noiseId(t,i)]=ns.map(n=>n.noise||null);});try{localStorage.setItem(noiseKey(c),JSON.stringify(data));Lib.monthlyDirty=true;updateSealBadges(c);const density=$('#detail .dens');if(density)drawDensity(density,c,UI.pracOpen?UI.prac:null);return true;}catch(e){toast('保存できません。ブラウザの保存容量・設定を確認してください','err');return false;}}
 function noiseBlocked(t,role){const color=ROLE_COLOR[role],n=t.type==='single'?t:t.notes.find(n=>n.color===color);return !!n&&((n.noise==='left'&&role.endsWith('L'))||(n.noise==='right'&&role.endsWith('R')));}
 function noiseRole(n){return(n.color==='d'?'don':'ka')+(n.noise==='left'?'R':'L');}
-function noiseEditor(c){loadNoise(c);const box=el('details',{class:'noise-editor',style:'margin:16px;padding:14px;border:1px solid #a32d46;border-radius:12px'}),canvas=el('canvas',{width:1000,height:280,style:'width:100%;background:#090c18;border-radius:10px;cursor:crosshair;touch-action:none','aria-label':'ノーツの左半分か右半分をクリックして封印を切り替え'}),seek=el('input',{type:'range',min:0,max:Math.max(1,c.length),value:0,step:1,style:'width:100%','aria-label':'編集する時刻'}),zoom=el('select',{'aria-label':'表示範囲'}),label=el('span');let hits=[],frame=0;
-[1000,2000,4000,8000].forEach(v=>zoom.append(el('option',{value:v},`${v/1000}秒表示`)));zoom.value='4000';
-function paint(pn){const x=canvas.getContext('2d'),from=Number(seek.value),span=Number(zoom.value);x.clearRect(0,0,1000,280);hits=[];label.textContent=`${(from/1000).toFixed(2)}秒`;x.font=`14px ${FB}`;for(let i=0;i<4;i++){x.strokeStyle='#303650';x.beginPath();x.moveTo(0,70+i*48);x.lineTo(1000,70+i*48);x.stroke();}for(let t=Math.ceil(from/500)*500;t<from+span;t+=500){let xx=40+(t-from)/span*920;x.fillStyle='#a2a8ca';x.fillText((t/1000).toFixed(1)+'s',xx,24);x.strokeStyle='#252a40';x.beginPath();x.moveTo(xx,35);x.lineTo(xx,260);x.stroke();}
-for(const t of c.targets){if(t.t<from||t.t>from+span)continue;const xx=40+(t.t-from)/span*920;(t.type==='single'?[t]:t.notes).forEach((n,i)=>{const yy=70+i*48,r=n.big?22:18;drawNote(x,xx,yy,r,n.color,1);drawNoise(x,xx,yy,r,n.noise,1,pn);if(!noiseEligible(t)){x.fillStyle='#aaa';x.fillText('×',xx-4,yy+5);}else hits.push({n,x:xx,y:yy,r});});}}
-canvas.addEventListener('pointerdown',e=>{if(S.noiseEdit!==true)return;const b=canvas.getBoundingClientRect(),xx=(e.clientX-b.left)*1000/b.width,yy=(e.clientY-b.top)*280/b.height;const h=hits.slice().reverse().find(h=>Math.hypot(h.x-xx,h.y-yy)<=h.r);if(h){const side=xx<h.x?'left':'right';h.n.noise=h.n.noise===side?null:side;saveNoise(c);paint(performance.now());}});
-function loop(pn){if(!box.isConnected||!box.open){frame=0;return;}paint(pn);frame=requestAnimationFrame(loop);}box.addEventListener('toggle',()=>{if(box.open&&!frame)frame=requestAnimationFrame(loop);});seek.oninput=()=>paint(performance.now());zoom.onchange=seek.oninput;
-box.append(el('summary',{style:'cursor:pointer;font-weight:bold;color:#ff6979'},'封印ノーツを視覚的に編集'),el('p',null,'ノーツの左／右半分をクリックすると封印を配置。同じ側をもう一度クリックすると解除します。左＝D/F禁止、右＝J/K禁止。×の列は配置不可（同時押しは小ドン1＋小カツ1のみ）。変更は自動保存。'),el('div',{class:'row'},zoom,label),canvas,seek,el('button',{class:'btn',onclick:()=>{const data={};for(const set of Lib.sets)for(const chart of set.charts)data[chart.uid]=store.get(noiseKey(chart),{});const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));a.download='noise.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}},'封印設定を書き出す'));return box;}
 // 発光・粒・枠は小さなキャンバスで共有し、各ノーツには画像を1回転送する。
 const sealSpriteCache=new Map();
 function drawNoise(c,x,y,r,side,alpha,pn){if(!side||alpha<=0)return;
@@ -3047,7 +3013,7 @@ function paintSealSprite(c,x,y,r,side,alpha,pn){if(!side)return;
 function renderDetail(){const d=$('#detail');$('#arcadeMenu').hidden=!!UI.chooseCourse;d.hidden=!UI.chooseCourse;if(d.hidden)return;d.innerHTML='';const s=UI.folderCursor==null?visibleSets().find(x=>x.key===UI.selSet):null;
   if(!s){UI.chooseCourse=false;$('#arcadeMenu').hidden=false;d.hidden=true;return;}
   d.append(el('div',{class:'course-top'},el('h2',null,'むずかしさをえらぶ')));
-  const hero=el('div',{class:'hero'+(s.bgUrl?'':' gen'),style:`--hue:${hashHue(s.title)}`},el('span',{class:'eq',hidden:UI.previewKey!==s.key||null,title:'試聴中','aria-label':'試聴中'},el('i'),el('i'),el('i'),el('i')),el('div',{class:'eyebrow'},s.demo?'デモ曲':'.osz'),el('h2',null,s.title),el('div',{class:'art'},s.artist||''),s.demo?null:el('div',{class:'file'},s.file+'.osz'));
+  const hero=el('div',{class:'hero'+(s.bgUrl?'':' gen'),style:`--hue:${hashHue(s.title)}`},el('span',{class:'eq',hidden:UI.previewKey!==s.key||null,title:'試聴中','aria-label':'試聴中'},el('i'),el('i'),el('i'),el('i')),el('div',{class:'eyebrow'},s.demo?'デモ曲':'.ktz'),el('h2',null,s.title),el('div',{class:'art'},s.artist||''),s.demo?null:el('div',{class:'file'},s.file+'.ktz'));
   if(s.bgUrl)hero.style.setProperty('--bgimg',`url("${s.bgUrl}")`);d.append(hero);
   const folderControl=folderAssignmentControl(s);if(folderControl)d.append(folderControl);
   const courses=visibleCourses(s);
@@ -3097,7 +3063,8 @@ function renderDetail(){const d=$('#detail');$('#arcadeMenu').hidden=!!UI.choose
     el('span',{class:'legend'},el('i',{style:'background:rgba(162,168,202,.8)'}),'ノーツ',c.stats.chords?el('i',{style:'background:var(--gold)'}):null,c.stats.chords?'同時押し':null,
       el('i',{style:'background:var(--roll)'}),'連打',el('i',{style:'background:rgba(238,74,43,.45)'}),'ゴーゴー',el('span',{class:'seal-legend',hidden:true},el('i',{style:'background:#ff426f'}),'封印'))),dc));
   requestAnimationFrame(()=>drawDensity(dc,c));
-  if(!isLocked(c)){if(S.noiseEdit===true)d.append(noiseEditor(c));d.append(optRow());d.append(pracBlock(c,dc));}
+  if(S.noiseEdit===true)d.append(el('button',{class:'btn gold',type:'button',onclick:()=>{setTab('editor');chartEditor.openChart(c);}},'エディットモードで開く'));
+  if(!isLocked(c)){d.append(optRow());d.append(pracBlock(c,dc));}
   const best=Lib.best[c.uid];
   if(isLocked(c)){const dan=danForChart(c);
     d.append(el('div',{class:'notice'},`この重譜面は「${dan?dan.name:'重段位'}」に合格すると通常プレイで遊べます。`));
@@ -3217,36 +3184,12 @@ function chipFor(c,hideDecimal=false){
 function renderLoad(){
   const ul=$('#libList');ul.innerHTML='';
   const user=Lib.sets.filter(s=>!s.demo);
-  if(!user.length)ul.append(el('li',null,el('span',null,'まだ .osz はありません（デモ曲 3曲が入っています）')));
-  for(const s of user)ul.append(el('li',null,el('span',{class:'lib-t'},el('b',null,s.title),el('small',null,`${s.file}.osz ・ ${s.charts.map(c=>c.meta.version).join(' / ')}`)),s.repoPath?el('small',null,'GitHub'):el('button',{class:'btn small ghost',onclick:()=>{removeSet(s);resolveAll();if(UI.selSet===s.key)UI.selSet=null;refreshAll();toast(`${s.title} を削除しました`);}},'削除')));
-  const st=$('#csvState');st.innerHTML='';
-  const line=(label,text,name,key)=>{const n=parseCSV(text).length;st.append(el('div',{class:'row',style:'justify-content:space-between'},
-    el('span',null,`${label}: `,n?el('b',null,`${name||'貼り付け'}（${Math.max(0,n-1)}行）`):el('span',{style:'color:var(--mute)'},'未読込')),
-    n?el('button',{class:'btn small ghost',onclick:()=>{if(key==='charts'){Lib.chartsCsv='';Lib.chartsCsvName='';}else{Lib.danCsv='';Lib.danCsvName='';}saveCsv();resolveAll();refreshAll();}},'外す'):null));};
-  line('charts.csv',Lib.chartsCsv,Lib.chartsCsvName,'charts');line('dan.csv',Lib.danCsv,Lib.danCsvName,'dan');
-  const w=$('#warnList');w.innerHTML='';const all=[...Lib.loadWarn,...Lib.csvWarn];
-  if(!all.length)st.append(el('div',{class:'ok-line'},'問題は見つかっていません'));
-  for(const x of all.slice(-40))w.append(el('li',null,x));
+  if(!user.length)ul.append(el('li',null,el('span',null,'まだ .ktz はありません（デモ曲 3曲が入っています）')));
+  for(const s of user)ul.append(el('li',null,el('span',{class:'lib-t'},el('b',null,s.title),el('small',null,`${s.file}.ktz ・ ${s.charts.map(c=>c.meta.version).join(' / ')}`)),s.repoPath?el('small',null,'GitHub'):el('button',{class:'btn small ghost',onclick:()=>{removeSet(s);resolveAll();if(UI.selSet===s.key)UI.selSet=null;refreshAll();toast(`${s.title} を削除しました`);}},'削除')));
+  const w=$('#warnList');w.replaceChildren(...[...Lib.loadWarn,...Lib.csvWarn].slice(-40).map(x=>el('li',null,x)));
   const gb=$('#guideBody');gb.innerHTML='';
   GUIDE.forEach((g,i)=>{const L=i+1;gb.append(el('tr',null,el('td',null,el('b',null,ROMAN[L])),el('td',null,g+' 相当'),el('td',{class:'num'},`${lvRangeText(AUTO_LV[L][0])}・${lvRangeText(AUTO_LV[L][1])}`),el('td',{class:'num'},`${Math.min(92,50+4*L)}% / ${Math.min(98,60+4*L)}%`)));});
-  $('#danSample').value=['id,name,song1,diff1,song2,diff2,song3,diff3,gauge,good,ok,bad,tokuryo,roll,combo,score,hits',
-    'k3,重段位 III,夜祭りの合図,おに,瓦屋根ラン,おに,重ね打ちの夜,重,95%/100%,,9%/4%,2.5%/1%,62%/72%,秒速10.5/秒速12.5,,,',
-    '# 不可は 2.5%以下（全ノーツ数から個数を計算）、特良は同時押しノーツの 62%以上、連打は秒速10.5打以上'].join('\n');}
-function saveCsv(){store.set('kt.chartsCsv',Lib.chartsCsv);store.set('kt.danCsv',Lib.danCsv);store.set('kt.chartsCsvName',Lib.chartsCsvName);store.set('kt.danCsvName',Lib.danCsvName);}
-function applyCsvText(text,name){const k=csvKind(text);
-  if(!k){toast(`${name||'CSV'}: 見出し行から種類を判別できません（charts は course/level 列、dan は song3 列が必要）`,'err');return false;}
-  if(k==='charts'){Lib.chartsCsv=text;Lib.chartsCsvName=name||'';}else{Lib.danCsv=text;Lib.danCsvName=name||'';}
-  saveCsv();toast(`${k==='charts'?'charts.csv':'dan.csv'} を適用しました${name?`（${name}）`:''}`);return true;}
-function chartsTemplate(){const lines=['file,version,course,level,memo'];const user=Lib.sets.filter(s=>!s.demo);
-  const sets=user.length?user:Lib.sets;if(!user.length)lines.push('# .osz が無いのでデモ曲の例です');
-  for(const s of sets)for(const c of sortCharts(s.charts))lines.push([Lib.sets.filter(x=>x.title===s.title).length===1?s.title:s.file,c.meta.version,c.course,c.level!=null?(c.course==='kasane'?ROMAN[c.level]:starValue(c.level)):'',c.stats.chords?`同時押し${c.stats.chords}箇所 / 最大${c.stats.maxLanes}レーン`:''].map(csvCell).join(','));
-  return lines.join('\n');}
-function condCell(c){const f=t=>{const s=c[t];if(!s)return'';if(c.rate)return'秒速'+s.v;return(c.op!==COND[c.key].op?c.op:'')+s.v+(s.pct?'%':'');};const r=f('red'),g=f('gold');return g?`${r}/${g}`:r;}
-function danTemplate(){const lines=['id,name,song1,diff1,song2,diff2,song3,diff3,'+COND_ORDER.join(',')];
-  Lib.dans.forEach((d,i)=>{if(!d.ready)return;const row=[d.src==='csv'?d.id:'dan'+(i+1),d.name];d.songs.forEach(s=>row.push(s.set.file,s.meta.version));
-    for(const k of COND_ORDER){const c=d.conds.find(x=>x.key===k);row.push(c?condCell(c):'');}lines.push(row.map(csvCell).join(','));});
-  if(lines.length===1)lines.push('# 重譜面が読み込まれていないので行がありません');return lines.join('\n');}
-
+}
 function renderSettings(){
   const kb=$('#keybox');kb.innerHTML='';
   ROLES.forEach((r,i)=>{const b=el('button',{class:(ROLE_COLOR[r]==='k'?'ka':'don')+(UI.binding===i?' wait':''),id:'key-'+r},el('small',null,ROLE_JP[r]),el('b',null,UI.binding===i?'…':keyLabel(S.keys[i])));
@@ -3265,6 +3208,7 @@ function renderSettings(){
   $('#outLaneW').textContent=$('#setLaneW').value+'%';
   $('#setFalling').value=S.falling!==true?'taiko':S.perspective===true?'perspective':'flat';
   $('#setNoiseEdit').checked=S.noiseEdit===true;
+  $('#tabbtn-editor').hidden=S.noiseEdit!==true;
   $('#setMissingGlyphs').checked=S.missingGlyphs===true;
   $('#setAuto').checked=S.auto;$('#setUnlock').checked=S.unlockAll;$('#setLowFx').checked=S.fx==='low';$('#setRecord').checked=S.record===true;$('#setRecord').disabled=!recSupported();
   if(!CAL.on&&CAL.result==null)$('#calSub').textContent=`いまのオフセット: ${S.offset>0?'+':''}${S.offset}ms`;}
@@ -4569,7 +4513,7 @@ $('#bkYes').addEventListener('click',()=>{const d=bkPending;if(!d)return;bkPendi
   for(const k of['best','danBest','unlocks','fav','played'])if(d[k]&&typeof d[k]==='object'){Lib[k]=d[k];store.set('kt.'+k,d[k]);}
   if(d.settings){Object.assign(S,d.settings);S.opt=Object.assign({mirror:false,rand:0,hidden:false},S.opt||{});saveS();applyGains();}
   if(d.ui){UI.sort=d.ui.sort||'added';UI.filt=d.ui.filt||'all';saveUIPrefs();}
-  for(const k of['chartsCsv','danCsv','chartsCsvName','danCsvName'])if(typeof d[k]==='string')Lib[k]=d[k];saveCsv();
+  for(const k of['chartsCsv','danCsv','chartsCsvName','danCsvName'])if(typeof d[k]==='string'){Lib[k]=d[k];store.set('kt.'+k,d[k]);}
   resolveAll();refreshAll();toast('記録を読み込みました');});
 
 /* ================= 遊び方 ================= */
@@ -4664,26 +4608,19 @@ $('#randomBtn').addEventListener('click',pickRandom);
 $('#fileIn').addEventListener('change',e=>{addFiles([...e.target.files]);e.target.value='';});
 async function addFiles(files){libraryImports++;try{let added=0;
   for(const f of files){const n=f.name.toLowerCase();
-    try{if(n.endsWith('.csv')){applyCsvText(decodeText(new Uint8Array(await f.arrayBuffer())),f.name);}
-      else if(n.endsWith('.osz')||n.endsWith('.zip')){const buf=await f.arrayBuffer();const set=await loadOsz(f.name,buf);set.storeName=f.name;IDB.put(f.name,buf);added++;UI.selSet=UI.selSet||set.key;}
-      else toast(`${f.name}: .osz か .csv を選んでください`,'err');}
+    try{if(n.endsWith('.ktz')){const buf=await f.arrayBuffer();const set=await loadKtz(f.name,buf);set.storeName=f.name;IDB.put(f.name,buf);added++;UI.selSet=UI.selSet||set.key;}
+      else toast(`${f.name}: .ktz を選んでください`,'err');}
     catch(e){toast(`${f.name}: ${e.message}`,'err');}}
   resolveAll();if(added){toast(`${added}曲を追加しました`);const last=Lib.sets.filter(s=>!s.demo).pop();if(last)UI.selSet=last.key;UI.selChart=null;const s=Lib.sets.find(x=>x.key===UI.selSet);if(s)selectSet(s.key,false);}
   refreshAll();}finally{libraryImports--;finishLibraryWait();}}
 let dragDepth=0;
-window.addEventListener('dragenter',e=>{if(!e.dataTransfer||![...e.dataTransfer.types].includes('Files'))return;dragDepth++;$('#drop').hidden=false;});
+window.addEventListener('dragenter',e=>{if(UI.tab==='editor'||!e.dataTransfer||![...e.dataTransfer.types].includes('Files'))return;dragDepth++;$('#drop').hidden=false;});
 window.addEventListener('dragleave',()=>{dragDepth=Math.max(0,dragDepth-1);if(!dragDepth)$('#drop').hidden=true;});
 window.addEventListener('dragover',e=>e.preventDefault());
 window.addEventListener('drop',e=>{e.preventDefault();dragDepth=0;$('#drop').hidden=true;if(e.dataTransfer&&e.dataTransfer.files.length)addFiles([...e.dataTransfer.files]);});
-$('#csvApply').addEventListener('click',()=>{const t=$('#csvPaste').value;if(!t.trim()){toast('CSV を貼り付けてください','err');return;}if(applyCsvText(t,'')){resolveAll();refreshAll();}});
-$('#tplCharts').addEventListener('click',()=>{$('#tplOut').value=chartsTemplate();});
-$('#tplDan').addEventListener('click',()=>{$('#tplOut').value=danTemplate();});
-$('#tplCopy').addEventListener('click',()=>{const t=$('#tplOut');if(!t.value){toast('先に下書きを作ってください');return;}
-  navigator.clipboard.writeText(t.value).then(()=>toast('コピーしました'),()=>{t.focus();t.select();toast('選択しました。Ctrl+C でコピーしてください');});});
-$('#tplToPaste').addEventListener('click',()=>{$('#csvPaste').value=$('#tplOut').value;$('#csvPaste').focus();});
 $('#clearLib').addEventListener('click',()=>{$('#clearLibConfirm').hidden=false;});
 $('#clearLibNo').addEventListener('click',()=>{$('#clearLibConfirm').hidden=true;});
-$('#clearLibYes').addEventListener('click',async()=>{for(const s of Lib.sets.filter(s=>s.storeName))removeSet(s,false);await IDB.clear();$('#clearLibConfirm').hidden=true;UI.selSet=null;resolveAll();refreshAll();toast('保存した .osz を削除しました');});
+$('#clearLibYes').addEventListener('click',async()=>{for(const s of Lib.sets.filter(s=>s.storeName))removeSet(s,false);await IDB.clear();$('#clearLibConfirm').hidden=true;UI.selSet=null;resolveAll();refreshAll();toast('保存した譜面を削除しました');});
 const bindRange=(id,key,fn)=>$(id).addEventListener('input',e=>{S[key]=parseFloat(e.target.value);if(fn)fn();saveS();renderSettings();});
 bindRange('#setSudden','sudden');bindRange('#setLaneW','laneWidth');bindRange('#setSpeed','speed');bindRange('#setOffset','offset');
 bindRange('#setMusic','music',applyGains);bindRange('#setSe','se',applyGains);
@@ -4702,7 +4639,7 @@ $('#setMissingGlyphs').addEventListener('change',e=>{
   refreshAll();
 });
 $('#setRecord').addEventListener('change',e=>{S.record=e.target.checked;saveS();if(e.target.checked&&!recSupported())toast('このブラウザは録画に対応していません','err');});
-$('#setNoiseEdit').addEventListener('change',e=>{S.noiseEdit=e.target.checked;saveS();renderSongList();renderDetail();});
+$('#setNoiseEdit').addEventListener('change',e=>{S.noiseEdit=e.target.checked;saveS();renderSettings();renderSongList();renderDetail();});
 $('#setAuto').addEventListener('change',e=>{S.auto=e.target.checked;saveS();renderDetail();});
 $('#setUnlock').addEventListener('change',e=>{S.unlockAll=e.target.checked;saveS();refreshAll();});
 $('#resetRec').addEventListener('click',()=>{$('#resetConfirm').hidden=false;});
@@ -4876,34 +4813,31 @@ function finishLibraryWait(){
 const repoRead=key=>IDB.tx('readonly',store=>store.get(key),'repository');
 const repoWrite=(key,value)=>IDB.tx('readwrite',store=>store.put(value,key),'repository');
 const repoDelete=key=>IDB.tx('readwrite',store=>store.delete(key),'repository');
-async function repositoryIndex(direct){
-  if(!direct){
-    const response=await fetch('content/manifest.json',{cache:'no-cache'});
-    if(!response.ok)throw new Error('曲一覧 HTTP '+response.status);
-    return {manifest:await response.json(),base:new URL('.',location.href).href};
+async function repositoryIndex(){
+  const response=await fetch('content/manifest.json',{cache:'no-cache'});
+  if(!response.ok)throw new Error('曲一覧 HTTP '+response.status);
+  const manifest=await response.json();
+  if(manifest.format!==1||!Array.isArray(manifest.songs))throw new Error('.ktz の公開一覧がありません');
+  return {manifest,base:new URL('.',location.href).href};
+}
+async function readRepositoryFile({manifest,base},path){
+  const hash=manifest.hashes?.[path],key='file:'+path+'@'+hash,existing=hash&&await repoRead(key);
+  if(hash&&existing?.hash===hash)return {data:existing.data,cached:true};
+  const url=new URL(path,base);
+  if(hash)url.searchParams.set('v',hash);
+  const response=await fetch(url,{cache:'no-cache'});
+  if(!response.ok)throw new Error('HTTP '+response.status);
+  const data=await response.arrayBuffer();
+  if(hash){
+    const header=new TextEncoder().encode('blob '+data.byteLength+'\0');
+    const bytes=new Uint8Array(header.length+data.byteLength);
+    bytes.set(header);bytes.set(new Uint8Array(data),header.length);
+    const digest=await crypto.subtle.digest('SHA-1',bytes);
+    const actual=[...new Uint8Array(digest)].map(v=>v.toString(16).padStart(2,'0')).join('');
+    if(actual!==hash)throw new Error('ファイルが更新中です。再取得してください');
+    await repoWrite(key,{hash,data});
   }
-  const root='https://api.github.com/repos/lencie040/kasane_taiko';
-  const get=async path=>{
-    const response=await fetch(root+path,{cache:'no-cache'});
-    if(!response.ok)throw new Error('GitHub HTTP '+response.status);
-    return response.json();
-  };
-  const commit=await get('/commits/main');
-  const tree=await get('/git/trees/'+commit.sha+'?recursive=1');
-  if(tree.truncated)throw new Error('GitHubのファイル一覧が大きすぎます');
-  const entries=tree.tree.filter(x=>x.type==='blob');
-  const paths=['content/csv/charts.csv','content/csv/dan.csv','content/noise.json','content/folders.json'];
-  const encode=path=>path.split('/').map(part=>encodeURIComponent(part).replace(/[!'()*]/g,char=>'%'+char.charCodeAt(0).toString(16).toUpperCase())).join('/');
-  const manifest={songs:[],hashes:{}};
-  for(const {path,sha} of entries){
-    const song=path.startsWith('content/songs/')&&/\.(osz|zip)$/i.test(path);
-    if(song)manifest.songs.push(encode(path));
-    if(song||paths.includes(path))manifest.hashes[encode(path)]=sha;
-  }
-  for(const [i,key] of ['charts','dan','noise','folders'].entries()){
-    if(manifest.hashes[paths[i]])manifest[key]=paths[i];
-  }
-  return {manifest,base:'https://raw.githubusercontent.com/lencie040/kasane_taiko/'+commit.sha+'/'};
+  return {data,cached:false};
 }
 async function loadRepositorySongs(direct=false){
   if(repositoryLoading||(!direct&&location.protocol==='file:'))return;
@@ -4914,46 +4848,25 @@ async function loadRepositorySongs(direct=false){
   try{
     const previous=await repoRead('index');
     let index;
-    try{index=await repositoryIndex(direct);}
-    catch(error){if(!previous)throw error;index=previous;indexWarning='（保存済みの一覧を使用）';}
-    const {manifest,base}=index;
+    try{index=await repositoryIndex();}
+    catch(error){if(previous?.manifest?.format!==1)throw error;index=previous;indexWarning='（保存済みの一覧を使用）';}
+    const {manifest}=index;
     const get=async path=>{
-      const hash=manifest.hashes?.[path],key='file:'+path+'@'+hash,existing=hash&&await repoRead(key);
-      if(hash&&existing?.hash===hash)return existing.data;
-      const url=new URL(path,base);
-      if(hash)url.searchParams.set('v',hash);
-      const response=await fetch(url,{cache:'no-cache'});
-      if(!response.ok)throw new Error('HTTP '+response.status);
-      const data=await response.arrayBuffer();
-      if(hash){
-        const header=new TextEncoder().encode('blob '+data.byteLength+'\0');
-        const bytes=new Uint8Array(header.length+data.byteLength);
-        bytes.set(header);bytes.set(new Uint8Array(data),header.length);
-        const digest=await crypto.subtle.digest('SHA-1',bytes);
-        const actual=[...new Uint8Array(digest)].map(v=>v.toString(16).padStart(2,'0')).join('');
-        if(actual!==hash)throw new Error('ファイルが更新中です。再取得してください');
-        await repoWrite(key,{hash,data});
-      }
-      downloaded++;
+      const {data,cached}=await readRepositoryFile(index,path);
+      if(!cached)downloaded++;
       return data;
     };
     const current=new Set(manifest.songs||[]);
     for(const set of [...Lib.sets])if(set.repoPath&&!current.has(set.repoPath))removeSet(set,false);
     // 譜面CSV・ノーツ・フォルダは小さいので先に読み、曲は取得できたものから順に表示する
-    let repoNoiseData={};
-    for(const kind of ['charts','dan','noise','folders']){
+    for(const kind of ['dan','folders']){
       try{
-        const value=manifest[kind]?decodeText(new Uint8Array(await get(manifest[kind]))):null;
-        if(kind==='noise')repoNoiseData=value?JSON.parse(value):{};
-        else if(kind==='folders')repoFolders=value?parseFolders(JSON.parse(value)):emptyFolders();
-        else{
-          Lib[kind+'Csv']=value??store.get('kt.'+kind+'Csv','');
-          Lib[kind+'CsvName']=value!=null?kind+'.csv':store.get('kt.'+kind+'CsvName','');
-        }
+        const data=manifest[kind]?JSON.parse(decodeText(new Uint8Array(await get(manifest[kind])))):null;
+        if(kind==='folders')repoFolders=data?parseFolders(data):emptyFolders();
+        else Lib.danData=data;
       }catch(error){failed++;Lib.loadWarn.push(kind+': '+error.message);}
     }
     await loadCharacterFile();
-    for(const chart of Lib.charts)chart.repoNoise=repoNoiseData[chart.uid]||{};
     resolveAll();refreshAll();
     let lastShown=0;
     const showProgress=()=>{const now=performance.now();if(now-lastShown<400)return;lastShown=now;resolveAll();refreshAll();renderTitleStat();};
@@ -4963,9 +4876,8 @@ async function loadRepositorySongs(direct=false){
       try{
         const hash=manifest.hashes?.[path];
         if(!hash||!Lib.sets.some(set=>set.repoPath===path&&set.repoHash===hash)){
-          const set=await loadOsz(decodeURIComponent(path.split('/').pop()),await get(path),path);
+          const set=await loadKtz(decodeURIComponent(path.split('/').pop()),await get(path),path);
           if(set.repoPath===path)set.repoHash=hash;
-          for(const chart of set.charts)chart.repoNoise=repoNoiseData[chart.uid]||{};
         }
         loaded++;
       }catch(error){failed++;Lib.loadWarn.push(path+': '+error.message);}
@@ -4991,13 +4903,45 @@ async function loadRepositorySongs(direct=false){
   }
 }
 $('#fetchGithub').addEventListener('click',()=>loadRepositorySongs(true));
+$('#downloadConverted').addEventListener('click',async()=>{
+  const button=$('#downloadConverted'),status=$('#convertedStatus');
+  button.disabled=true;
+  try{
+    status.textContent='変換済みの譜面を確認中…';
+    const index=await repositoryIndex().catch(async error=>{
+      const cached=await repoRead('index');if(cached?.manifest?.format===1)return cached;throw error;
+    });
+    const {manifest}=index,paths=[...manifest.songs,manifest.folders,manifest.dan].filter(Boolean);
+    if(!manifest.songs.length)throw new Error('公開済みの譜面がありません');
+    const bundle=new JSZip();
+    for(const [i,path] of paths.entries()){
+      status.textContent=`ZIPを準備中 ${i+1} / ${paths.length}`;
+      const {data}=await readRepositoryFile(index,path);
+      bundle.file(decodeURIComponent(path),data);
+    }
+    const blob=await bundle.generateAsync({type:'blob',compression:'STORE',streamFiles:true});
+    const url=URL.createObjectURL(blob);
+    const link=el('a',{href:url,download:'kasane-library-ktz.zip'});document.body.append(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+    status.textContent=`${manifest.songs.length}曲の .ktz をまとめて書き出しました。`;
+  }catch(error){status.textContent='書き出せませんでした：'+error.message;}
+  finally{button.disabled=false;}
+});
 
 /* ================= 起動 ================= */
+const chartEditor=createKasaneEditor({
+  pane:$('#tab-editor'),charts:()=>Lib.charts,courseInfo:COURSES,parseOsu,parseLevel,
+  loadNoise,saveNoise,noiseId,noiseEligible,findFile,decodeText,demoOsu,nk,
+  audio:()=>ensureAudio(),decodeAudio:decodeGameAudio,getAudio,hit:playSE,noiseData,sameVersion,effectiveFolders,folderTrail,
+  saveDraft:(draft)=>IDB.tx('readwrite',s=>s.put(draft,'editor-draft'),'repository'),
+  readDraft:()=>IDB.tx('readonly',s=>s.get('editor-draft'),'repository'),
+  async test(chart){if(waitForLibrary())return;ensureAudio();D=null;await runSong(chart,{from:0,to:chart.length,rate:1,loop:false});}
+});
 (async function boot(){
   addDemos();resolveAll();UI.selSet='demo-kasane';refreshAll();renderTitleStat();
   const hasStorage=await IDB.open();await restoreMedleyTones();
   if(hasStorage){const saved=await IDB.all();let n=0;
-    for(const{name,data}of saved){try{const s=await loadOsz(name,data);s.storeName=name;n++;}catch(e){Lib.loadWarn.push(`${name}: ${e.message}`);}}
+    for(const{name,data}of saved){if(!/\.ktz$/i.test(name))continue;try{const s=await loadKtz(name,data);s.storeName=name;n++;}catch(e){Lib.loadWarn.push(`${name}: ${e.message}`);}}
     if(n){resolveAll();const first=Lib.sets.find(s=>!s.demo);if(first)UI.selSet=first.key;UI.selChart=null;}}
   try{await loadRepositorySongs();}finally{libraryBooting=false;finishLibraryWait();}
   const folders=effectiveFolders();
