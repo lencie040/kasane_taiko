@@ -1265,7 +1265,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 
 <script src="content/fonts/murecho-glyphs.js"></script>
 <script src="difficulty.js"></script>
-<script src="weakness.js"></script>
+<script src="weakness.js?v=phrase"></script>
 <script src="editor-tempo.js"></script>
 <script src="editor.js"></script>
 <script>
@@ -3421,7 +3421,9 @@ function newRun(chart,prac){
   if(!chart.multiRow&&!replay)loadNoise(chart);
   const ab=abFor(chart,prac);
   const source=replay||chart.targets;
-  const tsrc=prac?source.filter(t=>(prac.from<=0||t.t>=prac.from)&&t.t<=prac.to):source,rsrc=prac?chart.rolls.filter(r=>(prac.from<=0||r.end>=prac.from)&&r.t<=prac.to):chart.rolls;
+  const includePickup=prac?.from<=0&&(!training||replay);
+  const tsrc=prac?source.filter(t=>(includePickup||t.t>=prac.from)&&t.t<=prac.to):source;
+  const rsrc=prac?chart.rolls.filter(r=>(includePickup||r.end>=prac.from)&&r.t<=prac.to):chart.rolls;
   let nN=0,nC=0;for(const t of tsrc){if(t.type==='chord'){nN+=t.notes.length;nC+=t.notes.length;}else nN++;}
   const baseWin=(chart.course==='easy'||chart.course==='normal')?WIN_SOFT:WIN_HARD;
   const targets=tsrc.map(t=>({...t,notes:t.notes?t.notes.map(n=>({...n})):null,judged:false,res:null,buf:null,autoDone:false}));
@@ -3768,8 +3770,8 @@ function rankBadge(score){const rk=rankOf(score);if(!rk)return null;return el('d
 function beginWeaknessLesson(res){
   if($('#result').hidden)return;
   const origin={...res.weakness,chart:res.chart,win:res.win};
-  const charts=Lib.charts.filter(c=>!isLocked(c)&&c.targets.length&&(c.set.demo||findFile(c.set,c.audio,c.dir,'audio')));
-  const rounds=relatedWeaknessExercises(origin.chart,origin.pattern,charts,chart=>{
+  const charts=Lib.charts.filter(c=>!c.set.demo&&!isLocked(c)&&c.targets.length&&findFile(c.set,c.audio,c.dir,'audio'));
+  const rounds=relatedWeaknessExercises(origin.chart,origin.phrase,charts,chart=>{
     const data=noiseData(chart);
     if(!data||!Object.keys(data).length)return ()=>null;
     return (target,index)=>{
@@ -3777,6 +3779,7 @@ function beginWeaknessLesson(res){
       return Array.isArray(sides)?sides:null;
     };
   });
+  if(!rounds.length)toast('近い配置が見つからなかったため、元の難所を練習します');
   rounds.push(origin);
   playWeaknessRound({origin,rounds},0);
 }
@@ -3792,7 +3795,7 @@ function weaknessOffer(res){
   const weakness=res.weakness,label=weakness.kind==='bad'?'不可':'可';
   return el('section',{class:'weakness-offer','aria-label':'弱点道場'},
     el('div',null,el('strong',null,'弱点道場'),
-      el('p',{class:'res-note'},`${fmtTime(weakness.focusFrom)}〜${fmtTime(weakness.to)} ・ ${label}${weakness.before[weakness.kind]} ・ ${WEAKNESS_PATTERNS[weakness.pattern.kind]}`)),
+      el('p',{class:'res-note'},`${fmtTime(weakness.focusFrom)}〜${fmtTime(weakness.to)} ・ ${label}${weakness.before[weakness.kind]} ・ ${WEAKNESS_PATTERNS[weakness.pattern]}`)),
     el('button',{class:'btn',type:'button',onclick:()=>beginWeaknessLesson(res)},'弱点に挑戦'));
 }
 function showWeaknessResult(res,targets){
