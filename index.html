@@ -1141,7 +1141,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
     <p class="lead">.ktz には音源・譜面・曲名・難易度・封印設定がまとまっています。</p>
     <div class="card" style="margin-bottom:16px">
       <div class="row"><button class="btn primary" id="fetchGithub">公開譜面を更新</button><button class="btn gold" id="downloadConverted">リポジトリ譜面を .ktz に一括変換・ダウンロード</button></div>
-      <p id="fetchGithubStatus" role="status" aria-live="polite">公開済みの曲を取得します。</p>
+      <p id="fetchGithubStatus" role="status" aria-live="polite">追加・変更された譜面だけ取得します。</p>
       <p id="convertedStatus" role="status" aria-live="polite"></p>
       <p>ダウンロードしたZIPを展開し、中の content/ をリポジトリの content/ に重ねて追加できます。</p>
     </div>
@@ -3228,10 +3228,6 @@ function parseCharacters(text){
   return lines.slice(1).map(l=>{const v=l.split(',').map(s=>s.trim()),o={};head.forEach((h,i)=>o[h]=v[i]??'');
     return{id:o.id,name:o.name||o.id,image:o.image,ability:o.ability,type:o.unlock_type,target:o.unlock_target,course:o.unlock_course,value:Number(o.unlock_value)||0,text:o.unlock_text||''};
   }).filter(c=>c.id&&ABILITY_JP[c.ability]);}
-async function loadCharacterFile(){
-  try{const r=await fetch('content/characters.csv',{cache:'no-cache'});if(r.ok)Lib.characters=parseCharacters(await r.text());else Lib.characters=[];}
-  catch(e){Lib.characters=[];}
-}
 function charUnlockText(c){
   if(c.text)return c.text;
   const song=`「${c.target}」${c.course?`（${COURSES[c.course]?.jp||c.course}）`:''}`;
@@ -4812,87 +4808,142 @@ function finishLibraryWait(){
 }
 const repoRead=key=>IDB.tx('readonly',store=>store.get(key),'repository');
 const repoWrite=(key,value)=>IDB.tx('readwrite',store=>store.put(value,key),'repository');
-const repoDelete=key=>IDB.tx('readwrite',store=>store.delete(key),'repository');
+const REPO_HASH=/^[a-f0-9]{40}$/;
+const REPO_CACHE_KEY=/^(?:blob:|file:.+@)([a-f0-9]{40})$/;
+const repoMetadata=new Map(),repoShadows=new Map();
+const repoMetadataKinds=['folders','dan','characters'];
 async function repositoryIndex(){
   const response=await fetch('content/manifest.json',{cache:'no-cache'});
   if(!response.ok)throw new Error('曲一覧 HTTP '+response.status);
   const manifest=await response.json();
-  if(manifest.format!==1||!Array.isArray(manifest.songs))throw new Error('.ktz の公開一覧がありません');
+  if(manifest.format!==1||!Array.isArray(manifest.songs)||!manifest.hashes||typeof manifest.hashes!=='object')throw new Error('.ktz の公開一覧がありません');
+  const paths=[...manifest.songs,...repoMetadataKinds.map(kind=>manifest[kind]).filter(Boolean)];
+  if(paths.some(path=>typeof path!=='string'||!REPO_HASH.test(manifest.hashes?.[path])))throw new Error('公開一覧のハッシュを確認できません');
   return {manifest,base:new URL('.',location.href).href};
 }
-async function readRepositoryFile({manifest,base},path){
-  const hash=manifest.hashes?.[path],key='file:'+path+'@'+hash,existing=hash&&await repoRead(key);
-  if(hash&&existing?.hash===hash)return {data:existing.data,cached:true};
-  const url=new URL(path,base);
-  if(hash)url.searchParams.set('v',hash);
-  const response=await fetch(url,{cache:'no-cache'});
-  if(!response.ok)throw new Error('HTTP '+response.status);
-  const data=await response.arrayBuffer();
-  if(hash){
-    const header=new TextEncoder().encode('blob '+data.byteLength+'\0');
-    const bytes=new Uint8Array(header.length+data.byteLength);
-    bytes.set(header);bytes.set(new Uint8Array(data),header.length);
-    const digest=await crypto.subtle.digest('SHA-1',bytes);
-    const actual=[...new Uint8Array(digest)].map(v=>v.toString(16).padStart(2,'0')).join('');
-    if(actual!==hash)throw new Error('ファイルが更新中です。再取得してください');
-    await repoWrite(key,{hash,data});
+async function repositoryCache(){
+  const keys=await IDB.tx('readonly',store=>store.getAllKeys(),'repository')||[];
+  const byHash=new Map();
+  // 旧キャッシュも中身のハッシュで引けるようにし、改名時に再取得しない。
+  for(const key of keys){
+    if(typeof key!=='string')continue;
+    const hash=REPO_CACHE_KEY.exec(key)?.[1];
+    if(hash&&!byHash.has(hash))byHash.set(hash,key);
   }
-  return {data,cached:false};
+  return {keys,byHash};
+}
+async function matchesRepoHash(data,hash){
+  const header=new TextEncoder().encode('blob '+data.byteLength+'\0');
+  const bytes=new Uint8Array(header.length+data.byteLength);
+  bytes.set(header);bytes.set(new Uint8Array(data),header.length);
+  const digest=await crypto.subtle.digest('SHA-1',bytes);
+  return [...new Uint8Array(digest)].map(v=>v.toString(16).padStart(2,'0')).join('')===hash;
+}
+async function readRepositoryFile({manifest,base},path,cache){
+  const hash=manifest.hashes?.[path];
+  if(!REPO_HASH.test(hash))throw new Error('ファイルのハッシュがありません');
+  const cached=cache.byHash.get(hash),entry=cached&&await repoRead(cached);
+  if(entry?.hash===hash&&entry.data instanceof ArrayBuffer)return {data:entry.data,cached:true};
+  const url=new URL(path,base);
+  url.searchParams.set('v',hash);
+  for(const mode of ['force-cache','reload']){
+    const response=await fetch(url,{cache:mode});
+    if(!response.ok){
+      if(mode==='reload')throw new Error('HTTP '+response.status);
+      continue;
+    }
+    const data=await response.arrayBuffer();
+    if(await matchesRepoHash(data,hash)){
+      const key='blob:'+hash;
+      if(await repoWrite(key,{hash,data}))cache.byHash.set(hash,key);
+      return {data,cached:false};
+    }
+  }
+  throw new Error('ファイルが更新中です。再取得してください');
+}
+async function syncRepositoryMetadata(index,cache){
+  const {manifest}=index;
+  let changed=false,failed=0;
+  for(const kind of repoMetadataKinds){
+    const path=manifest[kind],hash=manifest.hashes?.[path]??null;
+    if(repoMetadata.get(kind)===hash)continue;
+    try{
+      const text=path?decodeText(new Uint8Array((await readRepositoryFile(index,path,cache)).data)):null;
+      if(kind==='folders')repoFolders=text?parseFolders(JSON.parse(text)):emptyFolders();
+      else if(kind==='dan')Lib.danData=text?JSON.parse(text):null;
+      else Lib.characters=text?parseCharacters(text):[];
+      repoMetadata.set(kind,hash);
+      changed=true;
+    }catch(error){failed++;Lib.loadWarn.push(kind+': '+error.message);}
+  }
+  return {changed,failed};
+}
+function planRepositorySongs(manifest){
+  const byHash=new Map(Lib.sets.filter(s=>s.repoPath).map(s=>[s.repoHash,s]));
+  const claimed=new Set(),pending=[];
+  let renamed=false;
+  for(const path of manifest.songs){
+    const hash=manifest.hashes[path],loaded=byHash.get(hash),shadow=repoShadows.get(path);
+    if(loaded&&!claimed.has(loaded)){
+      claimed.add(loaded);
+      if(loaded.repoPath!==path){
+        loaded.repoPath=path;
+        loaded.file=decodeURIComponent(path.split('/').pop()).replace(/\.ktz$/i,'').normalize('NFC');
+        delete loaded._names;
+        renamed=true;
+      }
+    }else if(!shadow||shadow.hash!==hash||!Lib.sets.includes(shadow.set))pending.push(path);
+  }
+  return {pending,renamed};
+}
+async function pruneRepositoryCache(index,cache){
+  if(!await repoWrite('index',index))return;
+  const keep=new Set(Object.values(index.manifest.hashes));
+  const stale=cache.keys.filter(key=>typeof key==='string'&&REPO_CACHE_KEY.test(key)&&!keep.has(REPO_CACHE_KEY.exec(key)[1]));
+  if(stale.length)await IDB.tx('readwrite',store=>{for(const key of stale)store.delete(key);},'repository');
 }
 async function loadRepositorySongs(direct=false){
   if(repositoryLoading||(!direct&&location.protocol==='file:'))return;
   repositoryLoading=true;
   const button=$('#fetchGithub'),status=$('#fetchGithubStatus');
   button.disabled=true;
-  let failed=0,loaded=0,downloaded=0,indexWarning='';
+  status.textContent='公開一覧を確認中…';
   try{
     const previous=await repoRead('index');
-    let index;
+    let index,indexWarning='';
     try{index=await repositoryIndex();}
     catch(error){if(previous?.manifest?.format!==1)throw error;index=previous;indexWarning='（保存済みの一覧を使用）';}
-    const {manifest}=index;
-    const get=async path=>{
-      const {data,cached}=await readRepositoryFile(index,path);
-      if(!cached)downloaded++;
-      return data;
-    };
-    const current=new Set(manifest.songs||[]);
-    for(const set of [...Lib.sets])if(set.repoPath&&!current.has(set.repoPath))removeSet(set,false);
-    // 譜面CSV・ノーツ・フォルダは小さいので先に読み、曲は取得できたものから順に表示する
-    for(const kind of ['dan','folders']){
-      try{
-        const data=manifest[kind]?JSON.parse(decodeText(new Uint8Array(await get(manifest[kind])))):null;
-        if(kind==='folders')repoFolders=data?parseFolders(data):emptyFolders();
-        else Lib.danData=data;
-      }catch(error){failed++;Lib.loadWarn.push(kind+': '+error.message);}
-    }
-    await loadCharacterFile();
-    resolveAll();refreshAll();
-    let lastShown=0;
-    const showProgress=()=>{const now=performance.now();if(now-lastShown<400)return;lastShown=now;resolveAll();refreshAll();renderTitleStat();};
-    for(const [i,path] of (manifest.songs||[]).entries()){
-      status.textContent=`曲を読み込み中… ${i+1} / ${current.size}`;
+    const {manifest}=index,cache=await repositoryCache();
+    const metadata=await syncRepositoryMetadata(index,cache);
+    const current=new Set(manifest.songs);
+    const {pending,renamed}=planRepositorySongs(manifest);
+    let failed=metadata.failed,downloaded=0,loaded=0,removed=0,lastShown=0;
+    for(const [i,path] of pending.entries()){
+      const hash=manifest.hashes[path];
+      status.textContent=cache.byHash.has(hash)?`保存済みの譜面を読み込み中… ${i+1} / ${pending.length}`:
+        `差分の譜面を取得中… ${i+1} / ${pending.length}`;
       if(libraryWait)UI.loading=status.textContent;
       try{
-        const hash=manifest.hashes?.[path];
-        if(!hash||!Lib.sets.some(set=>set.repoPath===path&&set.repoHash===hash)){
-          const set=await loadKtz(decodeURIComponent(path.split('/').pop()),await get(path),path);
-          if(set.repoPath===path)set.repoHash=hash;
-        }
+        const {data,cached}=await readRepositoryFile(index,path,cache);
+        if(!cached)downloaded++;
+        const set=await loadKtz(decodeURIComponent(path.split('/').pop()),data,path);
+        if(set.repoPath===path)set.repoHash=hash;
+        else repoShadows.set(path,{set,hash});
         loaded++;
+        const now=performance.now();
+        if(libraryBooting&&now-lastShown>=400){lastShown=now;resolveAll();refreshAll();renderTitleStat();}
       }catch(error){failed++;Lib.loadWarn.push(path+': '+error.message);}
-      showProgress();
     }
     if(!failed){
-      const paths=manifest=>[...(manifest.songs||[]),...['charts','dan','noise','folders'].map(k=>manifest[k]).filter(Boolean)];
-      await repoWrite('index',index);
-      if(previous)for(const path of paths(previous.manifest)){
-        const hash=previous.manifest.hashes?.[path];
-        if(hash&&hash!==manifest.hashes?.[path])await repoDelete('file:'+path+'@'+hash);
+      for(const set of [...Lib.sets]){
+        if(set.repoPath&&!current.has(set.repoPath)){removeSet(set,false);removed++;}
       }
+      for(const path of repoShadows.keys())if(!current.has(path))repoShadows.delete(path);
+      await pruneRepositoryCache(index,cache);
     }
-    resolveAll();refreshAll();renderTitleStat();
-    status.textContent=`${loaded}曲を確認・${downloaded}ファイル取得${indexWarning}`+(failed?`・${failed}件失敗`:'');
+    if(metadata.changed||renamed||loaded||removed||failed){resolveAll();refreshAll();renderTitleStat();}
+    const summary=downloaded?`差分 ${downloaded}曲を取得`:'曲の追加取得なし';
+    status.textContent=`${current.size}曲を確認・${summary}${indexWarning}`+(failed?`・${failed}件失敗`:'');
     if(direct)toast(status.textContent,failed?'err':undefined);
   }catch(error){
     Lib.loadWarn.push('リポジトリ読込: '+error.message);
@@ -4913,10 +4964,10 @@ $('#downloadConverted').addEventListener('click',async()=>{
     });
     const {manifest}=index,paths=[...manifest.songs,manifest.folders,manifest.dan].filter(Boolean);
     if(!manifest.songs.length)throw new Error('公開済みの譜面がありません');
-    const bundle=new JSZip();
+    const bundle=new JSZip(),cache=await repositoryCache();
     for(const [i,path] of paths.entries()){
       status.textContent=`ZIPを準備中 ${i+1} / ${paths.length}`;
-      const {data}=await readRepositoryFile(index,path);
+      const {data}=await readRepositoryFile(index,path,cache);
       bundle.file(decodeURIComponent(path),data);
     }
     const blob=await bundle.generateAsync({type:'blob',compression:'STORE',streamFiles:true});

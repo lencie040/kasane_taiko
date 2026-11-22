@@ -258,7 +258,7 @@ def build(output):
                                  'conditions': {k: row[k] for k in conditions if row.get(k)}})
             manual.write_text(json.dumps({'format': 1, 'dans': dans}, ensure_ascii=False, indent=2), encoding='utf-8')
     manifest = {'format': 1, 'songs': songs, 'hashes': hashes, 'converted': count}
-    for key, name in [('dan', 'dans.json'), ('folders', 'folders.json')]:
+    for key, name in [('dan', 'dans.json'), ('folders', 'folders.json'), ('characters', 'characters.csv')]:
         if (assets / name).is_file():
             manifest[key] = register(assets / name)
     (assets / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding='utf-8')
