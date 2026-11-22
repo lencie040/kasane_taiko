@@ -196,6 +196,32 @@ function chartRadarVolume(measurements) {
   return .90 * paceScore + .10 * countScore;
 }
 
+// The expected one-hand pace rises with the chart's baseline skill level.
+// Use a transition band so adjacent BPMs never create a hard rating jump.
+function alternatingHandLoad(targets, baseline) {
+  const skill = Math.max(0, Math.min(1, (baseline - 1) / 11));
+  const transitionStart = 141 - 31 * skill;
+  let chain = 0, notes = 0, local = 0, highest = 0, total = 0;
+  for (let i = 1; i < targets.length; i++) {
+    const previous = targets[i - 1], current = targets[i];
+    const gap = current.t - previous.t;
+    const repeated = previous.type === 'single' && current.type === 'single' && previous.color === current.color;
+    const progress = repeated ? Math.max(0, Math.min(1, (transitionStart - gap) / 16)) : 0;
+    const demand = progress * progress * (3 - 2 * progress);
+    // Extreme speeds contribute through physical density as well. Keep the
+    // strongest coordination weight near the switch to alternating hands.
+    const coordination = .54 + .46 * Math.max(0, Math.min(1, (gap - 60) / 30));
+    const cost = demand * Math.min(1, chain / 310) * coordination;
+    chain = demand > 0 ? Math.min(310, chain + demand * gap) : 0;
+    total += cost;
+    const decay = Math.exp(-gap / 650);
+    notes = notes * decay + 1;
+    local = local * decay + cost;
+    highest = Math.max(highest, local / Math.max(5, notes));
+  }
+  return .70 * total / Math.max(1, targets.length - 1) + .68 * highest;
+}
+
 function measureSealDifficulty(targets, sealAt) {
   if (!sealAt) return 0;
   let previous = [0, 0], chain = 0, hardest = 0, sealed = 0, previousTime = -Infinity;
@@ -244,14 +270,22 @@ function estimateKasaneDifficulty(chart, course, sealAt) {
   const runLoad = -.32 * Math.expm1(-Math.max(0, f.fastRunRate - 8) / 2);
   const enduranceLoad = runLoad + .27 * Math.max(0, f.fastRunRate - 17) + .09 * Math.max(0, f.sustained - 12);
   const endurance = 1.55 * Math.tanh(enduranceLoad / 1.55);
-  const quantity = 2.45 * Math.log1p(effectiveBurst) + 1.30 * Math.log1p(effectiveSustained)
-    + .27 * Math.log1p(f.pace) + .25 * Math.log1p(f.strikes / 140) + shortBurst + endurance;
+  // Apply recovery where high density persists beyond the fastest window.
+  // A short, isolated peak retains its own difficulty.
+  const fastRun = Math.max(0, Math.min(1, (f.fastRunRate - 10) / 4));
+  const continuity = Math.min(1, f.sustained / Math.max(1, .56 * f.fastRunRate));
+  const sustainedShare = Math.max(.18 * Math.min(1, f.sustained / 6), fastRun * continuity ** 2);
+  const recoveryDiscount = Math.min(.55, 1.05 * f.recovery * sustainedShare);
+  const sustainedWork = (1.30 * Math.log1p(effectiveSustained) + endurance) * (1 - recoveryDiscount);
+  const highSpeedWork = .50 * Math.log1p(f.fastHitPressure / 2.4) * (1 - f.recovery);
+  const quantity = 2.45 * Math.log1p(effectiveBurst) + .27 * Math.log1p(f.pace)
+    + .25 * Math.log1p(f.strikes / 140) + shortBurst + sustainedWork + highSpeedWork;
   const patternWeight = .70 + .30 * Math.min(1, f.burst / 13);
-  const technique = patternWeight * (1.35 * f.color + 1.35 * f.peakColor);
+  const colorTechnique = patternWeight * (1.35 * f.color + 1.35 * f.peakColor);
   const syncopation = .95 * Math.tanh(19.5 * Math.max(0, f.offbeatEntries - .025));
   const rhythm = patternWeight * (1.50 * f.rhythm + 1.35 * f.peakRhythm + 1.85 * f.peakGridMix + syncopation);
   const simultaneous = 1.05 * f.chords + .72 * f.chordReading;
-  const base = -2.22 + quantity + technique + rhythm + simultaneous;
+  const base = -2.22 + quantity + colorTechnique + rhythm + simultaneous;
   const lowComfort = 62 + 4 * Math.max(1, base);
   const highComfort = 205 + 14 * Math.max(1, base);
   const outside = (value, bound, lower) => value > 0 ? Math.max(0, Math.log2(lower ? bound / value : value / bound)) : 0;
@@ -260,7 +294,10 @@ function estimateKasaneDifficulty(chart, course, sealAt) {
     + .60 * Math.min(2.5, outside(f.highScroll, highComfort, false));
   const sealed = measureSealDifficulty(chart.targets, sealAt);
 
-  const load = base + visibility + sealed;
+  const baseline = base + visibility + sealed;
+  const alternation = alternatingHandLoad(chart.targets, baseline) * (1 - Math.min(.78, 1.45 * f.recovery));
+  const technique = colorTechnique + alternation;
+  const load = baseline + alternation;
   // Leave headroom for unusually dense charts without a long flat ceiling.
   const stars = load <= 11.7 ? load : 12.9 - 1.2 * Math.exp(-(load - 11.7) / 1.2);
   const level = course === 'kasane'
