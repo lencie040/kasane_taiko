@@ -1060,6 +1060,16 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 .char-result{display:flex;gap:12px;align-items:center;padding:10px;border-radius:14px;border:2px solid #482d3e;background:#fff8df;color:#452638;margin:8px 0}
 .char-result-text{display:grid;gap:2px;min-width:0}
 .char-result-text small{font-size:12px}
+.match-profile{display:flex;flex-wrap:wrap;gap:8px 15px;align-items:baseline;margin:0}
+.match-profile span{color:var(--mute)}
+.match-status{display:flex;flex-wrap:wrap;gap:10px;align-items:center;min-height:40px}
+.match-status p{margin:0}
+.match-hud{position:absolute;z-index:4;top:calc(env(safe-area-inset-top,0px) + 6px);left:50%;transform:translateX(-50%);display:flex;gap:8px;pointer-events:none}
+.match-hud>div,.match-results>div{display:grid;gap:1px;min-width:92px;text-align:center;background:#2d1838e8;color:#fff4dc;border:1px solid #ecad6d;border-radius:8px;padding:2px 8px}
+.match-hud small,.match-results small{color:#ffe1ac}
+.match-hud b,.match-results b{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.match-results{display:flex;gap:12px;flex-wrap:wrap;margin:14px 0}
+@media(max-width:530px){.match-hud{left:8px;transform:none;gap:5px}.match-hud>div{min-width:0;padding:1px 6px;font-size:11px}.match-hud small{font-size:10px}}
 </style>
 
 <header class="top">
@@ -1068,6 +1078,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
     <nav class="tabs" aria-label="画面">
       <button class="tab is-on" data-tab="select" id="tabbtn-select">曲選択</button>
       <button class="tab" data-tab="dan" id="tabbtn-dan">段位道場</button>
+      <button class="tab" data-tab="multi" id="tabbtn-multi">オンライン対戦</button>
       <button class="tab" data-tab="medley" id="tabbtn-medley">作業用BGM</button>
       <button class="tab" data-tab="records" id="tabbtn-records">記録</button>
       <button class="tab" data-tab="load" id="tabbtn-load">読み込み</button>
@@ -1128,6 +1139,27 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
       <p class="lead">1曲目と2曲目は通常の譜面、3曲目に重譜面が来ます。合格すると、その重譜面が通常プレイでも遊べます。</p>
       <p>縦に重なった音符はドン・カツの数を合わせて同時に叩きます。全キーが ±18ms 以内に揃うと特良になります。</p>
     </details>
+  </section>
+
+  <section class="pane" id="tab-multi" hidden>
+    <div>
+      <h2 class="h-sec">オンライン対戦</h2>
+      <p class="lead">同じ端末タイプの相手と、同じ譜面で1対1。スコアが高い方が勝ち、同点なら先にそのスコアに達した方が勝ちます。</p>
+      <p class="match-profile"><b id="multiRank"></b><span id="multiProgress"></span><span id="multiDevice"></span></p>
+    </div>
+    <div class="cards2">
+      <article class="card">
+        <h3>カジュアルマッチ</h3>
+        <p>★1.0〜7.9の中からランダムに選曲。</p>
+        <button class="btn primary" id="multiCasual">相手を探す</button>
+      </article>
+      <article class="card">
+        <h3>ランクマッチ</h3>
+        <p>リーグやレートに合わせて選曲。エリートまでは対戦を完走すると昇格ポイントが貯まります。</p>
+        <button class="btn gold" id="multiRanked">ランク戦の相手を探す</button>
+      </article>
+    </div>
+    <div class="match-status"><p id="multiStatus" role="status">対戦相手を探せます。</p><button class="btn" id="multiCancel" hidden>取り消す</button></div>
   </section>
 
   <section class="pane" id="tab-medley" hidden>
@@ -1256,6 +1288,11 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 <div id="stage" hidden>
   <canvas id="cv"></canvas>
   <button class="stage-quit" id="stageMenu">一時停止 Esc</button>
+  <div class="match-hud" id="matchHud" hidden>
+    <div><small>あなた</small><b id="matchOwn">0</b></div>
+    <div><small>相手</small><b id="matchOther">0</b></div>
+    <div id="matchWaiting" role="status" hidden>結果を確認中…</div>
+  </div>
   <div id="pads" hidden>
     <button class="ka" data-role="kaL">カ</button><button class="don" data-role="donL">ドン</button><button class="don" data-role="donR">ドン</button><button class="ka" data-role="kaR">カ</button>
   </div>
@@ -1286,7 +1323,11 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 <div id="drop" hidden>.ktz をここにドロップ</div>
 
 <script src="content/fonts/murecho-glyphs.js"></script>
+<script src="beatmap.js"></script>
 <script src="difficulty.js?v=upper-steps"></script>
+<script src="multiplayer-rules.js"></script>
+<script src="match-config.js"></script>
+<script src="multiplayer-client.js"></script>
 <script src="weakness.js?v=context"></script>
 <script src="editor-tempo.js"></script>
 <script src="editor.js"></script>
@@ -1305,9 +1346,7 @@ const COURSES={
   ura:{jp:'おに裏',k:'裏',color:'#9d70ee'},
   kasane:{jp:'重',k:'重',color:'#f2bc3d'}
 };
-const COURSE_ORDER=['easy','normal','hard','oni','ura','kasane'];
-const COURSE_ALIAS={easy:'easy',kantan:'easy','かんたん':'easy','簡単':'easy',normal:'normal',futsuu:'normal','ふつう':'normal','普通':'normal',hard:'hard',muzukashii:'hard','むずかしい':'hard','難しい':'hard',oni:'oni','おに':'oni','鬼':'oni',ura:'ura','inner oni':'ura','ura oni':'ura','裏':'ura','おに裏':'ura','裏おに':'ura','裏鬼':'ura','鬼裏':'ura',kasane:'kasane','重':'kasane','かさね':'kasane',special:'kasane'};
-const WIN_SOFT={good:42,ok:108,bad:125}, WIN_HARD={good:25,ok:75,bad:108};
+const {WIN_SOFT,WIN_HARD}=TaikoMatchRules;
 const TOKU_WIN=18, CHORD_GATHER=60, CHORD_SETTLE=25, TOUCH_DELIVERY_GRACE=80;
 const CLEAR={easy:6000,normal:7000,hard:7000,oni:8000,ura:8000,kasane:8000};
 const BADMUL={easy:.5,normal:1,hard:1.5,oni:2,ura:2,kasane:2};
@@ -1336,7 +1375,6 @@ const TAU=Math.PI*2;
 
 /* ================= 小道具 ================= */
 const $=(s,r=document)=>r.querySelector(s);
-const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const glyphSegments=typeof Intl.Segmenter==='function'?new Intl.Segmenter('ja',{granularity:'grapheme'}):null;
 const hasMurechoGlyph=char=>MURECHO_GLYPHS.has(char)||/\s/u.test(char);
@@ -1348,7 +1386,6 @@ function murechoText(value){
   if(!glyphSegments)return chars.map(char=>hasMurechoGlyph(char)?char:'〼').join('');
   return Array.from(glyphSegments.segment(text),({segment})=>[...segment].every(hasMurechoGlyph)?segment:'〼').join('');
 }
-function norm(s){return String(s??'').normalize('NFKC').toLowerCase().replace(/\.(osz|zip|ktz)$/,'').replace(/\s+/g,' ').trim();}
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
 function el(tag,attrs,...kids){const e=document.createElement(tag);if(attrs)for(const[k,v]of Object.entries(attrs)){if(v==null||v===false)continue;if(k==='class')e.className=v;else if(k==='style')e.style.cssText=v;else if(k.startsWith('on'))e.addEventListener(k.slice(2),v);else e.setAttribute(k,v===true?'':v);}for(const k of kids.flat()){if(k==null||k===false)continue;e.append(k.nodeType?k:document.createTextNode(murechoText(k)));}return e;}
 const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
@@ -1361,9 +1398,6 @@ function starValue(level){
   return tenths>=100?(tenths/10).toFixed(1):Math.floor(tenths/10)+(tenths%10>=5?'+':'');
 }
 function levelText(c){if(c.level==null)return c.course==='kasane'?'?':'★?';return c.course==='kasane'?ROMAN[c.level]:'★'+starValue(c.level);}
-function diffRange(d,min,mid,max){return d>5?mid+(max-mid)*(d-5)/5:d<5?mid-(mid-min)*(5-d)/5:mid;}
-function segAt(segs,t){if(!segs.length)return null;if(t<segs[0].time)return segs[0];let lo=0,hi=segs.length-1,a=0;while(lo<=hi){const m=(lo+hi)>>1;if(segs[m].time<=t+1){a=m;lo=m+1;}else hi=m-1;}return segs[a];}
-
 /* ================= 設定・記録 ================= */
 const S=Object.assign({keys:['KeyD','KeyF','KeyJ','KeyK'],skipKeys:['KeyL','KeyS'],speed:1,offset:0,music:.8,se:.7,auto:false,noiseEdit:false,falling:false,sudden:0,laneWidth:100,record:false,balance:true,unlockAll:false,missingGlyphs:false},store.get('kt.settings',{}));
 S.opt=Object.assign({mirror:false,rand:0,hidden:false},S.opt||{});if(!S.fx)S.fx='high';
@@ -1452,54 +1486,6 @@ function parseDanData(data){
 }
 
 /* ================= osu 譜面の読み込み ================= */
-function parseOsu(text){
-  let cur=null;const kv={General:{},Metadata:{},Difficulty:{}},lists={Events:[],TimingPoints:[],HitObjects:[]};
-  for(const raw of text.split(/\r?\n/)){const line=raw.trim();if(!line||line.startsWith('//'))continue;
-    const m=/^\[(\w+)\]$/.exec(line);if(m){cur=m[1];continue;}
-    if(kv[cur]){let i=line.indexOf(':');if(i<0)i=line.indexOf('：');if(i>0)kv[cur][line.slice(0,i).trim()]=line.slice(i+1).trim();}
-    else if(lists[cur])lists[cur].push(line);}
-  const G=kv.General,M=kv.Metadata,Df=kv.Difficulty;
-  const mode=parseInt(G.Mode||'0')||0,sm=parseFloat(Df.SliderMultiplier||'1.4')||1.4,od=parseFloat(Df.OverallDifficulty??Df.HPDrainRate??'5');
-  const tps=lists.TimingPoints.map(l=>{const p=l.split(',');const bl=parseFloat(p[1]);const unin=p.length>6?p[6].trim()==='1':bl>0;return{time:parseFloat(p[0]),bl,meter:parseInt(p[2])||4,unin,eff:parseInt(p[7]||'0')||0};}).filter(t=>isFinite(t.time)&&isFinite(t.bl));
-  tps.sort((a,b)=>a.time-b.time||(b.unin-a.unin));
-  const reds=tps.filter(t=>t.unin&&t.bl>0);if(!reds.length)throw new Error('BPM（赤線）がありません');
-  const segs=[];let red=reds[0],sv=1;
-  for(const t of tps){if(t.unin){if(t.bl<=0)continue;red=t;sv=1;}else sv=t.bl<0?clamp(-100/t.bl,.1,10):1;
-    segs.push({time:t.time,rt:red.time,bl:red.bl,meter:red.meter,sv,kiai:!!(t.eff&1)});}
-  const spd=s=>(60000/s.bl)*s.sv/240000;
-  const notes=[],rolls=[];
-  for(const l of lists.HitObjects){const p=l.split(',');if(p.length<5)continue;
-    const x=+p[0],y=+p[1],t=Math.round(+p[2]),type=parseInt(p[3])||0,hs=parseInt(p[4])||0;if(!isFinite(t))continue;
-    const big=!!(hs&4),ka=!!(hs&10),seg=segAt(segs,t);
-    if(type&1)notes.push({t,x,y,color:ka?'k':'d',big});
-    else if(type&2){const slides=parseInt(p[6])||1,len=parseFloat(p[7])||0;const dur=len/(sm*100*seg.sv)*seg.bl*slides;rolls.push({type:'roll',t,end:t+Math.max(dur,40),big,speed:spd(seg)});}
-    else if(type&8){const end=Math.max(t+100,parseInt(p[5])||t+500);const hm=diffRange(od,3,5,7.5)*1.65;rolls.push({type:'balloon',t,end,hits:Math.max(1,Math.floor((end-t)/1000*hm)),speed:spd(seg)});}}
-  notes.sort((a,b)=>a.t-b.t||a.y-b.y||a.x-b.x);
-  const targets=[];let trimmed=0,maxLanes=1,chords=0,chordNotes=0,total=0;
-  for(let i=0;i<notes.length;){let j=i+1;while(j<notes.length&&notes[j].t-notes[i].t<=2)j++;
-    const grp=notes.slice(i,j);i=j;const seg=segAt(segs,grp[0].t),speed=spd(seg);
-    let cd=0,ck=0;const kept=[];
-    for(const n of grp){const cost=n.big?2:1;if(n.color==='d'){if(cd+cost>2){trimmed++;continue;}cd+=cost;}else{if(ck+cost>2){trimmed++;continue;}ck+=cost;}kept.push(n);}
-    if(kept.length===1){const n=kept[0];targets.push({type:'single',t:n.t,color:n.color,big:n.big,speed});total++;continue;}
-    targets.push({type:'chord',t:grp[0].t,notes:kept.map((n,k)=>({color:n.color,big:n.big,lane:k})),reqD:cd,reqK:ck,speed});
-    chords++;chordNotes+=kept.length;total+=kept.length;maxLanes=Math.max(maxLanes,kept.length);}
-  rolls.sort((a,b)=>a.t-b.t);
-  const lastT=Math.max(targets.length?targets[targets.length-1].t:0,...rolls.map(r=>r.end),0);
-  const firstT=Math.min(targets.length?targets[0].t:Infinity,rolls.length?rolls[0].t:Infinity);
-  const bars=[];
-  reds.forEach((r,i)=>{const end=i+1<reds.length?reds[i+1].time:lastT+3000;const ml=r.bl*r.meter;if(ml<=0)return;let k=0;
-    for(let tt=r.time;tt<end-1&&bars.length<20000;tt+=ml,k++){if(k===0&&(r.eff&8))continue;bars.push({t:tt,speed:spd(segAt(segs,tt))});}});
-  const bpms=reds.filter((r,i)=>r.time<=lastT||i===0).map(r=>Math.round(60000/r.bl*10)/10);
-  let bg=null;for(const e of lists.Events){const m=/^0\s*,\s*[-\d.]+\s*,\s*"?([^",]+)"?/.exec(e);if(m){bg=m[1].trim();break;}}
-  return{meta:{title:M.Title||'',titleU:M.TitleUnicode||'',artist:M.Artist||'',artistU:M.ArtistUnicode||'',creator:M.Creator||'',version:M.Version||'',setId:parseInt(M.BeatmapSetID)||0},
-    audio:G.AudioFilename||'',preview:Number.isFinite(parseInt(G.PreviewTime))?parseInt(G.PreviewTime):-1,mode,od,segs,targets,rolls,bars,bg,length:lastT,firstT:isFinite(firstT)?firstT:0,
-    bpm:[Math.min(...bpms),Math.max(...bpms)],stats:{notes:total,chords,chordNotes,maxLanes:Math.min(4,maxLanes),trimmed}};
-}
-function guessCourse(c){const v=norm(c.meta.version);
-  if(/kantan|easy|かんたん|簡単/.test(v))return'easy';if(/futsuu|normal|ふつう|普通/.test(v))return'normal';
-  if(/muzukashii|muzu|hard|むずかし|難し/.test(v))return'hard';if(/inner|ura|裏/.test(v))return'ura';if(/oni|おに|鬼/.test(v))return'oni';
-  const nps=c.stats.notes/Math.max(1,(c.length-c.firstT)/1000);return nps<1.6?'easy':nps<2.6?'normal':nps<4?'hard':'oni';}
-
 /* ---- 文字コード: UTF-8 で読めなければ Shift_JIS（日本語版 Windows / Excel の既定）で読む ---- */
 function toBytes(b){if(b instanceof Uint8Array)return b;if(typeof b==='string'){const u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i)&255;return u;}return new Uint8Array(b);}
 function decodeText(bytes){bytes=toBytes(bytes);
@@ -1521,7 +1507,7 @@ function findFile(set,name,dir,kind){const files=set.files,keys=Object.keys(file
   if(kind==='audio'){const au=keys.filter(k=>AUDIO_EXT.test(k));if(au.length===1)return files[au[0]];}
   return null;}
 
-async function loadKtz(name,buf,repoPath=null){
+async function loadKtz(name,buf,repoPath=null,detached=false){
   if(!/\.ktz$/i.test(name))throw new Error('.ktz 形式を選んでください');
   const zip=await JSZip.loadAsync(buf,{decodeFileName:decodeZipName});
   const files=Object.create(null);zip.forEach((p,f)=>{if(!f.dir)files[nk(p)]=f;});
@@ -1559,8 +1545,9 @@ async function loadKtz(name,buf,repoPath=null){
   set.titleAscii=pick('title');set.titleU=pick('titleU');set.artistAscii=pick('artist');
   set.setId=set.charts[0].meta.setId;set.preview=set.charts[0].preview;
   const bgF=set.charts.map(c=>c.bg&&findFile(set,c.bg,c.dir)).find(Boolean);
-  if(bgF&&typeof URL!=='undefined'&&URL.createObjectURL){try{const blob=await bgF.async('blob');set.bgUrl=URL.createObjectURL(blob);}catch(e){}}
+  if(!detached&&bgF&&typeof URL!=='undefined'&&URL.createObjectURL){try{const blob=await bgF.async('blob');set.bgUrl=URL.createObjectURL(blob);}catch(e){}}
   for(const c of set.charts)c.uid=set.key+'::'+c.meta.version;
+  if(detached)return set;
   const old=Lib.sets.find(s=>s.key===set.key||repoPath&&s.repoPath===repoPath);if(old){if(repoPath&&!old.repoPath){if(set.bgUrl)URL.revokeObjectURL(set.bgUrl);return old;}
     for(const key of audioCache.keys())if(key.startsWith(old.key+'|'))audioCache.delete(key);
     removeSet(old,!repoPath&&!!old.storeName&&old.storeName!==name);}
@@ -2308,8 +2295,8 @@ window.addEventListener('pagehide',stopMedley);
 window.addEventListener('resize',()=>{if(UI.tab==='medley'&&!document.hidden)drawMedleyTimeline();});
 
 /* ================= 画面: 共通 ================= */
-function setTab(t){if(t==='editor'&&S.noiseEdit!==true)t='settings';if(t!=='select'){UI.chooseCourse=false;resetRimSequence();stopPreview();}if(t!=='medley')stopMedley();if(t!=='editor')chartEditor.pause();UI.tab=t;for(const b of document.querySelectorAll('.tab'))b.classList.toggle('is-on',b.dataset.tab===t);
-  for(const id of['select','dan','medley','records','load','settings','editor'])$('#tab-'+id).hidden=id!==t;refreshAll();}
+function setTab(t){if(t==='editor'&&S.noiseEdit!==true)t='settings';if(UI.tab==='multi'&&t!=='multi')taikoOnline.cancel();if(t!=='select'){UI.chooseCourse=false;resetRimSequence();stopPreview();}if(t!=='medley')stopMedley();if(t!=='editor')chartEditor.pause();UI.tab=t;for(const b of document.querySelectorAll('.tab'))b.classList.toggle('is-on',b.dataset.tab===t);
+  for(const id of['select','dan','multi','medley','records','load','settings','editor'])$('#tab-'+id).hidden=id!==t;refreshAll();if(t==='multi')taikoOnline.visit();}
 function refreshAll(){renderSongList();renderDetail();renderDans();renderMedley();renderRecords();renderLoad();renderSettings();renderPotential();renderCharPicker();if(UI.tab==='editor')chartEditor.open();}
 // ポテンシャル（Arcaea 風）。譜面の定数は ★ の値、スコアは 1,000,000 満点を Arcaea の 10,000,000 換算にして評価する
 // 全良（全特良を含む）のときは、本家と違ってポテンシャルにボーナスを加える
@@ -3515,12 +3502,12 @@ function renderCharPicker(){
 }
 
 /* ================= 演奏 ================= */
-let G=null,D=null,rafId=0;const cv=$('#cv'),ctx=cv.getContext('2d');const view={W:0,H:0,dpr:1,L:null};
+let G=null,D=null,onlineRun=null,rafId=0;const cv=$('#cv'),ctx=cv.getContext('2d');const view={W:0,H:0,dpr:1,L:null};
 function newStats(notes,chordNotes,course){return{notes,chordNotes,gu:10000/Math.max(1,notes*.75),badMul:BADMUL[course]||2,tokuryo:0,good:0,ok:0,bad:0,roll:0,rollDrum:0,combo:0,maxCombo:0,score:0,gauge:0,judged:0,chordJudged:0,offSum:0,offN:0,offs:[],chordHit:0,chordMiss:0,mismatch:0};}
-function newRun(chart,prac){
+function newRun(chart,prac,match=null){
   const training=prac?.weakness?.round, replay=training?.targets;
-  if(!chart.multiRow&&!replay)loadNoise(chart);
-  const ab=abFor(chart,prac);
+  if(!match&&!chart.multiRow&&!replay)loadNoise(chart);
+  const ab=match?null:abFor(chart,prac);
   const source=replay||chart.targets;
   const includePickup=prac?.from<=0&&(!training||replay);
   const tsrc=prac?source.filter(t=>(includePickup||t.t>=prac.from)&&t.t<=prac.to):source;
@@ -3528,20 +3515,24 @@ function newRun(chart,prac){
   let nN=0,nC=0;for(const t of tsrc){if(t.type==='chord'){nN+=t.notes.length;nC+=t.notes.length;}else nN++;}
   const baseWin=(chart.course==='easy'||chart.course==='normal')?WIN_SOFT:WIN_HARD;
   const targets=tsrc.map(t=>({...t,notes:t.notes?t.notes.map(n=>({...n})):null,judged:false,res:null,buf:null,autoDone:false}));
-  return{chart,prac:prac||null,win:training?.win||(ab?{...baseWin,good:ab.fx.good}:baseWin),
-    targets:training?targets:applySeal(applyOpts(targets),ab?ab.fx.seal:0),hidden:!training&&!D&&!!S.opt.hidden,
+  if(match)for(const [i,target] of targets.entries()){
+    const side=chart.archiveNoise?.[noiseId(target,i)]?.[0];
+    target.noise=side==='left'||side==='right'?side:null;
+  }
+  return{chart,match,prac:prac||null,win:training?.win||(ab?{...baseWin,good:ab.fx.good}:baseWin),
+    targets:training||match?targets:applySeal(applyOpts(targets),ab?ab.fx.seal:0),hidden:!match&&!training&&!D&&!!S.opt.hidden,
     rolls:rsrc.map(r=>({...r,count:0,done:false})),cursor:0,st:Object.assign(newStats(nN,nC,chart.course),{ab}),
     base:Math.ceil(1000000/Math.max(1,chart.stats.notes)/10)*10,openChord:null,absorb:null,pop:null,flash:{},lanes:chart.stats.maxLanes,
     fx:{parts:[],rings:[],flyers:[],scorePops:[],banner:null,stamp:null,rollPop:0},disp:0,prevScore:0,kiaiAmt:0,lastCombo:0,comboAt:0,gaugeFlash:0,
-    endAt:prac?prac.to+1200:chart.length+1800,now:-3000,paused:false,finished:false,failed:false,auto:!training&&S.auto,autoSide:0,synced:false};}
+    endAt:prac?prac.to+1200:chart.length+1800,now:-3000,paused:false,finished:false,failed:false,auto:!match&&!training&&S.auto,autoSide:0,synced:false};}
 /* 演奏オプション（段位道場では使わない）。同時押しは列ごと入れ替えるので「ドン2・カッ2まで」は崩れない */
 function applyOpts(targets){if(D)return targets;const o=S.opt,p=o.rand===2?.5:o.rand===1?.25:0;if(!o.mirror&&!p)return targets;
   const flip=c=>c==='d'?'k':'d';
   for(const t of targets){if(!((o.mirror?1:0)^(Math.random()<p?1:0)))continue;
     if(t.type==='single')t.color=flip(t.color);else{for(const n of t.notes)n.color=flip(n.color);const d=t.reqD;t.reqD=t.reqK;t.reqK=d;}}
   return targets;}
-function optLabel(){if(D)return'';const o=S.opt,a=[];if(o.mirror)a.push('あべこべ');if(o.rand)a.push(o.rand===2?'でたらめ':'きまぐれ');if(o.hidden)a.push('ドロン');return a.join('・');}
-function songTime(perf){return(perf-G.perfZero-S.offset-(G.synced?0:G.latency))*(G.rate||1)+(G.t0||0);}
+function optLabel(){if(D||onlineRun)return'';const o=S.opt,a=[];if(o.mirror)a.push('あべこべ');if(o.rand)a.push(o.rand===2?'でたらめ':'きまぐれ');if(o.hidden)a.push('ドロン');return a.join('・');}
+function songTime(perf){return(perf-G.perfZero-(G.match?0:S.offset)-(G.synced?0:G.latency))*(G.rate||1)+(G.t0||0);}
 function inputTime(event){
   const now=performance.now();
   let t=event.timeStamp;
@@ -3575,38 +3566,20 @@ function finalizeChord(tg){G.openChord=null;const b=tg.buf;let kind,why=null;
   if(b.dup||b.d!==tg.reqD||b.k!==tg.reqK){kind='bad';why='mismatch';}
   else{const worst=Math.max(...b.offs.map(Math.abs));kind=worst<=TOKU_WIN?'tokuryo':worst<=G.win.good?'good':worst<=G.win.ok?'ok':'bad';}
   judge(tg,kind,b.offs.reduce((a,x)=>a+x,0)/b.offs.length,why);}
-function nearestTarget(t,color,stream=false){
-  const W=G.win,T=G.targets;
-  let target=null,distance=Infinity,firstMatching=null,matching=null,matchingGood=false;
-  for(let i=G.cursor;i<T.length;i++){
-    const x=T[i],off=x.t-t;
-    if(off>W.bad||(!stream&&off>distance))break;
-    if(x.judged||off< -W.bad)continue;
-    const d=Math.abs(off);
-    if(d<distance||(d===distance&&target.type==='single'&&target.color!==color&&(x.type==='chord'||x.color===color))){
-      target=x;distance=d;
-    }
-    if(stream&&x.type==='single'&&x.color===color&&d<=W.ok){
-      firstMatching??=x;
-      if(!matching||(!matchingGood&&d<=W.good)){matching=x;matchingGood=d<=W.good;}
-    }
-  }
-  if(!matching||target.type!=='single')return target;
-  // 次の同色ノーツの直前まで、まだ可に入る手前のノーツを優先する。
-  if(target.color===color){
-    if(firstMatching.t<t&&t<target.t&&distance>=(target.t-firstMatching.t)/4)return firstMatching;
-    return matching;
-  }
-  // 次の異色ノーツがまだ判定線に届いていない間は、手前の同色を優先する。
-  if(matchingGood||distance>W.good||(matching.t<t&&t<target.t))return matching;
-  return target;
-}
+function nearestTarget(t,color,stream=false){return TaikoMatchRules.nearestTarget(G,t,color,stream);}
+function mobileTiming(){return G?.match?G.match.device==='mobile':UI.touch;}
 function press(role,t,auto){
-  if(!G||G.finished||G.paused)return;const color=ROLE_COLOR[role];
+  if(!G||G.finished||G.paused)return;
+  if(G.match){
+    if(auto)return;
+    t=Math.round(Math.max(t,G.lastMatchHit??-Infinity));
+    G.lastMatchHit=t;taikoOnline.hit(ROLES.indexOf(role),t);
+  }
+  const color=ROLE_COLOR[role];
   G.flash[role]=performance.now();playSE(color==='d'?'don':'ka');
   if(G.openChord&&t>G.openChord.gatherEnd)finalizeChord(G.openChord);
   if(!auto)expireTargets(t);
-  const stream=UI.touch&&!auto;
+  const stream=mobileTiming()&&!auto;
   const gathering=G.openChord;
   let tg=gathering?null:nearestTarget(t,color,stream);
   if(stream&&gathering&&gathering.buf.d===gathering.reqD&&gathering.buf.k===gathering.reqK){
@@ -3659,7 +3632,7 @@ function expireTargets(t){
 function update(now){
   if(G.auto)autoplay(now);
   // 処理が遅れたタッチを待ってから失効させる。良・可・不可の判定幅はイベントの時刻に適用する。
-  const expireAt=now-(UI.touch&&!G.auto?TOUCH_DELIVERY_GRACE*(G.rate||1):0);
+  const expireAt=now-(mobileTiming()&&!G.auto?TOUCH_DELIVERY_GRACE*(G.rate||1):0);
   if(G.openChord&&expireAt>G.openChord.gatherEnd)finalizeChord(G.openChord);
   expireTargets(expireAt);
   for(const r of G.rolls)if(!r.done&&expireAt>r.end)r.done=true;
@@ -3720,8 +3693,9 @@ function updateFallingDanHud(now){
     }
   }
 }
-function openStage(){stopPreview();clearHitContacts();$('#stage').hidden=false;$('#stage').classList.toggle('touch',UI.touch);document.body.classList.add('playing');$('#result').hidden=true;$('#pause').hidden=true;$('#pads').hidden=libraryWait||!UI.touch||S.falling===true;setupFallingDanHud();layoutStage();startLoop();}
-function closeStage(){stopRecord();clearHitContacts();if(AUTOALL_FALLING){S.falling=true;AUTOALL_FALLING=null;}songLoad++;libraryWait=false;cancelAnimationFrame(rafId);rafId=0;stopSong();G=null;D=null;$('#stage').hidden=true;setupFallingDanHud();document.body.classList.remove('playing');refreshAll();}
+function fallingPlay(){return !onlineRun&&S.falling===true;}
+function openStage(){const menu=$('#stageMenu');menu.textContent=onlineRun?'棄権':'一時停止 Esc';stopPreview();clearHitContacts();$('#stage').hidden=false;$('#stage').classList.toggle('touch',UI.touch);document.body.classList.add('playing');$('#result').hidden=true;$('#pause').hidden=true;$('#pads').hidden=libraryWait||!UI.touch||fallingPlay();setupFallingDanHud();layoutStage();startLoop();}
+function closeStage(){stopRecord();clearHitContacts();if(AUTOALL_FALLING){S.falling=true;AUTOALL_FALLING=null;}songLoad++;libraryWait=false;cancelAnimationFrame(rafId);rafId=0;stopSong();G=null;D=null;onlineRun=null;$('#matchHud').hidden=true;$('#stage').hidden=true;setupFallingDanHud();document.body.classList.remove('playing');refreshAll();}
 function startLoop(){if(!rafId)rafId=requestAnimationFrame(frame);}
 function stopSong(){if(G&&G.src){try{G.src.stop();}catch(e){}G.src=null;}}
 function fadeMusic(sec){if(!G||!G.gain||!AC)return;try{const g=G.gain.gain;g.cancelScheduledValues(AC.currentTime);g.setValueAtTime(g.value,AC.currentTime);g.linearRampToValueAtTime(0,AC.currentTime+sec);G.src.stop(AC.currentTime+sec+.05);}catch(e){}}
@@ -3773,7 +3747,65 @@ async function runSong(chart,prac){
   const src=AC.createBufferSource();src.buffer=buf;src.playbackRate.value=rate;const g=AC.createGain();g.gain.value=loudnessGain(buf);src.connect(g);g.connect(musicGain);
   const acZero=AC.currentTime+.12+lead/1000;src.start(acZero,t0/1000);
   Object.assign(G,{rate,t0,src,gain:g,acZero,latency:((AC.outputLatency||0)+(AC.baseLatency||0))*1000,perfZero:performance.now()+(acZero-AC.currentTime)*1000,introAt:performance.now()});}
+async function prepareMatchChart(info){
+  let chart=Lib.charts.find(c=>c.uid===info.uid&&c.set.repoHash===info.hash);
+  if(!chart){
+    const base=new URL('.',location.href).href;
+    const url=new URL(info.path,base);
+    if(!url.href.startsWith(new URL('content/songs/',base).href)||!REPO_HASH.test(info.hash)){
+      throw new Error('対戦譜面の配信元を確認できません。');
+    }
+    const {data}=await readRepositoryFile({manifest:{hashes:{[info.path]:info.hash}},base},info.path,await repositoryCache());
+    const set=await loadKtz(decodeURIComponent(info.path.split('/').pop()),data,info.path,true);
+    set.repoHash=info.hash;
+    chart=set.charts.find(c=>c.uid===info.uid);
+  }
+  if(!chart||chart.stats.chords||chart.length!==info.length)throw new Error('対戦譜面が一致しません。');
+  chart={...chart,course:info.course,level:info.level};
+  return {chart,buffer:await getAudio(chart)};
+}
+function startMatchSong({chart,buffer},match,perfStart){
+  if(!$('#stage').hidden)closeStage();
+  onlineRun=match;
+  D=null;
+  UI.loading='';
+  $('#matchWaiting').hidden=true;
+  openStage();
+  G=newRun(chart,null,match);
+  layoutStage();
+  const src=AC.createBufferSource(),gain=AC.createGain();
+  src.buffer=buffer;
+  gain.gain.value=loudnessGain(buffer);
+  src.connect(gain);gain.connect(musicGain);
+  const now=performance.now(),acNow=AC.currentTime;
+  const acZero=acNow+(perfStart-now)/1000;
+  const when=Math.max(acNow+.02,acZero);
+  src.start(when,Math.min(buffer.duration,Math.max(0,when-acZero)));
+  Object.assign(G,{src,gain,acZero,perfZero:perfStart,rate:1,t0:0,
+    latency:((AC.outputLatency||0)+(AC.baseLatency||0))*1000,introAt:now});
+}
+function showMatchResult(match,profile){
+  if(!G?.match||G.match.id!==match.id)return;
+  if(!G.finished){G.finished=true;fadeMusic(.45);}
+  cancelAnimationFrame(rafId);rafId=0;
+  const {winner,reason,tiebreak}=match.result;
+  const message=reason==='cancelled'?'対戦中止':winner===null?'引き分け':winner===match.seat?'勝利':'敗北';
+  const note=reason==='forfeit'?'棄権により終了':tiebreak?'同点・スコア到達順で決着':'';
+  const rank=match.mode==='ranked'&&reason!=='cancelled'?TaikoMatchRules.LEAGUES[profile.league]:null;
+  setResultChar(null);
+  const card=$('#resultCard');
+  card.className='ov-card';
+  card.replaceChildren(el('h2',null,message),el('p',null,match.chart.title,' ・ ',levelText(G.chart)),
+    el('div',{class:'match-results'},['あなた','相手'].map((label,i)=>el('div',null,el('small',null,label),
+      el('b',null,fmtNum(match.scores[i===0?match.seat:1-match.seat]))))),
+    note?el('p',null,note):null,rank?el('p',null,rank,' ・ ',profile.league===4?'レート '+profile.rating:
+      `昇格ポイント ${profile.points} / ${TaikoMatchRules.GOALS[profile.league]}`):null,
+    el('div',{class:'ov-btns'},el('button',{class:'btn primary','data-result-back':true,onclick:closeStage},'オンライン対戦へ')));
+  $('#result').hidden=false;
+  UI.resultAt=performance.now();
+}
 function finishSong(){if(!G||G.finished)return;G.finished=true;fadeMusic(.8);
+  if(G.match){taikoOnline.finish();return;}
   const finishedRun=G;setTimeout(()=>stopRecord(finishedRun),900);// 音の減衰が入るよう少し後で止める
   const res={chart:G.chart,st:G.st,auto:G.auto,win:G.win,prac:G.prac};const alive=()=>G===finishedRun&&!$('#stage').hidden;
   if(G.prac?.weakness){setTimeout(()=>{if(alive())showWeaknessResult(res,finishedRun.targets);},900);return;}
@@ -3789,7 +3821,7 @@ function finishSong(){if(!G||G.finished)return;G.finished=true;fadeMusic(.8);
   if(stamp)fxStamp(stamp);const delay=stamp?2400:900;
   if(D){D.results.push(res);if(D.failCond||D.results.length>=D.dan.songs.length)setTimeout(()=>{if(alive())showDanResult();},delay);else{D.idx++;setTimeout(()=>{if(D&&alive())danInterlude();},delay);}}
   else setTimeout(()=>{if(alive())showResult(res);},delay);}
-function pauseGame(){if(!G||G.paused||G.finished||!AC)return;G.paused=true;G.pauseAt=performance.now();AC.suspend();
+function pauseGame(){if(!G||G.match||G.paused||G.finished||!AC)return;G.paused=true;G.pauseAt=performance.now();AC.suspend();
   const pb=$('#pauseBtns');pb.innerHTML='';
   pb.append(el('button',{class:'btn primary',onclick:resumeGame},'続ける'));
   if(!D)pb.append(el('button',{class:'btn',onclick:()=>{const c=G.chart,pr=G.prac;$('#pause').hidden=true;AC.resume();stopSong();runSong(c,pr);}},G.prac?'区間のはじめから':'はじめから'));
@@ -4011,7 +4043,7 @@ function layoutStage(){
 }
 function computeLayout(){const W=view.W,H=view.H;const gw=clamp(W*.4,130,440);
   view.compactMenu=window.innerHeight<=520;
-  const gaugeInset=S.falling&&!D&&view.compactMenu?100:0;
+  const gaugeInset=fallingPlay()&&!D&&view.compactMenu?100:0;
   view.gauge={x:W-46-gaugeInset-gw,y:18,w:gw,h:18};if(!G)return;
   // PCでは段位の条件を本家のように大きなバーで下に並べる
   view.bigDan=!!D&&W>=900&&H>=620;
@@ -4022,7 +4054,7 @@ function computeLayout(){const W=view.W,H=view.H;const gw=clamp(W*.4,130,440);
   const laneH=Math.max(18,Math.min(preferred,(H-top-view.countH-24)/N)),fieldH=laneH*N;
   const r=laneH*.33,judgeX=Math.max(clamp(W*.2,96,250),r*1.55+6+66);
   view.L={laneH,fieldH,top,r,judgeX,panelW:judgeX-r*1.55-6};
-  if(!S.falling)view.gauge={x:Math.max(96,W-gw-40),y:top-25,w:Math.min(gw,W-125),h:14};}
+  if(!fallingPlay())view.gauge={x:Math.max(96,W-gw-40),y:top-25,w:Math.min(gw,W-125),h:14};}
 function rr(c,x,y,w,h,r){c.beginPath();if(c.roundRect)c.roundRect(x,y,w,h,r);else c.rect(x,y,w,h);}
 function fit(c,s,maxW){
   if(maxW<=0)return'';
@@ -4190,7 +4222,7 @@ function drawFlames(y,x0,W,pn,k,beat){const c=ctx;c.save();c.globalAlpha=Math.mi
   c.lineTo(W,y);c.closePath();c.fill();c.restore();}
 
 /* ---- 演出の発生 ---- */
-function fxJudge(tg,kind,why){if(!G)return;const pn=performance.now();G.pop={kind,t:pn,why};if(S.falling===true)return;const L=view.L;if(!L)return;const fx=G.fx,chord=tg.type==='chord';
+function fxJudge(tg,kind,why){if(!G)return;const pn=performance.now();G.pop={kind,t:pn,why};if(fallingPlay())return;const L=view.L;if(!L)return;const fx=G.fx,chord=tg.type==='chord';
   const lanes=chord?tg.notes.map(n=>n.lane):[tg.row??0];
   if(kind==='bad'){if(why==='mismatch'||why==='color')for(const l of lanes)fx.rings.push({lane:l,t:pn,kind:'x'});return;}
   lanes.forEach((l,i)=>{const big=chord?tg.notes[i].big:tg.big,col=chord?tg.notes[i].color:tg.color,y=L.top+L.laneH*(l+.5);
@@ -4202,7 +4234,7 @@ function fxJudge(tg,kind,why){if(!G)return;const pn=performance.now();G.pop={kin
   const gain=G.st.score-G.prevScore;G.prevScore=G.st.score;if(gain>0)fx.scorePops.push({v:gain,t:pn});
   const st=D?D.st:G.st,prev=st.combo-lanes.length;if(st.combo>=50&&Math.floor(prev/50)<Math.floor(st.combo/50)){fx.banner={n:Math.floor(st.combo/50)*50,t:pn};spawnFirework(true);setTimeout(()=>spawnFirework(false),180);}
   if(fx.parts.length>360)fx.parts.splice(0,fx.parts.length-360);if(fx.flyers.length>40)fx.flyers.splice(0,fx.flyers.length-40);}
-function fxRoll(r,popped){if(!G)return;const pn=performance.now();G.fx.rollPop=pn;G.prevScore=G.st.score;if(S.falling===true)return;const L=view.L;if(!L||REDUCED||S.fx==='low')return;const y=L.top+L.laneH*((r.row??0)+.5);
+function fxRoll(r,popped){if(!G)return;const pn=performance.now();G.fx.rollPop=pn;G.prevScore=G.st.score;if(fallingPlay())return;const L=view.L;if(!L||REDUCED||S.fx==='low')return;const y=L.top+L.laneH*((r.row??0)+.5);
   const n=LOWFX()?(popped?6:0):popped?24:2;for(let k=0;k<n;k++){const a=popped?Math.random()*TAU:-Math.PI/2+(Math.random()-.5)*1.6,v=popped?.2+Math.random()*.35:.15+Math.random()*.15;
     G.fx.parts.push({x:L.judgeX,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,t:pn,life:popped?600:300,col:popped?(k%2?'#f08a3c':'#ffd46b'):'#ffe58a',sz:popped?2+Math.random()*3:1.6});}}
 function fxBig(){if(!G||!view.L)return;const pn=performance.now();if(S.fx!=='low')G.fx.rings.push({lane:0,t:pn,kind:'good',big:true});G.fx.bigPop=pn;G.prevScore=G.st.score;}
@@ -4378,7 +4410,7 @@ function drawFalling(now,pn){
 }
 
 function fallingTouchRole(input){
-  if(S.falling!==true)return;
+  if(!fallingPlay())return;
   const box=cv.getBoundingClientRect(),{xAt,top,bottom,coverTop}=fallingLayout();
   const y=input.clientY-box.top,x=input.clientX-box.left;
   if(y<coverTop||bottom<=top)return;
@@ -4388,7 +4420,7 @@ function fallingTouchRole(input){
 }
 
 function draw(now){const c=ctx,W=view.W,H=view.H,L=view.L,g=G;if(!L)return;const pn=performance.now();
-  if(S.falling===true){drawFalling(now,pn);return;}
+  if(fallingPlay()){drawFalling(now,pn);return;}
   const seg=segAt(g.chart.segs,now);const kiaiOn=!!(seg&&seg.kiai&&now>=0&&!g.finished);
   if(kiaiOn&&!g.wasKiai)g.fx.gogo=pn;g.wasKiai=kiaiOn;
   g.kiaiAmt+=((kiaiOn?1:0)-g.kiaiAmt)*.08;const k=g.kiaiAmt;
@@ -4552,7 +4584,7 @@ function drawRollCounter(now,pn){const c=ctx,L=view.L,g=G;let ro=null;for(const 
   c.textAlign='right';c.fillStyle='#7a3b0c';c.font=`600 24px ${FN}`;c.fillText(fmtNum(ro.count),4,8,55);c.textAlign='left';c.font=`700 13px ${FB}`;c.fillText('打',8,7);
   c.font=`600 11px ${FN}`;c.fillStyle='#a8641a';c.fillText(rate.toFixed(1)+'/s',26,7);c.restore();}
 function drawHud(now,pn){const c=ctx,W=view.W,g=G,C=COURSES[g.chart.course],gz=view.gauge;
-  if(!S.falling){drawArcadeHud(now,pn);return;}
+  if(!fallingPlay()){drawArcadeHud(now,pn);return;}
   const hb=c.createLinearGradient(0,0,0,96);hb.addColorStop(0,'rgba(7,9,22,.95)');hb.addColorStop(1,'rgba(7,9,22,0)');c.fillStyle=hb;c.fillRect(0,0,W,96);
   c.fillStyle='rgba(242,236,220,.08)';c.fillRect(0,0,W,3);c.fillStyle=C.color;c.fillRect(0,0,W*clamp(now/Math.max(1,g.chart.length),0,1),3);
   c.font=`700 13px ${FB}`;const lab=`${C.jp} ${levelText(g.chart)}`,bw=c.measureText(lab).width+18;rr(c,16,14,bw,25,6);c.fillStyle=C.color;c.fill();
@@ -4876,7 +4908,7 @@ $('#setUnlock').addEventListener('change',e=>{S.unlockAll=e.target.checked;saveS
 $('#resetRec').addEventListener('click',()=>{$('#resetConfirm').hidden=false;});
 $('#resetNo').addEventListener('click',()=>{$('#resetConfirm').hidden=true;});
 $('#resetYes').addEventListener('click',()=>{Lib.best={};Lib.recent=[];Lib.danBest={};Lib.unlocks={};Lib.played={};store.set('kt.best',{});store.set('kt.recent',[]);store.set('kt.danBest',{});store.set('kt.unlocks',{});store.set('kt.played',{});$('#resetConfirm').hidden=true;refreshAll();toast('記録をリセットしました');});
-$('#stageMenu').addEventListener('click',()=>{if(G&&!G.finished)pauseGame();else if(!G||G.finished){if($('#result').hidden)closeStage();}});
+$('#stageMenu').addEventListener('click',()=>{if(onlineRun&&$('#result').hidden){taikoOnline.cancel();return;}if(G&&!G.finished)pauseGame();else if(!G||G.finished){if($('#result').hidden)closeStage();}});
 // 診断用（URLに ?debug=1 を付けたときだけ）：入力の受付数・無視数・最後のタップのずれ(ms)を表示する
 const DBG=new URLSearchParams(location.search).has('debug'),dbg={inputs:0,ignored:0,last:'-',hist:[],spikes:[],silent:0,silentLast:'-'};
 const padPress=(role,t)=>{dbg.inputs++;if(!(G&&!G.finished&&!G.paused&&!G.auto&&$('#pause').hidden)){dbg.ignored++;return;}const st=songTime(t);
@@ -4981,7 +5013,7 @@ window.addEventListener('keydown',e=>{
     else if(e.key==='Escape'||ki===0||ki===3){e.preventDefault();$('#resultCard [data-result-back]')?.click();}return;}
   if(UI.binding!=null){e.preventDefault();if(e.code!=='Escape')bindKey(UI.binding,e.code);UI.binding=null;renderSettings();renderDetail();return;}
   if(!$('#stage').hidden){
-    if(e.code==='Escape'){e.preventDefault();if(G&&G.paused)resumeGame();else if(G&&!G.finished)pauseGame();else if((G&&G.prac)||(!G&&!D))closeStage();return;}
+    if(e.code==='Escape'){e.preventDefault();if(onlineRun)return;if(G&&G.paused)resumeGame();else if(G&&!G.finished)pauseGame();else if((G&&G.prac)||(!G&&!D))closeStage();return;}
     const i=S.keys.indexOf(e.code);if(i>=0){e.preventDefault();if(e.repeat)return;if(G&&!G.paused&&!G.auto)press(ROLES[i],songTime(inputTime(e)));}
     return;}
   if(e.defaultPrevented||e.ctrlKey||e.metaKey||e.altKey)return;
@@ -5026,8 +5058,8 @@ if(typeof ResizeObserver!=='undefined')new ResizeObserver(()=>{
   if(width!==view.W||height!==view.H)layoutStage();
 }).observe(cv);
 window.addEventListener('pointerdown',e=>{if(e.pointerType!=='touch'||UI.touch)return;UI.touch=true;renderTitleStat();
-  const st=$('#stage');if(st.hidden)return;st.classList.add('touch');$('#pads').hidden=libraryWait||S.falling===true;layoutStage();},true);
-document.addEventListener('visibilitychange',()=>{if(document.hidden&&G&&!G.finished&&!G.paused&&!D)pauseGame();});
+  const st=$('#stage');if(st.hidden)return;st.classList.add('touch');$('#pads').hidden=libraryWait||fallingPlay();layoutStage();},true);
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&G&&!G.match&&!G.finished&&!G.paused&&!D)pauseGame();});
 
 
 let repositoryLoading=false,libraryBooting=true,libraryImports=0,libraryWait=false;
@@ -5216,6 +5248,11 @@ $('#downloadConverted').addEventListener('click',async()=>{
 });
 
 /* ================= 起動 ================= */
+const taikoOnline=createTaikoMultiplayer({
+  audio:ensureAudio,prepare:prepareMatchChart,start:startMatchSong,stop:closeStage,
+  score:()=>G?.match?G.st.score:null,format:fmtNum,result:showMatchResult,
+  wait:()=>{$('#matchWaiting').hidden=false;},
+});
 const chartEditor=createKasaneEditor({
   pane:$('#tab-editor'),charts:()=>Lib.charts,courseInfo:COURSES,parseOsu,rateChart,sortCharts,levelText,norm,text:murechoText,
   loadNoise,saveNoise,noiseId,noiseEligible,findFile,decodeText,demoOsu,nk,

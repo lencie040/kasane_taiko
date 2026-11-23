@@ -1,0 +1,8 @@
+{
+  "name": "kasane-taiko-match",
+  "main": "multiplayer/worker.mjs",
+  "compatibility_date": "2026-11-23",
+  "vars": { "SITE_URL": "https://lencie040.github.io/kasane_taiko/" },
+  "durable_objects": { "bindings": [{ "name": "MATCH_ROOM", "class_name": "MatchRoom" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["MatchRoom"] }]
+}

@@ -36,7 +36,17 @@ GitHub の Settings → Pages → Source は GitHub Actions に設定してく�
 
 ## ローカル起動
 
-Python 3.9 以降で `python3 scripts/build.py`、続いて `python3 -m http.server 8000 --directory .site` を実行し、http://localhost:8000 を開きます。ビルド時に `.site/` に公開用ファイルをまとめます。
+Python 3.9 以降と Node.js 24 以降で `python3 scripts/build.py` を実行します。`node multiplayer/local.mjs` で http://localhost:8000 を開けます。ソロプレイだけなら `python3 -m http.server 8000 --directory .site` でも起動できます。
+
+## オンライン対戦
+
+カジュアルは ★1.0〜7.9 の公開譜面からランダムに選曲します。ランク戦は近いリーグ同士で対戦し、マスターの対戦相手と難易度はレートで決まります。ビギナーからエリートまでは、完走で1ポイント、勝利で2ポイント獲得します。昇格に必要なポイントは順に12・18・24・30です。ランクはブラウザごとの対戦プロフィールに保存されます。
+
+PC とスマホ・タブレットは別々にマッチングされます。ステージではハイスピードを使えます。キャラクター能力、オート、譜面の反転・ランダム・非表示、個人設定のオフセットや封印ノーツは適用されません。公開譜面に含まれる封印ノーツは両者に共通です。
+
+対戦サーバーは両者の入力からスコアを計算し、同点なら曲開始からスコアに到達するまでの時間で判定します。ライブスコアは WebRTC の直接接続が成立した場合に端末間で送り、成立しない場合はサーバーのスコア表示を使います。
+
+公開時は `npx wrangler deploy` で Worker をデプロイし、GitHub Actions の Repository variable `MATCH_ENDPOINT` に Worker の `https://…/multiplayer` を設定します。`Publish game` ワークフローを再実行すると公開ページが接続先を読み込みます。ローカル検証では、別のブラウザプロファイルを使うと2人分の対戦プロフィールを用意できます。
 
 ## 曲フォルダを共有する
 

@@ -325,3 +325,5 @@ function estimateKasaneDifficulty(chart, course, sealAt) {
 }
 
 const chartDifficultyMeasurements = new WeakMap();
+
+if (typeof module === 'object') module.exports = { estimateKasaneDifficulty };

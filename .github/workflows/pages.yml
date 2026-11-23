@@ -24,7 +24,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.x'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
       - run: python scripts/build.py
+        env:
+          MATCH_ENDPOINT: ${{ vars.MATCH_ENDPOINT }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         id: upload

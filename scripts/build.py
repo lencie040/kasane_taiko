@@ -3,11 +3,13 @@ import argparse
 import csv
 import hashlib
 import json
+import os
 import re
 import shutil
+import subprocess
 import unicodedata
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import quote, unquote, urlsplit
 from zipfile import ZipFile, ZipInfo
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -184,11 +186,30 @@ def deterministic_entry(name, compression=0):
     return entry
 
 
+def build_match_catalog(output, manifest):
+    packs = []
+    for url in manifest['songs']:
+        with ZipFile(output / unquote(url)) as pack:
+            data = json.loads(pack.read('kasane.json'))
+            names = {archive_path(name).lower(): name for name in pack.namelist()}
+            entries = []
+            for entry in data['charts']:
+                path = archive_path(entry['path']).lower()
+                if path in names and path.endswith('.osu'):
+                    entries.append({'entry': entry, 'text': decode(pack.read(names[path]))})
+            packs.append({'key': data['song']['key'], 'title': data['song']['title'],
+                          'path': url, 'hash': manifest['hashes'][url], 'entries': entries})
+    with (output / 'content/match-catalog.json').open('wb') as destination:
+        subprocess.run(['node', str(ROOT / 'scripts/build-match-catalog.cjs')], check=True,
+                       input=json.dumps(packs, ensure_ascii=False).encode('utf-8'), stdout=destination)
+
+
 def build(output):
     if output == ROOT or output == CONTENT or ROOT.is_relative_to(output) or output.is_relative_to(CONTENT):
         raise ValueError('出力先はリポジトリ本体と content/ の外に指定してください')
     output.mkdir(parents=True, exist_ok=True)
-    for name in ['index.html', 'difficulty.js', 'weakness.js', 'editor.js', 'editor.css', 'editor-tempo.js']:
+    for name in ['index.html', 'difficulty.js', 'weakness.js', 'editor.js', 'editor.css', 'editor-tempo.js', 'beatmap.js',
+                 'multiplayer-rules.js', 'multiplayer-client.js']:
         shutil.copy2(ROOT / name, output / name)
     assets = output / 'content'
     assets.mkdir(exist_ok=True)
@@ -262,6 +283,14 @@ def build(output):
         if (assets / name).is_file():
             manifest[key] = register(assets / name)
     (assets / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding='utf-8')
+    build_match_catalog(output, manifest)
+    endpoint = os.environ.get('MATCH_ENDPOINT', '').strip()
+    if endpoint:
+        parsed = urlsplit(endpoint)
+        if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.fragment:
+            raise ValueError('MATCH_ENDPOINT には HTTPS の対戦 API URL を指定してください')
+    (output / 'match-config.js').write_text(
+        'globalThis.KASANE_MATCH_ENDPOINT = ' + json.dumps(endpoint) + ';\n', encoding='utf-8')
     print(f'Indexed {len(songs)} .ktz packs ({count} converted from legacy archives)')
 
 
