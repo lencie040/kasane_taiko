@@ -1369,13 +1369,15 @@ const S=Object.assign({keys:['KeyD','KeyF','KeyJ','KeyK'],skipKeys:['KeyL','KeyS
 S.opt=Object.assign({mirror:false,rand:0,hidden:false},S.opt||{});if(!S.fx)S.fx='high';
 const LOWFX=()=>S.fx==='low'||UI.touch||G?.chart.multiRow;
 function saveS(){store.set('kt.settings',S);}
-const Lib={sets:[],charts:[],dans:[],loadWarn:[],csvWarn:[],
+const Lib={sets:[],charts:[],dans:[],danExcludedSets:new Set(),loadWarn:[],csvWarn:[],
   chartsCsv:store.get('kt.chartsCsv',''),danCsv:store.get('kt.danCsv',''),
   chartsCsvName:store.get('kt.chartsCsvName',''),danCsvName:store.get('kt.danCsvName',''),
   unlocks:store.get('kt.unlocks',{}),best:store.get('kt.best',{}),recent:store.get('kt.recent',[]),danBest:store.get('kt.danBest',{}),
   fav:store.get('kt.fav',{}),played:store.get('kt.played',{})};
 const UI=Object.assign({tab:'select',selSet:null,selChart:null,binding:null,touch:matchMedia('(pointer: coarse)').matches||matchMedia('(any-pointer: coarse)').matches,gesture:false,sort:'added',filt:'all'},store.get('kt.ui',{}));
-function isLocked(c){return c.course==='kasane'&&!S.unlockAll&&!Lib.unlocks[c.uid];}
+function isLocked(c){
+  return c.course==='kasane'&&!S.unlockAll&&!Lib.unlocks[c.uid]&&!Lib.danExcludedSets.has(c.set);
+}
 
 /* ================= CSV ================= */
 function parseCSV(text){
@@ -1579,7 +1581,7 @@ function resolveAll(){
     c.course=c.stats.chords>0?'kasane':c.defCourse||guessCourse(c);
     c.level=rateChart(c).level;
   }
-  Lib.csvWarn=[];buildDans();
+  buildDans();
   evaluateCharacters();
 }
 function finishDan(d){
@@ -1680,7 +1682,8 @@ function monthlyConditions(rank,songs){
 }
 function monthlyDans(charts,period){
   const random=mulberry32(Number(period.replace('-','')));
-  const pool=[...new Map(charts.filter(c=>!c.set.demo&&c.course!=='kasane'&&c.level!=null&&c.stats.notes>0).map(c=>[c.uid,c])).values()]
+  const eligible=charts.filter(c=>!c.set.demo&&!Lib.danExcludedSets.has(c.set)&&c.course!=='kasane'&&c.level!=null&&c.stats.notes>0);
+  const pool=[...new Map(eligible.map(c=>[c.uid,c])).values()]
     .sort((a,b)=>a.uid<b.uid?-1:a.uid>b.uid?1:0)
     .map(chart=>({chart,...chartProfile(chart),sealed:hasSealedNotes(chart),drumroll:rollMsOf(chart)>0,jitter:random()}));
 
@@ -1737,9 +1740,9 @@ function monthlyDans(charts,period){
       src:'monthly',period,name,rank,songs,refs:[],conds:monthlyConditions(rank,songs)});
   });
 }
-function autoDan(c){
+function autoDan(c,eligibleCharts){
   const L=c.level||5,[r1,r2]=AUTO_LV[clamp(L,1,10)];
-  const all=playableSets().flatMap(set=>set.charts).filter(x=>x!==c&&x.course!=='kasane');
+  const all=eligibleCharts.filter(x=>x.course!=='kasane');
   if(all.length<2)return finishDan({id:c.uid,src:'auto',songs:[null,null,c],refs:[],conds:[],note:'1・2曲目に使える通常譜面が足りません'});
   const oni=x=>x.course==='oni'||x.course==='ura';
   const h=s=>{let v=0;for(const ch of s)v=(v*31+ch.codePointAt(0))>>>0;return(v%1000)/1e5;};
@@ -1751,13 +1754,16 @@ function autoDan(c){
   const warn=off.length?`${off.map(([x,r,i])=>`${i}曲目は${lvRangeText(r)}のおに譜面が見つからないため「${x.set.title}」${COURSES[x.course].jp}${x.level!=null?levelText(x):'（★未設定）'}`).join('、')}で代用しています`:null;
   return finishDan({id:c.uid,src:'auto',songs:[s1,s2,c],refs:[s1,s2,c].map(x=>({file:x.set.file,version:x.meta.version})),conds:autoConds(L,[s1,s2,c]),warn});}
 function buildDans(){
-  const{dans:rows,warns}=Lib.danData?parseDanData(Lib.danData):parseDanCsv(Lib.danCsv);Lib.csvWarn.push(...warns);const out=[];
+  Lib.danExcludedSets=excludedDanSets();
+  const eligibleCharts=playableSets().filter(set=>!Lib.danExcludedSets.has(set)).flatMap(set=>set.charts);
+  const{dans:rows,warns}=Lib.danData?parseDanData(Lib.danData):parseDanCsv(Lib.danCsv);Lib.csvWarn=warns;const out=[];
   for(const r of rows){const songs=r.refs.map(x=>findChart(x.file,x.version));
+    if(songs.some(chart=>chart&&Lib.danExcludedSets.has(chart.set)))continue;
     r.refs.forEach((x,i)=>{if(!songs[i])Lib.csvWarn.push(`dan.csv ${r.line}行目: ${i+1}曲目「${x.file} / ${x.version}」が読み込まれていません`);});
     if(songs[2]&&songs[2].stats.chords===0)Lib.csvWarn.push(`dan.csv ${r.line}行目: 3曲目に同時押しがないため、特良の条件は常に満たされます`);
     out.push(finishDan({id:r.id,src:'csv',name:r.name,songs,refs:r.refs,conds:r.conds}));}
   const covered=new Set(out.map(d=>d.songs[2]).filter(Boolean));
-  for(const c of playableSets().flatMap(set=>set.charts))if(c.course==='kasane'&&!covered.has(c))out.push(autoDan(c));
+  for(const c of eligibleCharts)if(c.course==='kasane'&&!covered.has(c))out.push(autoDan(c,eligibleCharts));
   out.sort((a,b)=>(a.level??99)-(b.level??99));Lib.dans=out;refreshMonthlyDans();
 }
 function refreshMonthlyDans(){
@@ -2458,6 +2464,15 @@ function songInFolder(set,data,id){
   const assigned=data.assignments[set.key];
   return id===UNASSIGNED?!assigned?.length:!!assigned?.includes(id);
 }
+function excludedDanSets(){
+  const data=effectiveFolders();
+  const excludedIds=new Set(data.folders.filter(folder=>folder.name==='失格曲').map(folder=>folder.id));
+  // Set iteration also visits the child IDs added during the walk.
+  for(const id of excludedIds){
+    for(const folder of data.folders)if(folder.parent===id)excludedIds.add(folder.id);
+  }
+  return new Set(Lib.sets.filter(set=>data.assignments[set.key]?.some(id=>excludedIds.has(id))));
+}
 function preferredSongFolder(set,data){
   const assigned=data.assignments[set.key];
   return assigned?.includes(UI.folder)?UI.folder:assigned?.[0]??UNASSIGNED;
@@ -2543,12 +2558,17 @@ function folderToolbar(data){
     }},'共有用 folders.json'));
   }
   if(store.get('kt.folders',null))bar.append(el('button',{class:'btn small ghost',onclick:()=>{
-    if(confirm('このブラウザのフォルダ編集を消して、GitHubの設定に戻しますか？')){localStorage.removeItem('kt.folders');changeFolder('');}
+    if(confirm('このブラウザのフォルダ編集を消して、GitHubの設定に戻しますか？')&&saveFolders(null))changeFolder('');
   }},'共有設定に戻す'));
 }
 function saveFolders(data){
-  try{localStorage.setItem('kt.folders',JSON.stringify(data));return true;}
+  try{
+    if(data)localStorage.setItem('kt.folders',JSON.stringify(data));
+    else localStorage.removeItem('kt.folders');
+  }
   catch{toast('フォルダ設定を保存できませんでした','err');return false;}
+  buildDans();evaluateCharacters();renderTitleStat();
+  return true;
 }
 function visibleFolders(data){
   if(!data.folders.length||$('#filter').value.trim())return [];
