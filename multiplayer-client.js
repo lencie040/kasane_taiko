@@ -325,5 +325,5 @@ function createTaikoMultiplayer(game) {
     fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},keepalive:true,
       body:JSON.stringify({action:'leave',token,touch,match:match?.id})}).catch(()=>{});
   });
-  return {visit,cancel,hit,finish,render};
+  return {visit,cancel,hit,finish,render,opponentPlay:()=>match?.opponentPlay};
 }

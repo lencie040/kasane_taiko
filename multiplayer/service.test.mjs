@@ -104,3 +104,23 @@ test('peers agree on a draw when both reach the same score at the same time',()=
   assert.equal(rules.winner([first,other],false),null);
   assert.equal(rules.winner([first,{...other,reached:299}],false),1);
 });
+
+test('opponent progress shows note judgements, combo and a miss while scoring the same hits',()=>{
+  const state=rules.newScore();
+  const targets=[500,1000,1500,1800,2200].map(t=>({t,type:'single',color:'d'}));
+  const fixtureChart={...chart,length:2200,targets};
+  rules.scoreInput(state,fixtureChart,1,500,1,false);
+  rules.scoreInput(state,fixtureChart,1,1050,2,false);
+  const first=rules.playProgress(state);
+  assert.equal(first.combo,2);
+  assert.deepEqual(first.judged[1],{kind:'ok',time:1050});
+  assert.deepEqual(first.effect,{kind:'ok',time:1050});
+  rules.scoreInput(state,fixtureChart,0,1800,3,false);
+  assert.equal(rules.playProgress(state).combo,0);
+  assert.deepEqual(rules.playProgress(state).effect,{kind:'bad',time:1800});
+  rules.scoreInput(state,fixtureChart,1,2200,4,false);
+  assert.deepEqual(rules.playProgress(state).effect,{kind:'good',time:2200});
+  assert.equal(rules.playProgress(state).combo,1);
+  assert.equal(state.score,500000);
+  assert.deepEqual(first.judged[1],{kind:'ok',time:1050});
+});

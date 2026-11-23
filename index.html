@@ -1070,6 +1070,8 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 .match-hud b,.match-results b{font-family:var(--f-num);font-variant-numeric:tabular-nums}
 .match-results{display:flex;gap:12px;flex-wrap:wrap;margin:14px 0}
 @media(max-width:530px){.match-hud{left:8px;transform:none;gap:5px}.match-hud>div{min-width:0;padding:1px 6px;font-size:11px}.match-hud small{font-size:10px}}
+@media(max-width:530px) and (min-height:521px){.match-hud{top:calc(env(safe-area-inset-top,0px) + 42px)}}
+@media(max-height:520px){.match-hud>div{font-size:13px;line-height:1.12}.match-hud small{font-size:10px}}
 </style>
 
 <header class="top">
@@ -1325,11 +1327,11 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 <script src="content/fonts/murecho-glyphs.js"></script>
 <script src="beatmap.js"></script>
 <script src="difficulty.js?v=upper-steps"></script>
-<script src="multiplayer-rules.js?v=peer-lobby"></script>
+<script src="multiplayer-rules.js?v=opponent-lane"></script>
 <script src="vendor/peerjs.min.js"></script>
-<script src="multiplayer-peer.js"></script>
+<script src="multiplayer-peer.js?v=opponent-lane"></script>
 <script src="match-config.js"></script>
-<script src="multiplayer-client.js?v=peer-lobby"></script>
+<script src="multiplayer-client.js?v=opponent-lane"></script>
 <script src="weakness.js?v=context"></script>
 <script src="editor-tempo.js"></script>
 <script src="editor.js"></script>
@@ -4050,10 +4052,13 @@ function computeLayout(){const W=view.W,H=view.H;const gw=clamp(W*.4,130,440);
   // PCでは段位の条件を本家のように大きなバーで下に並べる
   view.bigDan=!!D&&W>=900&&H>=620;
   view.countH=H<430?34:44;
+  view.opponentH=G.match?(H<250?30:H<390?40:55):0;
+  view.opponentSpace=view.opponentH?view.opponentH+8:0;
   const N=G.lanes,hudH=84,gap=36,below=D?(view.bigDan?96+D.conds.length*46:160):66;
   const avail=Math.max(100,H-hudH-gap-below-10),preferred=clamp(Math.min(avail/N,N===1?104:88,W*.19),40,104);
-  const top=Math.min(hudH+gap+Math.max(0,(avail-preferred*N)*.4),Math.max(80,H*.25));
-  const laneH=Math.max(18,Math.min(preferred,(H-top-view.countH-24)/N)),fieldH=laneH*N;
+  const normalTop=Math.min(hudH+gap+Math.max(0,(avail-preferred*N)*.4),Math.max(80,H*.25));
+  const top=G.match?Math.min(normalTop,Math.max(46,H-view.countH-view.opponentSpace-84)):normalTop;
+  const laneH=Math.max(18,Math.min(preferred,(H-top-view.countH-view.opponentSpace-24)/N)),fieldH=laneH*N;
   const r=laneH*.33,judgeX=Math.max(clamp(W*.2,96,250),r*1.55+6+66);
   view.L={laneH,fieldH,top,r,judgeX,panelW:judgeX-r*1.55-6};
   if(!fallingPlay())view.gauge={x:Math.max(96,W-gw-40),y:top-25,w:Math.min(gw,W-125),h:14};}
@@ -4478,7 +4483,8 @@ function draw(now){const c=ctx,W=view.W,H=view.H,L=view.L,g=G;if(!L)return;const
   c.fillStyle='#d34d43';c.fillRect(0,top-4,W,4);c.fillRect(0,top+fh,W,4);c.fillStyle='#ffd475';c.fillRect(0,top-4,W,1);c.fillRect(0,top+fh+3,W,1);
   if(k>.01&&!REDUCED&&!LOWFX()){drawFlames(top-4,L.panelW,W,pn,k,beat);if(k>.5&&Math.random()<.4)fx.parts.push({x:jx+Math.random()*(W-jx),y:top+fh,vx:(Math.random()-.5)*.03,vy:-(.04+Math.random()*.07),grav:0,t:pn,life:1300,col:Math.random()<.5?'#ffb347':'#ff7a3c',sz:1.4+Math.random()*1.8,ember:true});}
   drawEffects(pn);if(g.chart.multiRow)drawPanelRows(pn);else drawPanel(pn);drawJudgePop(pn);drawRollCounter(now,pn);drawHud(now,pn);drawFlyers(pn);drawBanner(pn);
-  const countTop=top+fh+8,countEnd=drawPlayCounts(countTop,false);
+  if(g.match)drawOpponentLane(top+fh+7,now);
+  const countTop=top+fh+8+view.opponentSpace,countEnd=drawPlayCounts(countTop,false);
   const countBottom=countTop+view.countH;
   const mismatch=g.pop?.why==='mismatch'&&pn-g.pop.t<900;
   const practice=g.prac?.weakness?weaknessRoundLabel(g.prac.weakness):g.prac?`練習 ×${g.prac.rate} ${fmtTime(g.prac.from)}〜${fmtTime(g.prac.to)}${g.prac.loop?`（${g.prac.n||1}回目）`:''}`:'';
@@ -4498,6 +4504,62 @@ function draw(now){const c=ctx,W=view.W,H=view.H,L=view.L,g=G;if(!L)return;const
     c.strokeText(tt,cx+off,cy2+4);c.fillStyle='#f2ecdc';c.fillText(tt,cx+off,cy2+4);c.font=`700 13px ${FB}`;c.lineWidth=4;const sub=subTxt||`${C.jp} ${levelText(g.chart)}`+(N>1?` ・ 最大${N}レーン`:'');
     c.strokeText(sub,cx+off,cy2+28);c.fillStyle=C.color;c.fillText(sub,cx+off,cy2+28);c.restore();}}
   drawStamp(pn);}
+
+function drawOpponentLane(top,songMs){
+  const c=ctx,g=G,{W,opponentH:h,L}=view,progress=taikoOnline.opponentPlay();
+  if(!progress||!h)return;
+  // Let the opponent's input arrive before the corresponding note passes the frame.
+  const now=songMs-(g.match.direct?220:1400);
+  const mid=top+h/2,x0=L.judgeX,right=W-10,r=Math.min(9,h*.21);
+  const speed=S.speed*Math.max(1,right-x0);
+  const position=(t,scroll)=>x0+(t-now)*scroll*speed;
+  let start=progress.cursor,missedAt=-Infinity;
+  while(start<g.targets.length&&g.targets[start].t+g.win.bad<now){
+    if(!progress.judged[start])missedAt=g.targets[start].t+g.win.bad;
+    start++;
+  }
+  const combo=missedAt>-Infinity?0:progress.combo;
+  const effect=missedAt>(progress.effect?.time??-Infinity)?{kind:'bad',time:missedAt}:progress.effect;
+  const age=effect?now-effect.time:Infinity;
+  const feedback=age>=0&&age<340?(effect.kind==='roll'?['連打','#ffdb89']:POP[effect.kind]):null;
+
+  const labelX=17,labelRight=x0-r*2-6;
+  c.save();
+  rr(c,10,top,right-10,h,7);c.fillStyle='#262039';c.fill();c.clip();
+  c.fillStyle='#302748';c.fillRect(10,top,labelRight-4,h);
+  c.fillStyle='#786494';c.fillRect(10,top,right-10,1);
+  c.fillStyle='#140f21';c.fillRect(10,top+h-1,right-10,1);
+  c.fillStyle='#fff2e0';c.font=`800 ${h<=32?10:13}px ${FB}`;c.textBaseline='middle';
+  c.fillText('相手',labelX,top+h*.31);
+  c.fillStyle='#cbbddd';c.font=`700 ${h<=32?9:11}px ${FB}`;
+  c.fillText(`${combo} コンボ`,labelX,top+h*.75,Math.max(26,labelRight-labelX-2));
+  if(feedback){
+    c.textAlign='right';c.font=`900 ${h<=32?11:15}px ${FD}`;c.fillStyle=feedback[1];
+    c.fillText(feedback[0],labelRight,top+h*.32,Math.max(18,labelRight-labelX-29));
+  }
+  c.beginPath();c.rect(labelRight+3,top,right-labelRight-3,h);c.clip();
+  c.beginPath();c.arc(x0,mid,r*1.37,0,TAU);
+  c.fillStyle=feedback?'#564367':'#171222';c.fill();
+  c.lineWidth=feedback?2.5:1.5;c.strokeStyle=feedback?.[1]||'#decae9';c.stroke();
+
+  for(const [i,roll] of g.rolls.entries()){
+    if(now>roll.end)continue;
+    const from=position(roll.t,roll.speed),to=position(roll.end,roll.speed);
+    if(from>right+r||to<labelRight)continue;
+    if(roll.type==='roll')drawRoll(c,Math.max(x0,from),to,mid,roll.big?r*1.14:r*.85);
+    else if((progress.rolls[i]||0)<roll.hits)drawNote(c,Math.max(x0,from),mid,r,'b');
+  }
+  const end=visibleTargetEnd(g,start,now,(right-x0+r*2)/speed);
+  for(let i=end-1;i>=start;i--){
+    const target=g.targets[i],judged=progress.judged[i];
+    const reached=judged&&now>=(judged.time??target.t);
+    if(reached&&judged.kind!=='bad')continue;
+    const x=position(target.t,target.speed);
+    if(x<labelRight-r||x>right+r)continue;
+    drawNote(c,x,mid,target.big?r*1.28:r,target.color,reached?.38:1);
+  }
+  c.restore();
+}
 
 function drawPlayCounts(y,center){
   const c=ctx,{W,countH}=view,st=G.st;

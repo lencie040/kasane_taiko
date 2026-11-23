@@ -115,7 +115,8 @@ export class MatchService {
     const player = match.players[seat];
     return {id:match.id,seat,mode:match.mode,device:match.device,chart:chartInfo(match.chart),start:match.start,
       ready:match.players.map(p=>p.ready),scores:match.players.map(p=>p.state.score),batch:player.batch,
-      opponent:match.players[1-seat].profile.league,signal:match.players[1-seat].signal,result:match.result};
+      opponent:match.players[1-seat].profile.league,signal:match.players[1-seat].signal,result:match.result,
+      opponentPlay:rules.playProgress(match.players[1-seat].state)};
   }
 
   inputs(match,player,body,now) {

@@ -258,7 +258,8 @@ function createTaikoPeerLobby({device,options={},namespace='kasane-taiko-pvp-v1'
     const {id,seat,mode,chart,start,ready,result,players}=s.room;
     const {uid,title,path,hash,course,level,length,firstT}=chart;
     return {id,seat,mode,device,direct:true,start,ready,result,chart:{uid,title,path,hash,course,level,length,firstT},
-      scores:players.map(p=>p.score.score),batch:players[seat].batch,opponent:s.link?.other?.league};
+      scores:players.map(p=>p.score.score),batch:players[seat].batch,opponent:s.link?.other?.league,
+      opponentPlay:rules.playProgress(players[1-seat].score)};
   }
 
   async function request(body) {

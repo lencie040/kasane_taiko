@@ -88,7 +88,7 @@ const TaikoMatchRules = (() => {
   }
 
   function newScore() {
-    return {score:0,reached:null,sequence:null,cursor:0,judged:{},rolls:{},absorb:null,last:null,keys:[null,null,null,null]};
+    return {score:0,reached:null,sequence:null,cursor:0,judged:{},rolls:{},combo:0,effect:null,absorb:null,last:null,keys:[null,null,null,null]};
   }
 
   function scoreInput(state,chart,role,time,sequence,mobile) {
@@ -98,7 +98,13 @@ const TaikoMatchRules = (() => {
     // The same mobile targeting heuristic as solo play, with independent state per player.
     const source = chart.targets;
     while (state.cursor<source.length && time-source[state.cursor].t>win.bad) {
-      delete state.judged[state.cursor++];
+      const index=state.cursor++;
+      if (!state.judged[index]) {
+        state.combo=0;
+        const missedAt=source[index].t+win.bad;
+        if (!state.effect||missedAt>=state.effect.time) state.effect={kind:'bad',time:missedAt};
+      }
+      delete state.judged[index];
     }
     for (let i=state.cursor;i<source.length && source[i].t-time<=win.bad;i++) {
       targets.push({...source[i],index:i,judged:!!state.judged[i]});
@@ -121,20 +127,26 @@ const TaikoMatchRules = (() => {
     if (!target || (rollIndex!==-1 && Math.abs(time-target.t)>win.ok)) {
       if (rollIndex===-1) return;
       const roll = chart.rolls[rollIndex];
-      if (!roll.hits) award(roll.big?200:100);
-      else if (color==='d') {
+      if (!roll.hits) {
+        award(roll.big?200:100);
+        state.effect={kind:'roll',time};
+      } else if (color==='d') {
         const count = (state.rolls[rollIndex]||0)+1;
         state.rolls[rollIndex] = count;
         award(count===roll.hits?5300:300);
+        state.effect={kind:'roll',time};
       }
       return;
     }
-    state.judged[target.index] = true;
-    if (target.noise===(role<2?'left':'right')) return;
     const distance = Math.abs(time-target.t);
-    if (target.color!==color || distance>win.ok) return;
+    const blocked=target.noise===(role<2?'left':'right');
+    const kind=blocked||target.color!==color||distance>win.ok?'bad':distance<=win.good?'good':'ok';
+    state.effect={kind,time};
+    state.judged[target.index]=state.effect;
+    state.combo=kind==='bad'?0:(state.combo||0)+1;
+    if (kind==='bad') return;
     const base = Math.ceil(1000000/Math.max(1,source.length)/10)*10;
-    const points = distance<=win.good?base:Math.floor(base/20)*10;
+    const points = kind==='good'?base:Math.floor(base/20)*10;
     award(points);
     if (target.big&&!target.noise) state.absorb = {color,role,time,noteTime:target.t,points};
   }
@@ -158,8 +170,12 @@ const TaikoMatchRules = (() => {
     return arrivalOrder?(scores[0].sequence<scores[1].sequence?0:1):null;
   }
 
+  function playProgress(state) {
+    return {cursor:state.cursor??0,judged:{...state.judged},rolls:{...state.rolls},combo:state.combo??0,effect:state.effect??null};
+  }
+
   return {WIN_SOFT,WIN_HARD,COLORS,LEAGUES,GOALS,freshProfile,canMatch,chartChoices,chooseChart,advanceProfile,
-    nearestTarget,newScore,scoreInput,acceptInput,winner};
+    nearestTarget,newScore,scoreInput,acceptInput,winner,playProgress};
 })();
 
 if (typeof module === 'object') module.exports = TaikoMatchRules;
