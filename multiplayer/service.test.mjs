@@ -96,3 +96,11 @@ test('standard note, big note, roll, balloon and sealed-note scoring',()=>{
   assert.equal(state.score,1005800);
   assert.equal(state.reached,1030);
 });
+
+test('peers agree on a draw when both reach the same score at the same time',()=>{
+  const first={score:100,reached:300,sequence:1};
+  const other={score:100,reached:300,sequence:2};
+  assert.equal(rules.winner([first,other]),0);
+  assert.equal(rules.winner([first,other],false),null);
+  assert.equal(rules.winner([first,{...other,reached:299}],false),1);
+});

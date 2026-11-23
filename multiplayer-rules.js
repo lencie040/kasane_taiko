@@ -24,7 +24,7 @@ const TaikoMatchRules = (() => {
     return [center-1.2,center+1.0];
   }
 
-  function chooseChart(charts,mode,players,random=Math.random) {
+  function chartChoices(charts,mode,players) {
     const [first,second] = players.map(band);
     const min = mode==='casual'?1:Math.max(first[0],second[0]);
     const max = mode==='casual'?7.9:Math.min(first[1],second[1]);
@@ -34,6 +34,11 @@ const TaikoMatchRules = (() => {
       const nearest = Math.min(...charts.map(distance));
       choices = charts.filter(chart=>distance(chart)<=nearest+1e-9);
     }
+    return choices;
+  }
+
+  function chooseChart(charts,mode,players,random=Math.random) {
+    const choices = chartChoices(charts,mode,players);
     return choices[Math.floor(random()*choices.length)] ?? null;
   }
 
@@ -134,14 +139,27 @@ const TaikoMatchRules = (() => {
     if (target.big&&!target.noise) state.absorb = {color,role,time,noteTime:target.t,points};
   }
 
-  function winner(scores) {
+  function acceptInput(state,chart,hit,sequence,mobile,minTime,maxTime) {
+    if (!Array.isArray(hit)||hit.length!==2) return false;
+    const [role,time]=hit;
+    if (!Number.isInteger(role)||role<0||role>=COLORS.length||!Number.isInteger(time)||
+        time<Math.max(minTime,Math.min(-1500,chart.firstT-160))||time>Math.min(chart.length+200,maxTime)||
+        (state.last!==null&&time<state.last)||(state.keys[role]!==null&&time-state.keys[role]<12)) return false;
+    state.last=time;
+    state.keys[role]=time;
+    scoreInput(state,chart,role,time,sequence,mobile);
+    return true;
+  }
+
+  function winner(scores,arrivalOrder=true) {
     if (scores[0].score!==scores[1].score) return scores[0].score>scores[1].score?0:1;
     if (!scores[0].score) return null;
     if (scores[0].reached!==scores[1].reached) return scores[0].reached<scores[1].reached?0:1;
-    return scores[0].sequence<scores[1].sequence?0:1;
+    return arrivalOrder?(scores[0].sequence<scores[1].sequence?0:1):null;
   }
 
-  return {WIN_SOFT,WIN_HARD,COLORS,LEAGUES,GOALS,freshProfile,canMatch,chooseChart,advanceProfile,nearestTarget,newScore,scoreInput,winner};
+  return {WIN_SOFT,WIN_HARD,COLORS,LEAGUES,GOALS,freshProfile,canMatch,chartChoices,chooseChart,advanceProfile,
+    nearestTarget,newScore,scoreInput,acceptInput,winner};
 })();
 
 if (typeof module === 'object') module.exports = TaikoMatchRules;

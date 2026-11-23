@@ -122,15 +122,9 @@ export class MatchService {
     if (!match.start || player.done || body.batch!==player.batch+1 || !Array.isArray(body.hits) || body.hits.length>96) return;
     const elapsed = now-match.start;
     for (const hit of body.hits) {
-      if (!Array.isArray(hit) || hit.length!==2) continue;
-      const [role,time] = hit;
-      if (!Number.isInteger(role)||role<0||role>3||!Number.isInteger(time)||time<Math.min(-1500,match.chart.firstT-160)||
-          time>Math.min(match.chart.length+200,elapsed+250)||time<elapsed-HIT_WINDOW||
-          (player.state.last!==null&&time<player.state.last)||
-          (player.state.keys[role]!==null&&time-player.state.keys[role]<12)) continue;
-      player.state.last=time;
-      player.state.keys[role]=time;
-      rules.scoreInput(player.state,match.chart,role,time,++match.order,match.device==='mobile');
+      if (rules.acceptInput(player.state,match.chart,hit,match.order+1,match.device==='mobile',elapsed-HIT_WINDOW,elapsed+250)) {
+        match.order++;
+      }
     }
     player.batch=body.batch;
   }

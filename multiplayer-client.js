@@ -4,16 +4,20 @@ function createTaikoMultiplayer(game) {
   const $ = id => document.getElementById(id);
   const {LEAGUES,GOALS} = TaikoMatchRules;
   const endpoint = globalThis.crypto?.randomUUID && (globalThis.KASANE_MATCH_ENDPOINT || (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) ? '/multiplayer' : ''));
+  const touch = navigator.userAgentData?.mobile===true || navigator.maxTouchPoints>1;
+  const mobile = /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent)&&touch);
+  const peerLobby = globalThis.crypto?.randomUUID && (!endpoint||globalThis.KASANE_PEER_OPTIONS) && typeof Peer==='function'
+    ?createTaikoPeerLobby({device:mobile?'mobile':'pc',options:globalThis.KASANE_PEER_OPTIONS,namespace:globalThis.KASANE_PEER_NAMESPACE})
+    :null;
+  const available=!!(peerLobby||endpoint);
   const tokenKey = 'kt.multiplayer.token';
   let token;
-  if (endpoint) {
+  if (endpoint&&!peerLobby) {
     try {
       token = localStorage.getItem(tokenKey) || crypto.randomUUID();
       localStorage.setItem(tokenKey,token);
     } catch { token=crypto.randomUUID(); }
   }
-  const touch = navigator.userAgentData?.mobile===true || navigator.maxTouchPoints>1;
-  const mobile = /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent)&&touch);
   let clockOffset=0, bestRtt=Infinity;
   let mode=null, match=null, audio=null, profile=null, result=null, peer=null, channel=null;
   let signal=null, remoteSignal=false, peerScore=null, lastPeerSend=0;
@@ -24,11 +28,11 @@ function createTaikoMultiplayer(game) {
   function text(value) { $('multiStatus').textContent=value; }
 
   function render() {
-    $('multiDevice').textContent=mobile?'スマホ・タブレット':'PC';
+    $('multiDevice').textContent=(mobile?'スマホ・タブレット':'PC')+(peerLobby?' ・ P2P':'');
     $('multiRank').textContent=profile?LEAGUES[profile.league]:'ビギナーリーグ';
     const master=profile?.league===4;
     $('multiProgress').textContent=master?`レート ${profile.rating}`:`昇格ポイント ${profile?.points||0} / ${GOALS[profile?.league||0]}`;
-    $('multiCasual').disabled=$('multiRanked').disabled=occupied || !endpoint;
+    $('multiCasual').disabled=$('multiRanked').disabled=occupied || !available;
     $('multiCancel').hidden=!occupied;
     $('multiCancel').disabled=canceling;
     $('matchHud').hidden=!match?.start || result!==null;
@@ -39,6 +43,12 @@ function createTaikoMultiplayer(game) {
   }
 
   async function request(action,fields={}) {
+    if(peerLobby){
+      const data=await peerLobby.request({action,...fields});
+      clockOffset=data.now-performance.now();
+      profile=data.profile;
+      return data;
+    }
     const time=performance.now();
     const abort=new AbortController();
     controller=abort;
@@ -189,12 +199,12 @@ function createTaikoMultiplayer(game) {
     if (data.status==='waiting') {
       text(`${mode==='ranked'?'ランク':'カジュアル'}マッチで相手を探しています…`);
       render();
-      schedule(1100);
+      schedule(peerLobby?650:1100);
       return;
     }
     if (data.status!=='match') {
       reset();
-      text('対戦相手を探せます。');
+      text(data.message||'対戦相手を探せます。');
       render();
       return;
     }
@@ -202,11 +212,11 @@ function createTaikoMultiplayer(game) {
     const room=data.match;
     const first=match?.id!==room.id;
     match=room;
-    void readSignal(room);
+    if(!room.direct)void readSignal(room);
     if (first) {
       sequence=room.batch;
       text(`「${room.chart.title}」を読み込んでいます…`);
-      void prepareDirect(room);
+      if(!room.direct)void prepareDirect(room);
       void prepareAudio(room,stamp);
     }
     if (room.start && audio && !starting && !canceling) {
@@ -215,7 +225,7 @@ function createTaikoMultiplayer(game) {
       text(`対戦中　${room.chart.title}`);
     } else if (!room.start && audio) text('相手の準備を待っています…');
     render();
-    schedule(audio||starting?600:1300);
+    schedule(room.direct&&starting?90:audio||starting?600:1300);
   }
 
   async function prepareAudio(room,stamp) {
@@ -232,14 +242,14 @@ function createTaikoMultiplayer(game) {
   }
 
   async function join(selected) {
-    if (!endpoint||occupied) return;
+    if (!available||occupied) return;
     reset();
     game.audio();
     stopRead();
     const stamp=++generation;
     occupied=true;mode=selected;
     bestRtt=Infinity;
-    text('対戦サーバーに接続しています…');
+    text(peerLobby?'対戦の待機所に接続しています…':'対戦サーバーに接続しています…');
     render();
     try {
       const data=await request('join',{mode});
@@ -273,7 +283,7 @@ function createTaikoMultiplayer(game) {
   function stopRead() { controller?.abort(); }
 
   async function visit() {
-    if (!endpoint||occupied||controller) return;
+    if (!available||occupied||controller) return;
     const stamp=generation;
     try {
       const data=await request('status');
@@ -306,11 +316,12 @@ function createTaikoMultiplayer(game) {
   $('multiCasual').onclick=()=>join('casual');
   $('multiRanked').onclick=()=>join('ranked');
   $('multiCancel').onclick=cancel;
-  if(!endpoint) text('オンライン対戦サーバーはまだ接続されていません。');
+  if(!available) text('このブラウザではオンライン対戦を利用できません。');
   render();
   window.addEventListener('pagehide',()=>{
     closePeer();
-    if(!occupied||!endpoint)return;
+    if(!occupied||!available)return;
+    if(peerLobby){void peerLobby.request({action:'leave',match:match?.id});return;}
     fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},keepalive:true,
       body:JSON.stringify({action:'leave',token,touch,match:match?.id})}).catch(()=>{});
   });

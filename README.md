@@ -44,9 +44,11 @@ Python 3.9 以降と Node.js 24 以降で `python3 scripts/build.py` を実行�
 
 PC とスマホ・タブレットは別々にマッチングされます。ステージではハイスピードを使えます。キャラクター能力、オート、譜面の反転・ランダム・非表示、個人設定のオフセットや封印ノーツは適用されません。公開譜面に含まれる封印ノーツは両者に共通です。
 
-対戦サーバーは両者の入力からスコアを計算し、同点なら曲開始からスコアに到達するまでの時間で判定します。ライブスコアは WebRTC の直接接続が成立した場合に端末間で送り、成立しない場合はサーバーのスコア表示を使います。
+公開版の既定は [cclass-vspace](https://github.com/Yumenyan/cclass-vspace/blob/main/src/member.js) と同じ PeerJS の公開仲介と番号付きの待機枠です。対戦種別と端末タイプごとに16枠あり、接続時にリーグ・レートを照合します。「相手を探す」で接続と選曲まで進みます。
 
-公開時は `npx wrangler deploy` で Worker をデプロイし、GitHub Actions の Repository variable `MATCH_ENDPOINT` に Worker の `https://…/multiplayer` を設定します。`Publish game` ワークフローを再実行すると公開ページが接続先を読み込みます。ローカル検証では、別のブラウザプロファイルを使うと2人分の対戦プロフィールを用意できます。
+対戦中は両者の打鍵を WebRTC で送り合い、それぞれのブラウザでスコアと同点時の到達順を計算します。まったく同じ時刻に同点に到達した場合は引き分けです。PeerJS の公開仲介を使う対戦では各ブラウザがランクを保存し、対戦相手のリーグとレートは相手ブラウザの申告値です。別のブラウザプロファイルで2人分の対戦を試せます。
+
+共通サーバーでスコアとランクを管理する構成も使えます。その場合は `npx wrangler deploy` で Worker をデプロイし、GitHub Actions の Repository variable `MATCH_ENDPOINT` に Worker の `https://…/multiplayer` を設定して `Publish game` ワークフローを再実行します。
 
 ## 曲フォルダを共有する
 
