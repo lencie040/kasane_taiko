@@ -1072,6 +1072,18 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 @media(max-width:530px){.match-hud{left:8px;transform:none;gap:5px}.match-hud>div{min-width:0;padding:1px 6px;font-size:11px}.match-hud small{font-size:10px}}
 @media(max-width:530px) and (min-height:521px){.match-hud{top:calc(env(safe-area-inset-top,0px) + 42px)}}
 @media(max-height:520px){.match-hud>div{font-size:13px;line-height:1.12}.match-hud small{font-size:10px}}
+.streak-mode,.streak-pick{display:grid;gap:9px;align-content:start}
+.streak-run{display:grid;gap:14px}
+.streak-heading{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px 16px}
+.streak-heading h3,.streak-pick h3{margin:0}
+.streak-track{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:4px;list-style:none;margin:0;padding:0}
+.streak-track li{padding:7px 1px;text-align:center;background:#ffebc2;border:1px solid #ba886c;border-radius:6px;color:#603446;font-weight:800;font-size:clamp(10px,2.8vw,15px);white-space:nowrap}
+.streak-track .cleared{background:#17684d;color:#fff8d9;border-color:#104433}
+.streak-track [aria-current]{background:#9b2344;color:#fff;border-color:#6b1934}
+.streak-picks{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:10px}
+.streak-pick h3{overflow-wrap:anywhere}
+.streak-pick small{color:var(--mute)}
+.streak-pick .btn{margin-top:4px;min-height:44px}
 </style>
 
 <header class="top">
@@ -1080,6 +1092,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
     <nav class="tabs" aria-label="画面">
       <button class="tab is-on" data-tab="select" id="tabbtn-select">曲選択</button>
       <button class="tab" data-tab="dan" id="tabbtn-dan">段位道場</button>
+      <button class="tab" data-tab="streak" id="tabbtn-streak">鬼レンチャン</button>
       <button class="tab" data-tab="multi" id="tabbtn-multi">オンライン対戦</button>
       <button class="tab" data-tab="medley" id="tabbtn-medley">作業用BGM</button>
       <button class="tab" data-tab="records" id="tabbtn-records">記録</button>
@@ -1141,6 +1154,11 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
       <p class="lead">1曲目と2曲目は通常の譜面、3曲目に重譜面が来ます。合格すると、その重譜面が通常プレイでも遊べます。</p>
       <p>縦に重なった音符はドン・カツの数を合わせて同時に叩きます。全キーが ±18ms 以内に揃うと特良になります。</p>
     </details>
+  </section>
+
+  <section class="pane" id="tab-streak" hidden>
+    <h2 class="h-sec">鬼レンチャン</h2>
+    <div id="streakUi"></div>
   </section>
 
   <section class="pane" id="tab-multi" hidden>
@@ -1332,6 +1350,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 <script src="multiplayer-peer.js?v=opponent-lane"></script>
 <script src="match-config.js"></script>
 <script src="multiplayer-client.js?v=opponent-lane"></script>
+<script src="oni-streak.js"></script>
 <script src="weakness.js?v=context"></script>
 <script src="editor-tempo.js"></script>
 <script src="editor.js"></script>
@@ -2300,8 +2319,8 @@ window.addEventListener('resize',()=>{if(UI.tab==='medley'&&!document.hidden)dra
 
 /* ================= 画面: 共通 ================= */
 function setTab(t){if(t==='editor'&&S.noiseEdit!==true)t='settings';if(UI.tab==='multi'&&t!=='multi')taikoOnline.cancel();if(t!=='select'){UI.chooseCourse=false;resetRimSequence();stopPreview();}if(t!=='medley')stopMedley();if(t!=='editor')chartEditor.pause();UI.tab=t;for(const b of document.querySelectorAll('.tab'))b.classList.toggle('is-on',b.dataset.tab===t);
-  for(const id of['select','dan','multi','medley','records','load','settings','editor'])$('#tab-'+id).hidden=id!==t;refreshAll();if(t==='multi')taikoOnline.visit();}
-function refreshAll(){renderSongList();renderDetail();renderDans();renderMedley();renderRecords();renderLoad();renderSettings();renderPotential();renderCharPicker();if(UI.tab==='editor')chartEditor.open();}
+  for(const id of['select','dan','streak','multi','medley','records','load','settings','editor'])$('#tab-'+id).hidden=id!==t;refreshAll();if(t==='multi')taikoOnline.visit();}
+function refreshAll(){renderSongList();renderDetail();renderDans();renderStreak();renderMedley();renderRecords();renderLoad();renderSettings();renderPotential();renderCharPicker();if(UI.tab==='editor')chartEditor.open();}
 // ポテンシャル（Arcaea 風）。譜面の定数は ★ の値、スコアは 1,000,000 満点を Arcaea の 10,000,000 換算にして評価する
 // 全良（全特良を含む）のときは、本家と違ってポテンシャルにボーナスを加える
 const ZEN_CROWNS=['zenryo','zentoku'],ZEN_BONUS=.5;
@@ -3271,6 +3290,93 @@ function dojoCard(d,period){
       d.warn?el('p',{class:'notice'},d.warn):null));
 }
 
+/* ================= 鬼レンチャン ================= */
+const STREAK_NAMES={normal:'通常モード',hard:'ハードモード'};
+let streak=null,streakClears=store.get('kt.streakClears',{})||{};
+
+function queueStreakStage(run){
+  const stars=run.stages.slice(run.cleared.length);
+  run.picks=OniStreak.pickCharts(run.groups,stars,run.used);
+  run.phase='pick';
+}
+function startStreak(mode){
+  if((mode==='hard'&&streakClears.normal!==true)||waitForLibrary())return;
+  const run={mode,stages:OniStreak.STAGES[mode],groups:OniStreak.groupCharts(Lib.charts),used:new Set(),cleared:[]};
+  queueStreakStage(run);
+  if(!run.picks.length){toast('必要な難易度の曲がそろっていません。','err');return;}
+  streak=run;
+  renderStreak();
+  $('#streakUi .streak-pick button')?.focus();
+}
+function startStreakSong(chart){
+  if(streak?.phase!=='pick'||!streak.picks.includes(chart)||waitForLibrary())return;
+  streak.phase='playing';
+  UI.gesture=true;
+  ensureAudio();D=null;
+  runSong(chart,null,streak);
+}
+function leaveStreak(){
+  streak=null;
+  if($('#stage').hidden)renderStreak();else closeStage();
+}
+function renderStreak(){
+  if($('#tab-streak').hidden)return;
+  const box=$('#streakUi'),run=streak;
+  if(!run){
+    const loading=libraryBooting||repositoryLoading||libraryImports;
+    box.replaceChildren(el('div',{class:'cards2'},Object.entries(STREAK_NAMES).map(([mode,name])=>{
+      const locked=mode==='hard'&&streakClears.normal!==true;
+      return el('article',{class:'card streak-mode'},el('h3',null,name),
+        el('p',null,mode==='normal'?'★1から★10まで、各難易度から1曲ずつ。':'★5から★9まで1曲ずつ。そのあと★10を5曲。'),
+        locked?el('p',{class:'lead'},'通常モードをクリアすると解禁'):streakClears[mode]===true?el('p',null,'クリア済み'):null,
+        el('button',{id:'streak-'+mode,class:'btn '+(mode==='normal'?'primary':'gold'),type:'button',disabled:!!(locked||loading),
+          onclick:()=>startStreak(mode)},'挑戦する'));
+    })),el('p',{class:'lead'},'各ステージで候補から1曲を選びます。魂ゲージのクリアに届かないと脱落です。'));
+    return;
+  }
+  if(run.phase!=='pick')return;
+  const index=run.cleared.length,star=run.stages[index];
+  const track=el('ol',{class:'streak-track','aria-label':'ステージ進行'},run.stages.map((value,i)=>
+    el('li',{class:i<index?'cleared':'','aria-current':i===index?'step':null},'★'+value)));
+  const picks=el('div',{class:'streak-picks'},run.picks.map(chart=>
+    el('article',{class:'card streak-pick'},el('h3',null,chart.set.title),
+      el('div',{class:'row'},chipFor(chart),el('small',null,chart.meta.version)),
+      el('button',{class:'btn primary',type:'button','aria-label':chart.set.title+' '+chart.meta.version+' に挑戦',
+        onclick:()=>startStreakSong(chart)},'この譜面に挑戦'))));
+  box.replaceChildren(el('div',{class:'streak-run'},
+    el('div',{class:'streak-heading'},el('h3',null,STREAK_NAMES[run.mode]+' ・ '+(index+1)+' / '+run.stages.length),
+      el('button',{class:'btn small',type:'button',onclick:leaveStreak},'挑戦を終了')),
+    track,el('p',{class:'lead'},'★'+star+'の候補から1曲選んでください。'),picks));
+}
+function finishStreakSong(game){
+  const run=game.streak,{chart,st}=game,required=CLEAR[chart.course];
+  const passed=OniStreak.cleared(st,required);
+  const star=run.stages[run.cleared.length];
+  if(passed){run.cleared.push(chart.uid);run.used.add(chart.set.key);}
+  const total=run.stages.length,complete=passed&&run.cleared.length===total;
+  const unlock=complete&&run.mode==='normal'&&streakClears.normal!==true;
+  if(complete){
+    streakClears={...streakClears,[run.mode]:true};
+    store.set('kt.streakClears',streakClears);
+  }
+  run.phase=complete?'complete':passed?'next':'lost';
+  cancelAnimationFrame(rafId);rafId=0;
+  setResultChar(null);
+  const card=$('#resultCard');
+  card.className='ov-card';
+  card.replaceChildren(el('h2',null,complete?'鬼レンチャン達成':passed?'★'+star+' クリア':'脱落'),
+    el('p',null,STREAK_NAMES[run.mode]+' ・ '+run.cleared.length+' / '+total+'曲クリア'),
+    el('p',null,chart.set.title,' ・ ',levelText(chart)),
+    el('p',null,'魂ゲージ '+(st.gauge/100).toFixed(1)+'% ／ クリア '+required/100+'%'),
+    unlock?el('p',{class:'notice'},'ハードモード解禁！'):null,
+    el('div',{class:'ov-btns'},
+      passed&&!complete?el('button',{class:'btn primary',type:'button',onclick:()=>{queueStreakStage(run);closeStage();$('#streakUi .streak-pick button')?.focus();}},'次の曲を選ぶ'):null,
+      el('button',{class:'btn'+(passed&&!complete?'':' primary'),type:'button','data-result-back':true,onclick:leaveStreak},
+        passed&&!complete?'挑戦を終了':'鬼レンチャンへ戻る')));
+  $('#result').hidden=false;
+  UI.resultAt=performance.now();
+}
+
 const dojoSelection={monthly:null,kasane:null};
 function renderDans(focus=false){
   const box=$('#danlist');
@@ -3408,8 +3514,8 @@ function charEffects(ch,lv,soft){
     case'good_tight':fx.good=soft?clerp(42,25,t):clerp(25,20,t);break;
     case'seal':fx.seal=clerp(0,.2,t);break;}
   return fx;}
-function abFor(chart,prac){
-  const c=selectedChar();if(!c||D||prac||S.auto||chart.multiRow)return null;
+function abFor(chart,prac,auto=S.auto){
+  const c=selectedChar();if(!c||D||prac||auto||chart.multiRow)return null;
   const soft=chart.course==='easy'||chart.course==='normal',lv=(CHARS_SAVE.prog[c.id]||{lv:1}).lv;
   return{def:c,lv,fx:charEffects(c,lv,soft),clear:CLEAR[chart.course]};}
 // 封印ノーツ（能力）：通常のノーツを確率 p で左右どちらかの封印にする
@@ -3508,10 +3614,10 @@ function renderCharPicker(){
 /* ================= 演奏 ================= */
 let G=null,D=null,onlineRun=null,rafId=0;const cv=$('#cv'),ctx=cv.getContext('2d');const view={W:0,H:0,dpr:1,L:null};
 function newStats(notes,chordNotes,course){return{notes,chordNotes,gu:10000/Math.max(1,notes*.75),badMul:BADMUL[course]||2,tokuryo:0,good:0,ok:0,bad:0,roll:0,rollDrum:0,combo:0,maxCombo:0,score:0,gauge:0,judged:0,chordJudged:0,offSum:0,offN:0,offs:[],chordHit:0,chordMiss:0,mismatch:0};}
-function newRun(chart,prac,match=null){
+function newRun(chart,prac,match=null,streakRun=null){
   const training=prac?.weakness?.round, replay=training?.targets;
   if(!match&&!chart.multiRow&&!replay)loadNoise(chart);
-  const ab=match?null:abFor(chart,prac);
+  const ab=match?null:abFor(chart,prac,!streakRun&&S.auto);
   const source=replay||chart.targets;
   const includePickup=prac?.from<=0&&(!training||replay);
   const tsrc=prac?source.filter(t=>(includePickup||t.t>=prac.from)&&t.t<=prac.to):source;
@@ -3523,12 +3629,12 @@ function newRun(chart,prac,match=null){
     const side=chart.archiveNoise?.[noiseId(target,i)]?.[0];
     target.noise=side==='left'||side==='right'?side:null;
   }
-  return{chart,match,prac:prac||null,win:training?.win||(ab?{...baseWin,good:ab.fx.good}:baseWin),
+  return{chart,match,streak:streakRun,prac:prac||null,win:training?.win||(ab?{...baseWin,good:ab.fx.good}:baseWin),
     targets:training||match?targets:applySeal(applyOpts(targets),ab?ab.fx.seal:0),hidden:!match&&!training&&!D&&!!S.opt.hidden,
     rolls:rsrc.map(r=>({...r,count:0,done:false})),cursor:0,st:Object.assign(newStats(nN,nC,chart.course),{ab}),
     base:Math.ceil(1000000/Math.max(1,chart.stats.notes)/10)*10,openChord:null,absorb:null,pop:null,flash:{},lanes:chart.stats.maxLanes,
     fx:{parts:[],rings:[],flyers:[],scorePops:[],banner:null,stamp:null,rollPop:0},disp:0,prevScore:0,kiaiAmt:0,lastCombo:0,comboAt:0,gaugeFlash:0,
-    endAt:prac?prac.to+1200:chart.length+1800,now:-3000,paused:false,finished:false,failed:false,auto:!match&&!training&&S.auto,autoSide:0,synced:false};}
+    endAt:prac?prac.to+1200:chart.length+1800,now:-3000,paused:false,finished:false,failed:false,auto:!match&&!streakRun&&!training&&S.auto,autoSide:0,synced:false};}
 /* 演奏オプション（段位道場では使わない）。同時押しは列ごと入れ替えるので「ドン2・カッ2まで」は崩れない */
 function applyOpts(targets){if(D)return targets;const o=S.opt,p=o.rand===2?.5:o.rand===1?.25:0;if(!o.mirror&&!p)return targets;
   const flip=c=>c==='d'?'k':'d';
@@ -3559,7 +3665,8 @@ function judge(tg,kind,off,why){
   if(chord)for(const st of D?[G.st,D.st]:[G.st]){if(kind==='bad')st.chordMiss++;else st.chordHit++;if(why==='mismatch')st.mismatch++;}
   if(kind!=='bad'&&off!=null){G.st.offSum+=off;G.st.offN++;G.st.offs.push(off);}
   fxJudge(tg,kind,why);
-  if(D)checkDanFail();}
+  if(D)checkDanFail();
+  if(G.streak&&!OniStreak.canClear(G.st,CLEAR[G.chart.course]))finishSong();}
 function rollHit(r,color,t=G.now){
   if(r.type==='balloon'){if(color!=='d')return;r.count++;addRoll(300);fxRoll(r);if(r.count>=r.hits){r.done=true;r.popped=true;addRoll(5000,true);playSE('pop');fxRoll(r,true);}}
   else{if(r.first==null)r.first=t;r.count++;r.last=t;addRoll(Math.floor((r.big?200:100)*(G.st.ab?G.st.ab.fx.roll:1)),false,true);fxRoll(r);}}
@@ -3583,6 +3690,7 @@ function press(role,t,auto){
   G.flash[role]=performance.now();playSE(color==='d'?'don':'ka');
   if(G.openChord&&t>G.openChord.gatherEnd)finalizeChord(G.openChord);
   if(!auto)expireTargets(t);
+  if(G.finished)return;
   const stream=mobileTiming()&&!auto;
   const gathering=G.openChord;
   let tg=gathering?null:nearestTarget(t,color,stream);
@@ -3631,7 +3739,7 @@ function autoplay(now){if(G.chart.multiRow){autoplayRows(now);return;}const T=G.
 function expireTargets(t){
   const T=G.targets;
   while(G.cursor<T.length){const tg=T[G.cursor];if(tg.judged){G.cursor++;continue;}if(tg===G.openChord)break;
-    if(t-tg.t>G.win.bad){judge(tg,'bad',null,'miss');G.cursor++;continue;}break;}
+    if(t-tg.t>G.win.bad){judge(tg,'bad',null,'miss');G.cursor++;if(G.finished)break;continue;}break;}
 }
 function update(now){
   if(G.auto)autoplay(now);
@@ -3699,7 +3807,7 @@ function updateFallingDanHud(now){
 }
 function fallingPlay(){return !onlineRun&&S.falling===true;}
 function openStage(){const menu=$('#stageMenu');menu.textContent=onlineRun?'棄権':'一時停止 Esc';stopPreview();clearHitContacts();$('#stage').hidden=false;$('#stage').classList.toggle('touch',UI.touch);document.body.classList.add('playing');$('#result').hidden=true;$('#pause').hidden=true;$('#pads').hidden=libraryWait||!UI.touch||fallingPlay();setupFallingDanHud();layoutStage();startLoop();}
-function closeStage(){stopRecord();clearHitContacts();if(AUTOALL_FALLING){S.falling=true;AUTOALL_FALLING=null;}songLoad++;libraryWait=false;cancelAnimationFrame(rafId);rafId=0;stopSong();G=null;D=null;onlineRun=null;$('#matchHud').hidden=true;$('#stage').hidden=true;setupFallingDanHud();document.body.classList.remove('playing');refreshAll();}
+function closeStage(){if(streak?.phase==='playing')streak=null;stopRecord();clearHitContacts();if(AUTOALL_FALLING){S.falling=true;AUTOALL_FALLING=null;}songLoad++;libraryWait=false;cancelAnimationFrame(rafId);rafId=0;stopSong();G=null;D=null;onlineRun=null;$('#matchHud').hidden=true;$('#stage').hidden=true;setupFallingDanHud();document.body.classList.remove('playing');refreshAll();}
 function startLoop(){if(!rafId)rafId=requestAnimationFrame(frame);}
 function stopSong(){if(G&&G.src){try{G.src.stop();}catch(e){}G.src=null;}}
 function fadeMusic(sec){if(!G||!G.gain||!AC)return;try{const g=G.gain.gain;g.cancelScheduledValues(AC.currentTime);g.setValueAtTime(g.value,AC.currentTime);g.linearRampToValueAtTime(0,AC.currentTime+sec);G.src.stop(AC.currentTime+sec+.05);}catch(e){}}
@@ -3729,7 +3837,7 @@ async function startDan(dan){if(waitForLibrary())return;ensureAudio();D={dan,idx
 async function danInterlude(){const chart=D.dan.songs[D.idx];G=null;D.interlude={t0:performance.now(),idx:D.idx,chart};startLoop();
   const p=getAudio(chart);await Promise.all([p.catch(()=>null),wait(2800)]);if(!D)return;D.interlude=null;await runSong(chart);}
 let songLoad=0;
-async function runSong(chart,prac){
+async function runSong(chart,prac,streakRun=null){
   const ticket=++songLoad;
   if($('#stage').hidden)openStage();G=null;UI.loading=murechoText(`読み込み中 — ${chart.set.title}`);startLoop();
   let buf;try{buf=await getAudio(chart);}catch(e){
@@ -3739,13 +3847,13 @@ async function runSong(chart,prac){
       step.lesson.rounds.splice(step.index,1);
       toast(`「${chart.set.title}」の音源を読み込めなかったため、次の課題に進みます`,'err');
       playWeaknessRound(step.lesson,step.index);
-    }else{closeStage();toast(e.message,'err');}
+    }else{if(streakRun&&streak===streakRun)streakRun.phase='pick';closeStage();toast(e.message,'err');}
     return;
   }
   if(ticket!==songLoad||$('#stage').hidden)return;
-  G=newRun(chart,prac);if(D){G.auto=D.auto;G.disp=D.st.score;G.lastCombo=D.st.combo;}
+  G=newRun(chart,prac,null,streakRun);if(D){G.auto=D.auto;G.disp=D.st.score;G.lastCombo=D.st.combo;}
   layoutStage();
-  if(!prac&&!D)startRecord(G);
+  if(!prac&&!D&&!streakRun)startRecord(G);
   if(S.fx!=='low'&&chart.set.bgUrl){G.bgImg=new Image();G.bgImg.src=chart.set.bgUrl;}
   const rate=prac?prac.rate:1,t0=prac?Math.max(0,prac.from-2400):0,lead=prac&&prac.from>0?1000:Math.max(1400,2800-Math.max(0,chart.firstT),1000-chart.firstT/rate);
   const src=AC.createBufferSource();src.buffer=buf;src.playbackRate.value=rate;const g=AC.createGain();g.gain.value=loudnessGain(buf);src.connect(g);g.connect(musicGain);
@@ -3808,7 +3916,8 @@ function showMatchResult(match,profile){
   $('#result').hidden=false;
   UI.resultAt=performance.now();
 }
-function finishSong(){if(!G||G.finished)return;G.finished=true;fadeMusic(.8);
+function finishSong(){if(!G||G.finished)return;G.finished=true;fadeMusic(G.streak ? .35 : .8);
+  if(G.streak){finishStreakSong(G);return;}
   if(G.match){taikoOnline.finish();return;}
   const finishedRun=G;setTimeout(()=>stopRecord(finishedRun),900);// 音の減衰が入るよう少し後で止める
   const res={chart:G.chart,st:G.st,auto:G.auto,win:G.win,prac:G.prac};const alive=()=>G===finishedRun&&!$('#stage').hidden;
@@ -3828,8 +3937,8 @@ function finishSong(){if(!G||G.finished)return;G.finished=true;fadeMusic(.8);
 function pauseGame(){if(!G||G.match||G.paused||G.finished||!AC)return;G.paused=true;G.pauseAt=performance.now();AC.suspend();
   const pb=$('#pauseBtns');pb.innerHTML='';
   pb.append(el('button',{class:'btn primary',onclick:resumeGame},'続ける'));
-  if(!D)pb.append(el('button',{class:'btn',onclick:()=>{const c=G.chart,pr=G.prac;$('#pause').hidden=true;AC.resume();stopSong();runSong(c,pr);}},G.prac?'区間のはじめから':'はじめから'));
-  pb.append(el('button',{class:'btn ghost',onclick:()=>{AC.resume();closeStage();}},D?'段位をやめる':'曲選択へ戻る'));
+  if(!D&&!G.streak)pb.append(el('button',{class:'btn',onclick:()=>{const c=G.chart,pr=G.prac;$('#pause').hidden=true;AC.resume();stopSong();runSong(c,pr);}},G.prac?'区間のはじめから':'はじめから'));
+  pb.append(el('button',{class:'btn ghost',onclick:()=>{AC.resume();closeStage();}},D?'段位をやめる':G.streak?'鬼レンチャンをやめる':'曲選択へ戻る'));
   $('#pause').hidden=false;}
 function resumeGame(){if(!G||!G.paused)return;$('#pause').hidden=true;const run=G;let done=false;
   const go=()=>{if(done||!run.paused)return;done=true;run.perfZero+=performance.now()-run.pauseAt;run.paused=false;};
@@ -4672,7 +4781,8 @@ function drawArcadeHud(now,pn){
   const progress=clamp(now/Math.max(1,g.chart.length),0,1);
   c.fillStyle='#5e1740';c.fillRect(0,0,W,5);
   c.fillStyle='#ffd75f';c.fillRect(0,0,W*progress,5);
-  const label=g.chart.multiRow?'全難易度同時':C.jp+' '+levelText(g.chart);
+  const label=g.streak?'鬼レンチャン '+(g.streak.cleared.length+1)+' / '+g.streak.stages.length:
+    g.chart.multiRow?'全難易度同時':C.jp+' '+levelText(g.chart);
   c.font=`800 13px ${FB}`;
   const badgeWidth=c.measureText(label).width+16;
   rr(c,10,12,badgeWidth,23,5);c.fillStyle=C.color;c.fill();
@@ -4829,7 +4939,7 @@ $('#title').addEventListener('click',dismissTitle);
 
 /* ================= バックアップ ================= */
 function backupData(){return JSON.stringify({app:'kasane-taiko',v:1,at:new Date().toISOString(),best:Lib.best,danBest:Lib.danBest,unlocks:Lib.unlocks,fav:Lib.fav,played:Lib.played,
-  settings:S,ui:{sort:UI.sort,filt:UI.filt},chartsCsv:Lib.chartsCsv,danCsv:Lib.danCsv,chartsCsvName:Lib.chartsCsvName,danCsvName:Lib.danCsvName});}
+  streakClears,settings:S,ui:{sort:UI.sort,filt:UI.filt},chartsCsv:Lib.chartsCsv,danCsv:Lib.danCsv,chartsCsvName:Lib.chartsCsvName,danCsvName:Lib.danCsvName});}
 let bkPending=null;
 $('#bkExport').addEventListener('click',()=>{$('#bkText').value=backupData();$('#bkCopy').hidden=false;toast('書き出しました。コピーして保存してください');});
 $('#bkCopy').addEventListener('click',()=>{const t=$('#bkText');navigator.clipboard.writeText(t.value).then(()=>toast('コピーしました'),()=>{t.focus();t.select();toast('選択しました。Ctrl+C でコピーしてください');});});
@@ -4838,6 +4948,10 @@ $('#bkImport').addEventListener('click',()=>{let d;try{d=JSON.parse($('#bkText')
 $('#bkNo').addEventListener('click',()=>{bkPending=null;$('#bkConfirm').hidden=true;});
 $('#bkYes').addEventListener('click',()=>{const d=bkPending;if(!d)return;bkPending=null;$('#bkConfirm').hidden=true;
   for(const k of['best','danBest','unlocks','fav','played'])if(d[k]&&typeof d[k]==='object'){Lib[k]=d[k];store.set('kt.'+k,d[k]);}
+  if(d.streakClears&&typeof d.streakClears==='object'){
+    streakClears={normal:d.streakClears.normal===true,hard:d.streakClears.hard===true};
+    store.set('kt.streakClears',streakClears);
+  }
   if(d.settings){Object.assign(S,d.settings);S.opt=Object.assign({mirror:false,rand:0,hidden:false},S.opt||{});saveS();applyGains();}
   if(d.ui){UI.sort=d.ui.sort||'added';UI.filt=d.ui.filt||'all';saveUIPrefs();}
   for(const k of['chartsCsv','danCsv','chartsCsvName','danCsvName'])if(typeof d[k]==='string'){Lib[k]=d[k];store.set('kt.'+k,d[k]);}
@@ -4971,7 +5085,7 @@ $('#setAuto').addEventListener('change',e=>{S.auto=e.target.checked;saveS();rend
 $('#setUnlock').addEventListener('change',e=>{S.unlockAll=e.target.checked;saveS();refreshAll();});
 $('#resetRec').addEventListener('click',()=>{$('#resetConfirm').hidden=false;});
 $('#resetNo').addEventListener('click',()=>{$('#resetConfirm').hidden=true;});
-$('#resetYes').addEventListener('click',()=>{Lib.best={};Lib.recent=[];Lib.danBest={};Lib.unlocks={};Lib.played={};store.set('kt.best',{});store.set('kt.recent',[]);store.set('kt.danBest',{});store.set('kt.unlocks',{});store.set('kt.played',{});$('#resetConfirm').hidden=true;refreshAll();toast('記録をリセットしました');});
+$('#resetYes').addEventListener('click',()=>{Lib.best={};Lib.recent=[];Lib.danBest={};Lib.unlocks={};Lib.played={};streakClears={};streak=null;store.set('kt.streakClears',{});store.set('kt.best',{});store.set('kt.recent',[]);store.set('kt.danBest',{});store.set('kt.unlocks',{});store.set('kt.played',{});$('#resetConfirm').hidden=true;refreshAll();toast('記録をリセットしました');});
 $('#stageMenu').addEventListener('click',()=>{if(onlineRun&&$('#result').hidden){taikoOnline.cancel();return;}if(G&&!G.finished)pauseGame();else if(!G||G.finished){if($('#result').hidden)closeStage();}});
 // 診断用（URLに ?debug=1 を付けたときだけ）：入力の受付数・無視数・最後のタップのずれ(ms)を表示する
 const DBG=new URLSearchParams(location.search).has('debug'),dbg={inputs:0,ignored:0,last:'-',hist:[],spikes:[],silent:0,silentLast:'-'};
