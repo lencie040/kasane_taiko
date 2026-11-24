@@ -1099,32 +1099,32 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 .streak-pick .btn{margin-top:4px;min-height:44px}
 /* 封印譜面のバッジと難易度カード */
 .dtile.sealed,.crs.sealed{
-  color:#fff0ff;border-color:#ad69d5;
+  color:#fff0ee;border-color:#b3202c;
   background:
-    linear-gradient(138deg,transparent 13%,#e8afff 13.5% 15%,transparent 15.5% 20%,#ad69d590 20.5% 22%,transparent 22.5%),
-    linear-gradient(318deg,transparent 11%,#e8afff 11.5% 13%,transparent 13.5% 17%,#ad69d580 17.5% 19%,transparent 19.5%),
-    linear-gradient(156deg,#4c235d 0%,#231035 48%,#100819 100%);
-  box-shadow:inset 0 0 0 1px #f6cfff56,0 0 7px #ab53d26b;
+    linear-gradient(138deg,transparent 13%,#ff6b62 13.5% 15%,transparent 15.5% 20%,#c4283290 20.5% 22%,transparent 22.5%),
+    linear-gradient(318deg,transparent 11%,#ff6b62 11.5% 13%,transparent 13.5% 17%,#c4283280 17.5% 19%,transparent 19.5%),
+    linear-gradient(156deg,#6a0f1a 0%,#3a0910 48%,#1a0407 100%);
+  box-shadow:inset 0 0 0 1px #ff8a8056,0 0 7px #d71f2e6b;
 }
-.dtile.sealed .dl em{color:#f8d5ff;font-weight:900}
-.dtile.sealed .dv{background:#110819e8;box-shadow:inset 0 0 0 1px #bd80da73}
-.dtile.sealed .dv b,.dtile.sealed .dv small{color:#fff2ff;text-shadow:0 0 7px #dc83ff}
+.dtile.sealed .dl em{color:#ffd0cc;font-weight:900}
+.dtile.sealed .dv{background:#1a0407e8;box-shadow:inset 0 0 0 1px #e0505a73}
+.dtile.sealed .dv b,.dtile.sealed .dv small{color:#fff1ef;text-shadow:0 0 7px #ff4d55}
 .crs.sealed .k{
   clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);
-  border:0;border-radius:0;color:#fff4ff;font-weight:900;
-  background:linear-gradient(158deg,#f2c2ff,#8e429d 38%,#321644 72%,#9c4cc0);
-  box-shadow:inset 0 0 0 2px #e7afff80;
-  text-shadow:0 2px 2px #200c30;
+  border:0;border-radius:0;color:#fff3f1;font-weight:900;
+  background:linear-gradient(158deg,#ff8a80,#b3202c 38%,#4a0a12 72%,#c4283a);
+  box-shadow:inset 0 0 0 2px #ff8a8080;
+  text-shadow:0 2px 2px #300508;
 }
-.crs.sealed .nm{background:#160b22e8;box-shadow:inset 0 0 0 1px #b979da8c}
-.crs.sealed .nm strong{color:#ffe8ff}
-.crs.sealed .nm small{color:#ebc4f8}
-.crs.sealed .lv{color:#ffe3fe;font-weight:800;text-shadow:0 0 8px #d98cff}
+.crs.sealed .nm{background:#1a0407e8;box-shadow:inset 0 0 0 1px #e0505a8c}
+.crs.sealed .nm strong{color:#ffe6e3}
+.crs.sealed .nm small{color:#ffb8b2}
+.crs.sealed .lv{color:#ffe2de;font-weight:800;text-shadow:0 0 8px #ff4d55}
 .crs.sealed.is-on{
-  outline-color:#f1c2ff;
-  box-shadow:inset 0 0 0 1px #f6cfffad,0 0 10px #b652e3b3;
+  outline-color:#ff9a92;
+  box-shadow:inset 0 0 0 1px #ffa8a0ad,0 0 10px #e0283ab3;
 }
-.crs.sealed.is-on::after{background:#542266;border-color:#f3c0ff}
+.crs.sealed.is-on::after{background:#7a1220;border-color:#ff9a92}
 </style>
 
 <header class="top">
@@ -1410,7 +1410,7 @@ const COURSES={
   oni:{jp:'おに',k:'鬼',color:'#e2508c'},
   ura:{jp:'おに裏',k:'裏',color:'#9d70ee'},
   kasane:{jp:'重',k:'重',color:'#f2bc3d'},
-  sealed:{jp:'封印',k:'封',color:'#ca97ff'}
+  sealed:{jp:'封印',k:'封',color:'#d83a3f'}
 };
 const {WIN_SOFT,WIN_HARD}=TaikoMatchRules;
 const TOKU_WIN=18, CHORD_GATHER=60, CHORD_SETTLE=25, TOUCH_DELIVERY_GRACE=80;
@@ -4759,7 +4759,7 @@ function draw(now){const c=ctx,W=view.W,H=view.H,L=view.L,g=G;if(!L)return;const
     const cg=c.createLinearGradient(x-r*.18,0,x+r*.18,0);cg.addColorStop(0,tg.judged?'#6c75a0':'#ffe58a');cg.addColorStop(1,tg.judged?'#454d75':'#d99a1c');rr(c,x-r*.17,yA,r*.34,yB-yA,r*.17);c.fillStyle=cg;c.fill();c.globalAlpha=1;
     for(let q=tg.notes.length-1;q>=0;q--){const n=tg.notes[q];drawNote(c,x,ys[q],n.big?r*bigMul:r,n.color,al);drawNoise(c,x,ys[q],n.big?r*bigMul:r,n.noise,al,pn);}}
   // レールとゴーゴーの炎
-  c.fillStyle=g.sealLife!=null?'#a361c9':'#d34d43';c.fillRect(0,top-4,W,4);c.fillRect(0,top+fh,W,4);c.fillStyle='#ffd475';c.fillRect(0,top-4,W,1);c.fillRect(0,top+fh+3,W,1);
+  c.fillStyle=g.sealLife!=null?'#a3121f':'#d34d43';c.fillRect(0,top-4,W,4);c.fillRect(0,top+fh,W,4);c.fillStyle='#ffd475';c.fillRect(0,top-4,W,1);c.fillRect(0,top+fh+3,W,1);
   if(k>.01&&!REDUCED&&!LOWFX()){drawFlames(top-4,L.panelW,W,pn,k,beat);if(k>.5&&Math.random()<.4)fx.parts.push({x:jx+Math.random()*(W-jx),y:top+fh,vx:(Math.random()-.5)*.03,vy:-(.04+Math.random()*.07),grav:0,t:pn,life:1300,col:Math.random()<.5?'#ffb347':'#ff7a3c',sz:1.4+Math.random()*1.8,ember:true});}
   drawSealedEntrance(pn,top,top+fh);
   drawEffects(pn);if(g.chart.multiRow)drawPanelRows(pn);else drawPanel(pn);drawJudgePop(pn);drawRollCounter(now,pn);drawHud(now,pn);drawFlyers(pn);drawBanner(pn);
@@ -4939,16 +4939,16 @@ function drawSealedEntrance(pn,top,bottom,vertical=false){
   const c=ctx,W=view.W,low=LOWFX();
   c.save();
   c.globalAlpha=(1-p)*.86;
-  c.fillStyle='#c784ff';
+  c.fillStyle='#d82a35';
   if(!low){
     const start=vertical?top:0,end=vertical?bottom:W;
     const head=start+(end-start)*easeOut(Math.min(1,p*1.7));
     const width=Math.min(150,(end-start)*.32);
     const light=vertical?c.createLinearGradient(0,head-width,0,head+width):
       c.createLinearGradient(head-width,0,head+width,0);
-    light.addColorStop(0,'#9a55d0');
-    light.addColorStop(.5,'#f8e1ff');
-    light.addColorStop(1,'#9a55d0');
+    light.addColorStop(0,'#8a0f1c');
+    light.addColorStop(.5,'#ff8c82');
+    light.addColorStop(1,'#8a0f1c');
     c.fillStyle=light;
   }
   if(vertical){
