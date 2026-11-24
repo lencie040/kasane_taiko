@@ -1385,7 +1385,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 
 <script src="content/fonts/murecho-glyphs.js"></script>
 <script src="beatmap.js?v=sealed"></script>
-<script src="difficulty.js?v=sealed"></script>
+<script src="difficulty.js?v=gimmick-weight"></script>
 <script src="multiplayer-rules.js?v=opponent-lane"></script>
 <script src="vendor/peerjs.min.js"></script>
 <script src="multiplayer-peer.js?v=opponent-lane"></script>
@@ -3126,7 +3126,7 @@ const CHART_RADAR_AXES=[
   ['技術',{radarTechnique:1},'ドン・カッの複合や、速い同色ノーツを交互に打つ難しさ'],
   ['リズム',{rhythm:2.15},'音符間隔の変化や裏拍の難しさ'],
   ['視認難',{visibility:.48},'見た目BPMや速度変化による見づらさ'],
-  ['ギミック',{simultaneous:.85,sealed:1.5},'同時押しと封印ノーツによる負荷'],
+  ['ギミック',{radarGimmick:1},'同時押しと封印ノーツによる負荷'],
 ];
 function drawChartRadar(canvas,scores){
   const c=canvas.getContext('2d');if(!c)return;

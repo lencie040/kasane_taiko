@@ -311,7 +311,10 @@ function estimateKasaneDifficulty(chart, course, sealAt) {
   const baseline = base + visibility + sealed;
   const alternation = alternatingHandLoad(chart.targets, baseline) * (1 - Math.min(.78, 1.45 * f.recovery));
   const technique = colorTechnique + alternation;
-  const load = baseline + alternation;
+  // Increase the rating contribution of gimmicks independently of the radar scale.
+  const gimmickWeight = 1.5;
+  const load = baseline + alternation + (gimmickWeight - 1) * (simultaneous + sealed);
+  const radarGimmick = simultaneous / .85 + sealed / 1.5;
   // Require a larger difference in load for each tenth above 11.
   const upperLoad = Math.max(0, load - 11);
   const highLoad = Math.max(0, upperLoad - .7);
@@ -320,8 +323,9 @@ function estimateKasaneDifficulty(chart, course, sealAt) {
   const level = course === 'kasane'
     ? Math.max(1, Math.min(10, Math.round(1 + (load - 4) * .83 + 2.1 * f.chords)))
     : Math.max(1, Math.min(course === 'sealed' ? 12.9 : Infinity, Math.round(stars * 10) / 10));
-  return { level, burst:f.burst, quantity, technique, rhythm, visibility, simultaneous, sealed,
-    radarVolume:chartRadarVolume(f), radarTechnique:chartRadarTechnique(technique) };
+  return { level, burst:f.burst, quantity, technique, rhythm, visibility,
+    simultaneous:gimmickWeight * simultaneous, sealed:gimmickWeight * sealed,
+    radarVolume:chartRadarVolume(f), radarTechnique:chartRadarTechnique(technique), radarGimmick };
 }
 
 const chartDifficultyMeasurements = new WeakMap();
