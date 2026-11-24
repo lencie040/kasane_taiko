@@ -1448,8 +1448,9 @@ const Lib={sets:[],charts:[],dans:[],danExcludedSets:new Set(),loadWarn:[],csvWa
   fav:store.get('kt.fav',{}),played:store.get('kt.played',{})};
 const UI=Object.assign({tab:'select',selSet:null,selChart:null,binding:null,touch:matchMedia('(pointer: coarse)').matches||matchMedia('(any-pointer: coarse)').matches,gesture:false,sort:'added',filt:'all'},store.get('kt.ui',{}));
 const sealedUnlockKey=c=>'sealed:'+c.uid;
+const isSealedUnlocked=c=>!!Lib.unlocks[sealedUnlockKey(c)];
 function isLocked(c){
-  if(c.course==='sealed')return !c.sealedSource||!Lib.unlocks[sealedUnlockKey(c)]||calcPotential()<SealedRoute.requiredPotential;
+  if(c.course==='sealed')return !c.sealedSource||!isSealedUnlocked(c)||calcPotential()<SealedRoute.requiredPotential;
   return c.course==='kasane'&&!S.unlockAll&&!Lib.unlocks[c.uid]&&!Lib.danExcludedSets.has(c.set);
 }
 
@@ -2453,10 +2454,11 @@ function chip(c){const locked=isLocked(c);return el('span',{class:'chip'+(locked
 /* ---- 並び順と絞り込み ---- */
 const levelFilterRange=()=>[UI.lvMin??-Infinity,UI.lvMax??Infinity];
 const isLevelSort=()=>UI.sort==='lvAsc'||UI.sort==='lvDesc';
-function highestStandardChart(charts,range,course){
+function highestChartForLevel(charts,range,course){
   let highest=null;
   for(const chart of charts){
-    if((chart.course==='kasane'||chart.course==='sealed')||(course&&chart.course!==course)||!inLevelRange(chart.level,range))continue;
+    if(chart.course==='kasane'||(chart.course==='sealed'&&!isSealedUnlocked(chart))||
+      (course&&chart.course!==course)||!inLevelRange(chart.level,range))continue;
     if(!highest||chart.level>highest.level)highest=chart;
   }
   return highest;
@@ -2665,7 +2667,7 @@ function visibleSets(){const q=norm($('#filter').value),f=UI.filt||'all',srt=UI.
   if(filterByLevel||sortByLevel){
     const range=levelFilterRange();
     for(const set of list){
-      const level=highestStandardChart(set.charts,range)?.level??null;
+      const level=highestChartForLevel(set.charts,range)?.level??null;
       const kasane=sortByLevel?set.charts.reduce((best,c)=>c.course==='kasane'&&!isLocked(c)?Math.max(best,c.level??0):best,0):0;
       levels.set(set,{level,kasane});
     }
@@ -2694,8 +2696,11 @@ function hashHue(s){let h=0;for(const ch of String(s))h=(h*31+ch.codePointAt(0))
 const BASE_COURSES=['easy','normal','hard','oni'];
 const ONI_COURSES=['oni','ura','kasane'];
 function currentSet(){return Lib.sets.find(set=>set.key===UI.selSet);}
+function chartsForSlot(set,course){
+  return set.charts.filter(c=>c.course===course&&(course!=='sealed'||isSealedUnlocked(c)));
+}
 function chartForSlot(set,course){
-  const charts=set.charts.filter(c=>c.course===course);
+  const charts=chartsForSlot(set,course);
   return charts.find(c=>c.uid===UI.selChart)||charts.find(c=>!isLocked(c))||charts[0];
 }
 function visibleCourses(set){
@@ -2703,25 +2708,25 @@ function visibleCourses(set){
   const oni=UI.oniCourse||(ONI_COURSES.includes(selected?.course)?selected.course:'oni');
   return [...BASE_COURSES.slice(0,3),oni];
 }
-const COURSE_ICON={easy:'梅',normal:'竹',hard:'松',oni:'鬼',ura:'裏',kasane:'重'};
+const COURSE_ICON={easy:'梅',normal:'竹',hard:'松',oni:'鬼',ura:'裏',kasane:'重',sealed:'封'};
 const isHiStar=c=>!!c&&c.course!=='kasane'&&c.level!=null&&c.level>=11;
 const isTopStar=c=>isHiStar(c)&&c.level>=12;
 function diffTile(course,c,extra){
-  const C=COURSES[course],locked=c&&isLocked(c);
+  const C=COURSES[course],locked=c&&course!=='sealed'&&isLocked(c);
   const lv=!c?'–':locked?'封':levelText(c).replace(/^★/,'');
   const ck=c&&!locked?Lib.best[c.uid]?.crown:null;
   return el('span',{class:'dtile'+(extra?' dx':'')+(!c?' is-missing':'')+(locked?' locked':'')+(isHiStar(c)&&!locked?' hi-star':'')+(isTopStar(c)&&!locked?' top-star':''),style:`--cc:${C.color}`,title:C.jp},
-    el('span',{class:'dl'},el('i',{class:'di'},COURSE_ICON[course]),el('em',null,extra?(course==='ura'?'裏':'重'):C.jp)),
+    el('span',{class:'dl'},el('i',{class:'di'},COURSE_ICON[course]),el('em',null,extra?C.k:C.jp)),
     el('span',{class:'dv'},(c&&!locked&&c.course!=='kasane')?el('small',null,'★'):null,el('b',null,lv)),
     ck&&CROWN[ck]?el('span',{class:'crown-outline',title:CROWN[ck],role:'img','aria-label':CROWN[ck]},el('span',{class:'crownic '+ck,'aria-hidden':'true'})):null,
     c?sealBadge(c):null);
 }
 function songChips(set){
   const range=isLevelSort()?levelFilterRange():null;
-  const chartForBadge=course=>(range&&highestStandardChart(set.charts,range,course))||chartForSlot(set,course);
+  const chartForBadge=course=>(range&&highestChartForLevel(set.charts,range,course))||chartForSlot(set,course);
   const standard=BASE_COURSES.map(course=>diffTile(course,chartForBadge(course),false));
-  /* 裏・重はおにの右に詰めて表示する */
-  const special=['ura','kasane'].map(chartForBadge).filter(Boolean).map(c=>diffTile(c.course,c,true));
+  /* 裏・重・封印はおにの右に詰めて表示する */
+  const special=['ura','kasane','sealed'].map(chartForBadge).filter(Boolean).map(c=>diffTile(c.course,c,true));
   return [...standard,...special];
 }
 function arcadeEntries(){
@@ -3227,13 +3232,6 @@ function sealedLockText(chart){
   return calcPotential()<SealedRoute.requiredPotential?'封印にはポテンシャル9.00以上が必要です。':
     `「${chart.sealedSource.meta.version}」から移行し、ライフを残して完走すると解禁されます。`;
 }
-function sealedConditions(chart){
-  const route=chart.sealedRoute;
-  const char=Lib.characters.find(c=>c.id===route.character);
-  const who=route.character===null?'キャラクターなし':`${char?.name||route.character} Lv ${route.minLevel}以上`;
-  const seconds=(route.at/1000).toFixed(3);
-  return `封印「${chart.meta.version}」への移行条件　ポテンシャル9.00以上 ・ ${who} ・ ${seconds}秒までに不可${route.maxBad}以下／可${route.maxOk}以下`;
-}
 function renderDetail(){const d=$('#detail');$('#arcadeMenu').hidden=!!UI.chooseCourse;d.hidden=!UI.chooseCourse;if(d.hidden)return;d.innerHTML='';const s=UI.folderCursor==null?visibleSets().find(x=>x.key===UI.selSet):null;
   if(!s){UI.chooseCourse=false;$('#arcadeMenu').hidden=false;d.hidden=true;return;}
   d.append(el('div',{class:'course-top'},el('h2',null,'むずかしさをえらぶ')));
@@ -3245,14 +3243,16 @@ function renderDetail(){const d=$('#detail');$('#arcadeMenu').hidden=!!UI.choose
   const folderControl=folderAssignmentControl(s);if(folderControl)d.append(folderControl);
   const courses=visibleCourses(s);
   const list=el('div',{class:'crs-list',role:'group','aria-label':'コース',style:'--course-count:5'});
-  const sealed=UI.sealedSlot&&chartForSlot(s,'sealed');
+  const unlockedSealed=chartForSlot(s,'sealed');
+  const sealed=UI.sealedSlot&&unlockedSealed;
+  if(!unlockedSealed)UI.sealedSlot=false;
   list.append(sealed?el('button',{class:'crs'+(UI.courseBack?' is-on':'')+(isLocked(sealed)?' locked':''),style:`--cc:${COURSES.sealed.color}`,
     'aria-pressed':String(UI.courseBack),onclick:()=>{
       if(UI.courseBack){menuDecide();return;}
       resetRimSequence();UI.courseBack=true;UI.courseSlot=-1;UI.selChart=sealed.uid;renderDetail();focusCourseCard();
     }},
     el('span',{class:'k'},'封'),el('span',{class:'nm'},el('strong',null,'封印'),
-      el('small',null,!Lib.unlocks[sealedUnlockKey(sealed)]?'未解禁':sealed.meta.version)),el('span',{class:'lv'},levelText(sealed))):
+      el('small',null,sealed.meta.version)),el('span',{class:'lv'},levelText(sealed))):
     el('button',{class:'crs crs-back'+(UI.courseBack?' is-on':''),onclick:backToSongs},
       el('span',{class:'k','aria-hidden':'true'},'←'),el('span',{class:'nm'},el('strong',null,'もどる'))));
   for(const [slot,course] of courses.entries()){
@@ -3278,12 +3278,11 @@ function renderDetail(){const d=$('#detail');$('#arcadeMenu').hidden=!!UI.choose
     S.auto&&autoAllCharts(s).length?el('button',{class:'btn auto-all',type:'button',title:'重譜面以外の全難易度の譜面を重ねて、同時にオート演奏します（記録されません）',onclick:()=>{UI.gesture=true;startAutoAll(s);}},'▶ 全難易度同時再生'):null));
   paintRimProgress();
   if(UI.courseBack&&!sealed){
-    if(s.charts.some(c=>c.course==='sealed'))d.append(el('p',{class:'opt-note course-variants'},'左カツ10回で封印譜面を表示。Escで曲選択に戻れます。'));
+    if(unlockedSealed)d.append(el('p',{class:'opt-note course-variants'},'左カツ10回で封印譜面を表示。Escで曲選択に戻れます。'));
     return;
   }
   const c=UI.courseBack?sealed:chartForSlot(s,courses[UI.courseSlot]);if(!c)return;
-  for(const target of s.charts.filter(target=>target.sealedSource===c))d.append(el('p',{class:'opt-note course-variants'},sealedConditions(target)));
-  const alternatives=s.charts.filter(chart=>chart.course===c.course);
+  const alternatives=chartsForSlot(s,c.course);
   if(alternatives.length>1){
     const select=el('select',{'aria-label':'譜面'},alternatives.map(chart=>el('option',{value:chart.uid},`${chart.meta.version} ・ ${levelText(chart)}`)));
     select.value=c.uid;
@@ -3309,7 +3308,7 @@ function renderDetail(){const d=$('#detail');$('#arcadeMenu').hidden=!!UI.choose
   if(!isLocked(c)){d.append(optRow());d.append(pracBlock(c,dc));}
   const best=Lib.best[c.uid];
   if(c.course==='sealed'&&isLocked(c)){
-    d.append(el('div',{class:'notice'},sealedLockText(c)),el('p',{class:'opt-note'},sealedConditions(c)));
+    d.append(el('div',{class:'notice'},sealedLockText(c)));
     return;
   }
   if(isLocked(c)){const dan=danForChart(c);
@@ -4039,9 +4038,9 @@ function showMatchResult(match,profile){
   UI.resultAt=performance.now();
 }
 function finishSealedRun(run){
-  const survived=run.sealLife>0,chart=run.chart,key=sealedUnlockKey(chart),unlocked=!!Lib.unlocks[key];
+  const survived=run.sealLife>0,chart=run.chart,unlocked=isSealedUnlocked(chart);
   if(survived&&!unlocked){
-    Lib.unlocks[key]='red';store.set('kt.unlocks',Lib.unlocks);
+    Lib.unlocks[sealedUnlockKey(chart)]='red';store.set('kt.unlocks',Lib.unlocks);
   }
   cancelAnimationFrame(rafId);rafId=0;setResultChar(null);
   const card=$('#resultCard');card.className='ov-card';
