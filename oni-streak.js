@@ -15,7 +15,7 @@ const OniStreak = (() => {
     const groups=new Map();
     for(const chart of charts){
       const star=starBand(chart.level);
-      if(star<1||star>10||chart.course==='kasane'||chart.set.demo||!chart.stats.notes)continue;
+      if(star<1||star>10||['kasane','sealed'].includes(chart.course)||chart.set.demo||!chart.stats.notes)continue;
       if(!groups.has(star))groups.set(star,new Map());
       const songs=groups.get(star), key=chart.set.key;
       if(!songs.has(key))songs.set(key,[]);

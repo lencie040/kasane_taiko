@@ -1356,8 +1356,8 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 <div id="drop" hidden>.ktz をここにドロップ</div>
 
 <script src="content/fonts/murecho-glyphs.js"></script>
-<script src="beatmap.js"></script>
-<script src="difficulty.js?v=upper-steps"></script>
+<script src="beatmap.js?v=sealed"></script>
+<script src="difficulty.js?v=sealed"></script>
 <script src="multiplayer-rules.js?v=opponent-lane"></script>
 <script src="vendor/peerjs.min.js"></script>
 <script src="multiplayer-peer.js?v=opponent-lane"></script>
@@ -1366,7 +1366,8 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 <script src="oni-streak.js"></script>
 <script src="weakness.js?v=context"></script>
 <script src="editor-tempo.js"></script>
-<script src="editor.js?v=cover-art"></script>
+<script src="sealed-route.js"></script>
+<script src="editor.js?v=sealed"></script>
 <script>
 'use strict';
 /* ================= 定数 ================= */
@@ -1380,12 +1381,13 @@ const COURSES={
   hard:{jp:'むずかしい',k:'難',color:'#4f9be0'},
   oni:{jp:'おに',k:'鬼',color:'#e2508c'},
   ura:{jp:'おに裏',k:'裏',color:'#9d70ee'},
-  kasane:{jp:'重',k:'重',color:'#f2bc3d'}
+  kasane:{jp:'重',k:'重',color:'#f2bc3d'},
+  sealed:{jp:'封印',k:'封',color:'#ca97ff'}
 };
 const {WIN_SOFT,WIN_HARD}=TaikoMatchRules;
 const TOKU_WIN=18, CHORD_GATHER=60, CHORD_SETTLE=25, TOUCH_DELIVERY_GRACE=80;
-const CLEAR={easy:6000,normal:7000,hard:7000,oni:8000,ura:8000,kasane:8000};
-const BADMUL={easy:.5,normal:1,hard:1.5,oni:2,ura:2,kasane:2};
+const CLEAR={easy:6000,normal:7000,hard:7000,oni:8000,ura:8000,kasane:8000,sealed:8000};
+const BADMUL={easy:.5,normal:1,hard:1.5,oni:2,ura:2,kasane:2,sealed:2};
 const COND={
   gauge:{jp:'魂ゲージ',op:'>='},
   good:{jp:'良',op:'>=',base:'notes'},
@@ -1433,7 +1435,7 @@ function starValue(level){
   const tenths=Math.round(level*10);
   return tenths>=100?(tenths/10).toFixed(1):Math.floor(tenths/10)+(tenths%10>=5?'+':'');
 }
-function levelText(c){if(c.level==null)return c.course==='kasane'?'?':'★?';return c.course==='kasane'?ROMAN[c.level]:'★'+starValue(c.level);}
+function levelText(c){if(c.level==null)return c.course==='kasane'?'?':'★?';return c.course==='kasane'?ROMAN[c.level]:'★'+(c.course==='sealed'?c.level.toFixed(1):starValue(c.level));}
 /* ================= 設定・記録 ================= */
 const S=Object.assign({keys:['KeyD','KeyF','KeyJ','KeyK'],skipKeys:['KeyL','KeyS'],speed:1,offset:0,music:.8,se:.7,auto:false,noiseEdit:false,falling:false,sudden:0,laneWidth:100,record:false,balance:true,unlockAll:false,missingGlyphs:false},store.get('kt.settings',{}));
 S.opt=Object.assign({mirror:false,rand:0,hidden:false},S.opt||{});if(!S.fx)S.fx='high';
@@ -1445,7 +1447,9 @@ const Lib={sets:[],charts:[],dans:[],danExcludedSets:new Set(),loadWarn:[],csvWa
   unlocks:store.get('kt.unlocks',{}),best:store.get('kt.best',{}),recent:store.get('kt.recent',[]),danBest:store.get('kt.danBest',{}),
   fav:store.get('kt.fav',{}),played:store.get('kt.played',{})};
 const UI=Object.assign({tab:'select',selSet:null,selChart:null,binding:null,touch:matchMedia('(pointer: coarse)').matches||matchMedia('(any-pointer: coarse)').matches,gesture:false,sort:'added',filt:'all'},store.get('kt.ui',{}));
+const sealedUnlockKey=c=>'sealed:'+c.uid;
 function isLocked(c){
+  if(c.course==='sealed')return !c.sealedSource||!Lib.unlocks[sealedUnlockKey(c)]||calcPotential()<SealedRoute.requiredPotential;
   return c.course==='kasane'&&!S.unlockAll&&!Lib.unlocks[c.uid]&&!Lib.danExcludedSets.has(c.set);
 }
 
@@ -1574,9 +1578,20 @@ async function loadKtz(name,buf,repoPath=null,detached=false){
     c.sourcePath=p;
     const course=COURSE_ALIAS[norm(extra.course)];
     if(COURSE_ORDER.includes(course))c.defCourse=course;
+    if(course==='sealed')c.sealedRoute=SealedRoute.parse(extra.sealedRoute);
     if(extra.noise&&typeof extra.noise==='object'&&!Array.isArray(extra.noise))c.archiveNoise=extra.noise;
     if(c.stats.trimmed)Lib.loadWarn.push(`${name}: 「${c.meta.version}」で同時押しが ドン2・カッ2 を超える箇所があり、${c.stats.trimmed}個のノーツを外しました`);
     c.set=set;set.charts.push(c);}
+  set.charts=set.charts.filter(c=>{
+    if(c.defCourse!=='sealed')return true;
+    const route=c.sealedRoute;
+    const source=route&&set.charts.find(chart=>nk(chart.sourcePath)===nk(route.sourcePath));
+    if(route&&SealedRoute.validSplit(route,source,c)&&findFile(set,source.audio,source.dir,'audio')){
+      c.sealedSource=source;return true;
+    }
+    Lib.loadWarn.push(`${name} / ${c.meta.version}: 封印の移行元・音源・移行位置を確認してください`);
+    return false;
+  });
   if(!set.charts.length)throw new Error('遊べる太鼓譜面がありませんでした（読み込みタブの警告を確認してください）');
   const pick=f=>{for(const c of set.charts)if(c.meta[f])return c.meta[f];return'';};
   set.titleAscii=pick('title');set.titleU=pick('titleU');set.artistAscii=pick('artist');
@@ -1609,7 +1624,7 @@ const IDB={db:null,
 /* ================= 難易度と段位の反映 ================= */
 function resolveAll(){
   for(const c of Lib.charts){
-    c.course=c.stats.chords>0?'kasane':c.defCourse||guessCourse(c);
+    c.course=c.defCourse==='sealed'?'sealed':c.stats.chords>0?'kasane':c.defCourse||guessCourse(c);
     c.level=rateChart(c).level;
   }
   buildDans();
@@ -1713,7 +1728,7 @@ function monthlyConditions(rank,songs){
 }
 function monthlyDans(charts,period){
   const random=mulberry32(Number(period.replace('-','')));
-  const eligible=charts.filter(c=>!c.set.demo&&!Lib.danExcludedSets.has(c.set)&&c.course!=='kasane'&&c.level!=null&&c.stats.notes>0);
+  const eligible=charts.filter(c=>!c.set.demo&&!Lib.danExcludedSets.has(c.set)&&c.course!=='kasane'&&c.course!=='sealed'&&c.level!=null&&c.stats.notes>0);
   const pool=[...new Map(eligible.map(c=>[c.uid,c])).values()]
     .sort((a,b)=>a.uid<b.uid?-1:a.uid>b.uid?1:0)
     .map(chart=>({chart,...chartProfile(chart),sealed:hasSealedNotes(chart),drumroll:rollMsOf(chart)>0,jitter:random()}));
@@ -1786,10 +1801,10 @@ function autoDan(c,eligibleCharts){
   return finishDan({id:c.uid,src:'auto',songs:[s1,s2,c],refs:[s1,s2,c].map(x=>({file:x.set.file,version:x.meta.version})),conds:autoConds(L,[s1,s2,c]),warn});}
 function buildDans(){
   Lib.danExcludedSets=excludedDanSets();
-  const eligibleCharts=playableSets().filter(set=>!Lib.danExcludedSets.has(set)).flatMap(set=>set.charts);
+  const eligibleCharts=playableSets().filter(set=>!Lib.danExcludedSets.has(set)).flatMap(set=>set.charts.filter(c=>c.course!=='sealed'));
   const{dans:rows,warns}=Lib.danData?parseDanData(Lib.danData):parseDanCsv(Lib.danCsv);Lib.csvWarn=warns;const out=[];
   for(const r of rows){const songs=r.refs.map(x=>findChart(x.file,x.version));
-    if(songs.some(chart=>chart&&Lib.danExcludedSets.has(chart.set)))continue;
+    if(songs.some(chart=>chart&&(chart.course==='sealed'||Lib.danExcludedSets.has(chart.set))))continue;
     r.refs.forEach((x,i)=>{if(!songs[i])Lib.csvWarn.push(`dan.csv ${r.line}行目: ${i+1}曲目「${x.file} / ${x.version}」が読み込まれていません`);});
     if(songs[2]&&songs[2].stats.chords===0)Lib.csvWarn.push(`dan.csv ${r.line}行目: 3曲目に同時押しがないため、特良の条件は常に満たされます`);
     out.push(finishDan({id:r.id,src:'csv',name:r.name,songs,refs:r.refs,conds:r.conds}));}
@@ -1915,7 +1930,7 @@ function playJingle(kind){if(!AC)return;const t0=AC.currentTime+.05,g=AC.createG
 function playSE(n,sample=SE[n]){if(!AC||!sample)return;const s=AC.createBufferSource();s.buffer=sample;s.connect(seGain);s.start();return s;}
 function decodeGameAudio(ab){return new Promise((res,rej)=>{const r=AC.decodeAudioData(ab,res,()=>rej(new Error('音源を再生できない形式でした')));if(r&&r.catch)r.catch(()=>{});});}
 const audioCache=new Map();
-function getAudio(chart){const set=chart.set,key=set.key+'|'+(set.repoHash||'')+'|'+(chart.audio||'');
+function getAudio(chart){chart=chart.sealedSource||chart;const set=chart.set,key=set.key+'|'+(set.repoHash||'')+'|'+(chart.audio||'');
   if(set.editorAudio)return Promise.resolve(set.editorAudio);
   if(audioCache.has(key))return audioCache.get(key);
   const p=(async()=>{ensureAudio();if(set.demo)return await renderDemo(set.demo);
@@ -2027,7 +2042,7 @@ async function previewMedleyTone(kind){
 
 // 下限の★以上の譜面だけを対象にする（0なら制限なし）。
 function medleyMinLevel(){const v=parseFloat(medleyView.minLevel.value);return Number.isFinite(v)&&v>0?v:0;}
-function medleyCharts(){const min=medleyMinLevel();return Lib.charts.filter(chart=>!chart.set.demo&&(min<=0||(chart.level!=null&&chart.level>=min)));}
+function medleyCharts(){const min=medleyMinLevel();return Lib.charts.filter(chart=>!chart.set.demo&&chart.course!=='sealed'&&(min<=0||(chart.level!=null&&chart.level>=min)));}
 function medleyQueue(charts,shuffle,previous){
   const queue=charts.slice();
   if(shuffle){
@@ -2441,7 +2456,7 @@ const isLevelSort=()=>UI.sort==='lvAsc'||UI.sort==='lvDesc';
 function highestStandardChart(charts,range,course){
   let highest=null;
   for(const chart of charts){
-    if(chart.course==='kasane'||(course&&chart.course!==course)||!inLevelRange(chart.level,range))continue;
+    if((chart.course==='kasane'||chart.course==='sealed')||(course&&chart.course!==course)||!inLevelRange(chart.level,range))continue;
     if(!highest||chart.level>highest.level)highest=chart;
   }
   return highest;
@@ -2672,7 +2687,7 @@ function toggleFav(key){if(Lib.fav[key])delete Lib.fav[key];else Lib.fav[key]=1;
 function markPlayed(set){if(!set)return;const p=Lib.played[set.key]||{t:0,n:0};Lib.played[set.key]={t:Date.now(),n:p.n+1};store.set('kt.played',Lib.played);}
 function pickRandom(){const sets=visibleSets();if(!sets.length){toast('表示中の曲がありません');return;}UI.gesture=true;ensureAudio();
   const pool=sets.length>1?sets.filter(s=>s.key!==UI.selSet):sets,s=pool[Math.floor(Math.random()*pool.length)];
-  const cur=Lib.charts.find(c=>c.uid===UI.selChart),cs=sortCharts(s.charts).filter(c=>!isLocked(c));
+  const cur=Lib.charts.find(c=>c.uid===UI.selChart),cs=sortCharts(s.charts).filter(c=>c.course!=='sealed'&&!isLocked(c));
   const same=cur&&cs.find(c=>c.course===cur.course);UI.selChart=(same||cs[cs.length-1]||s.charts[0]).uid;playSE('don');selectSet(s.key,true);
   const li=$('#songlist .song.is-on');if(li)li.classList.add('picked');}
 function hashHue(s){let h=0;for(const ch of String(s))h=(h*31+ch.codePointAt(0))>>>0;return h%360;}
@@ -2740,7 +2755,7 @@ function coverElement(url){
   return box;
 }
 function songStrip(set,selected,choose){
-  const top=sortCharts(set.charts).filter(c=>!isLocked(c)).pop()||set.charts[0],fav=!!Lib.fav[set.key];
+  const top=sortCharts(set.charts).filter(c=>c.course!=='sealed'&&!isLocked(c)).pop()||set.charts[0],fav=!!Lib.fav[set.key];
   const curFolder=effectiveFolders().folders.find(f=>f.id===UI.folder);
   const folderTint=curFolder?.color,folderText=curFolder?.textColor;
   const row=el('li',{class:'song'+(selected?' is-on':'')+(folderText?' has-tcolor':''),tabindex:'0',role:'button',style:`--sc:${folderTint||COURSES[top.course].color}`+(folderText?`;--ftext:${folderText}`:'')},
@@ -2758,10 +2773,10 @@ function songStrip(set,selected,choose){
 }
 function showCoursePicker(){
   if(waitForLibrary())return;
-  UI.chooseCourse=true;UI.courseBack=false;resetRimSequence();
+  UI.chooseCourse=true;UI.courseBack=false;UI.sealedSlot=false;resetRimSequence();
   const selected=currentSet()?.charts.find(c=>c.uid===UI.selChart);
   UI.oniCourse=ONI_COURSES.includes(selected?.course)?selected.course:'oni';
-  UI.courseSlot=selected?(ONI_COURSES.includes(selected.course)?3:BASE_COURSES.indexOf(selected.course)):0;
+  UI.courseSlot=selected?(ONI_COURSES.includes(selected.course)?3:Math.max(0,BASE_COURSES.indexOf(selected.course))):0;
   renderDetail();window.scrollTo(0,0);focusCourseCard();
 }
 function focusCourseCard(){
@@ -2772,7 +2787,7 @@ function focusCourseCard(){
   card.focus({preventScroll:true});
 }
 function backToSongs(){
-  UI.chooseCourse=false;UI.courseBack=false;resetRimSequence();
+  UI.chooseCourse=false;UI.courseBack=false;UI.sealedSlot=false;resetRimSequence();
   renderSongList();renderDetail();window.scrollTo(0,0);
   $('#songlist .song.is-on')?.focus({preventScroll:true});
 }
@@ -2893,7 +2908,7 @@ function menuMove(dSong,dCourse,silent){
   const slot=clamp(current+step,-1,3);
   if(slot===current)return;
   UI.courseBack=slot===-1;UI.courseSlot=slot;
-  UI.selChart=slot<0?null:chartForSlot(set,courses[slot])?.uid??null;
+  UI.selChart=chartForSlot(set,slot<0?(UI.sealedSlot?'sealed':null):courses[slot])?.uid??null;
   if(!silent)playSE('ka');
   renderDetail();focusCourseCard();
 }
@@ -2967,7 +2982,7 @@ function playSkipSE(dir){
 let rimPending=null,rimCount=0,rimKind='';
 const RIM_PAIR_MS=100;
 function paintRimProgress(){
-  const label=$('#rimProgress');if(label)label.textContent=rimCount?`${rimKind==='ura'?'裏':'重'} ${rimCount} / 10`:'';
+  const label=$('#rimProgress');if(label)label.textContent=rimCount?`${rimKind==='ura'?'裏':COURSES[rimKind].jp} ${rimCount} / 10`:'';
 }
 function resetRimSequence(){
   if(rimPending)clearTimeout(rimPending.timer);
@@ -2986,6 +3001,16 @@ function countOniHit(kind){
   renderDetail();focusCourseCard();
 }
 function hitPickerRim(side){
+  if(UI.chooseCourse&&UI.courseBack&&side===-1){
+    const set=currentSet(),chart=set&&chartForSlot(set,'sealed');
+    if(!chart||UI.sealedSlot)return;
+    UI.gesture=true;ensureAudio();playSE('ka');
+    rimKind='sealed';rimCount++;
+    if(rimCount<10){paintRimProgress();return;}
+    resetRimSequence();
+    UI.sealedSlot=true;UI.selChart=chart.uid;
+    renderDetail();focusCourseCard();return;
+  }
   if(!UI.chooseCourse||UI.courseBack||UI.courseSlot!==3){menuMove(0,side);return;}
   UI.gesture=true;ensureAudio();playSE('ka');
   if(rimPending){
@@ -3037,7 +3062,7 @@ function pracBlock(c,dc){const max=Math.ceil(c.length/500)*500;let P=UI.prac;if(
       el('p',{class:'opt-note'},'上のグラフの明るい部分が練習する区間です。練習の結果は記録されません。スローにすると音の高さも下がります。')));
   det.addEventListener('toggle',()=>{UI.pracOpen=det.open;upd();});requestAnimationFrame(upd);return det;}
 async function startPractice(c,p){if(waitForLibrary())return;ensureAudio();D=null;await runSong(c,p);}
-function menuDecide(){if(UI.chooseCourse&&UI.courseBack){backToSongs();return;}if(waitForLibrary())return;
+function menuDecide(){if(UI.chooseCourse&&UI.courseBack&&!UI.sealedSlot){backToSongs();return;}if(waitForLibrary())return;
   if(!UI.chooseCourse){
     const entries=arcadeEntries(),entry=entries[arcadeIndex(entries)];
     if(!entry)return;
@@ -3045,8 +3070,9 @@ function menuDecide(){if(UI.chooseCourse&&UI.courseBack){backToSongs();return;}i
     selectSet(entry.set.key,true);showCoursePicker();return;
   }
   resetRimSequence();
-  const set=currentSet(),c=set&&chartForSlot(set,visibleCourses(set)[UI.courseSlot]);if(!c)return;
-  UI.gesture=true;ensureAudio();playSE('don');if(isLocked(c)){UI.danMode='kasane';dojoSelection.kasane=danForChart(c)?.key??null;setTab('dan');}else startNormal(c);}
+  const set=currentSet(),c=set&&chartForSlot(set,UI.courseBack?'sealed':visibleCourses(set)[UI.courseSlot]);if(!c)return;
+  UI.gesture=true;ensureAudio();playSE('don');if(c.course==='sealed'&&isLocked(c)){toast(sealedLockText(c));return;}
+  if(isLocked(c)){UI.danMode='kasane';dojoSelection.kasane=danForChart(c)?.key??null;setTab('dan');}else startNormal(c);}
 function drawDensity(cvd,c,sel){if(!cvd.isConnected)return;const r=cvd.getBoundingClientRect();const w=Math.max(10,r.width),h=Math.max(10,r.height),dpr=Math.min(2,devicePixelRatio||1);
   cvd.width=Math.round(w*dpr);cvd.height=Math.round(h*dpr);const x=cvd.getContext('2d');x.scale(dpr,dpr);
   const len=Math.max(1000,c.length),nb=clamp(Math.floor(w/4),20,160),bw=w/nb,all=new Array(nb).fill(0),ch=new Array(nb).fill(0),sealed=new Set();
@@ -3196,6 +3222,18 @@ function paintSealSprite(c,x,y,r,side,alpha,pn){if(!side)return;
     c.strokeStyle=i%4===0?'#ff5376':'#ff234f';c.lineWidth=Math.max(1.2,r*.035);c.strokeRect(px-w/2,py-h/2,w,h);}
   c.restore();}
 
+function sealedLockText(chart){
+  if(!chart.sealedSource)return '移行元の通常譜面が見つかりません。';
+  return calcPotential()<SealedRoute.requiredPotential?'封印にはポテンシャル9.00以上が必要です。':
+    `「${chart.sealedSource.meta.version}」から移行し、ライフを残して完走すると解禁されます。`;
+}
+function sealedConditions(chart){
+  const route=chart.sealedRoute;
+  const char=Lib.characters.find(c=>c.id===route.character);
+  const who=route.character===null?'キャラクターなし':`${char?.name||route.character} Lv ${route.minLevel}以上`;
+  const seconds=(route.at/1000).toFixed(3);
+  return `封印「${chart.meta.version}」への移行条件　ポテンシャル9.00以上 ・ ${who} ・ ${seconds}秒までに不可${route.maxBad}以下／可${route.maxOk}以下`;
+}
 function renderDetail(){const d=$('#detail');$('#arcadeMenu').hidden=!!UI.chooseCourse;d.hidden=!UI.chooseCourse;if(d.hidden)return;d.innerHTML='';const s=UI.folderCursor==null?visibleSets().find(x=>x.key===UI.selSet):null;
   if(!s){UI.chooseCourse=false;$('#arcadeMenu').hidden=false;d.hidden=true;return;}
   d.append(el('div',{class:'course-top'},el('h2',null,'むずかしさをえらぶ')));
@@ -3207,8 +3245,16 @@ function renderDetail(){const d=$('#detail');$('#arcadeMenu').hidden=!!UI.choose
   const folderControl=folderAssignmentControl(s);if(folderControl)d.append(folderControl);
   const courses=visibleCourses(s);
   const list=el('div',{class:'crs-list',role:'group','aria-label':'コース',style:'--course-count:5'});
-  list.append(el('button',{class:'crs crs-back'+(UI.courseBack?' is-on':''),onclick:backToSongs},
-    el('span',{class:'k','aria-hidden':'true'},'←'),el('span',{class:'nm'},el('strong',null,'もどる'))));
+  const sealed=UI.sealedSlot&&chartForSlot(s,'sealed');
+  list.append(sealed?el('button',{class:'crs'+(UI.courseBack?' is-on':'')+(isLocked(sealed)?' locked':''),style:`--cc:${COURSES.sealed.color}`,
+    'aria-pressed':String(UI.courseBack),onclick:()=>{
+      if(UI.courseBack){menuDecide();return;}
+      resetRimSequence();UI.courseBack=true;UI.courseSlot=-1;UI.selChart=sealed.uid;renderDetail();focusCourseCard();
+    }},
+    el('span',{class:'k'},'封'),el('span',{class:'nm'},el('strong',null,'封印'),
+      el('small',null,!Lib.unlocks[sealedUnlockKey(sealed)]?'未解禁':sealed.meta.version)),el('span',{class:'lv'},levelText(sealed))):
+    el('button',{class:'crs crs-back'+(UI.courseBack?' is-on':''),onclick:backToSongs},
+      el('span',{class:'k','aria-hidden':'true'},'←'),el('span',{class:'nm'},el('strong',null,'もどる'))));
   for(const [slot,course] of courses.entries()){
     const c=chartForSlot(s,course),C=COURSES[course],locked=c&&isLocked(c);
     const active=!UI.courseBack&&UI.courseSlot===slot;
@@ -3228,10 +3274,15 @@ function renderDetail(){const d=$('#detail');$('#arcadeMenu').hidden=!!UI.choose
   d.append(list);
   const hint=el('span',{class:'course-progress',id:'rimProgress','aria-live':'polite'});
   d.append(el('div',{class:'row course-rims'},pickerRimButton(-1,'◀ 左カツ'),hint,pickerRimButton(1,'右カツ ▶'),
+    sealed?el('button',{class:'btn',type:'button',onclick:backToSongs},'曲選択へ戻る'):null,
     S.auto&&autoAllCharts(s).length?el('button',{class:'btn auto-all',type:'button',title:'重譜面以外の全難易度の譜面を重ねて、同時にオート演奏します（記録されません）',onclick:()=>{UI.gesture=true;startAutoAll(s);}},'▶ 全難易度同時再生'):null));
   paintRimProgress();
-  if(UI.courseBack)return;
-  const c=chartForSlot(s,courses[UI.courseSlot]);if(!c)return;
+  if(UI.courseBack&&!sealed){
+    if(s.charts.some(c=>c.course==='sealed'))d.append(el('p',{class:'opt-note course-variants'},'左カツ10回で封印譜面を表示。Escで曲選択に戻れます。'));
+    return;
+  }
+  const c=UI.courseBack?sealed:chartForSlot(s,courses[UI.courseSlot]);if(!c)return;
+  for(const target of s.charts.filter(target=>target.sealedSource===c))d.append(el('p',{class:'opt-note course-variants'},sealedConditions(target)));
   const alternatives=s.charts.filter(chart=>chart.course===c.course);
   if(alternatives.length>1){
     const select=el('select',{'aria-label':'譜面'},alternatives.map(chart=>el('option',{value:chart.uid},`${chart.meta.version} ・ ${levelText(chart)}`)));
@@ -3257,6 +3308,10 @@ function renderDetail(){const d=$('#detail');$('#arcadeMenu').hidden=!!UI.choose
   if(S.noiseEdit===true)d.append(el('button',{class:'btn gold',type:'button',onclick:()=>{setTab('editor');chartEditor.openChart(c);}},'エディットモードで開く'));
   if(!isLocked(c)){d.append(optRow());d.append(pracBlock(c,dc));}
   const best=Lib.best[c.uid];
+  if(c.course==='sealed'&&isLocked(c)){
+    d.append(el('div',{class:'notice'},sealedLockText(c)),el('p',{class:'opt-note'},sealedConditions(c)));
+    return;
+  }
   if(isLocked(c)){const dan=danForChart(c);
     d.append(el('div',{class:'notice'},`この重譜面は「${dan?dan.name:'重段位'}」に合格すると通常プレイで遊べます。`));
     actions.append(el('button',{class:'btn gold',onclick:()=>{UI.danMode='kasane';dojoSelection.kasane=dan?.key??null;setTab('dan');}},'段位道場へ'));return;}
@@ -3695,6 +3750,10 @@ function judge(tg,kind,off,why){
   if(chord)for(const st of D?[G.st,D.st]:[G.st]){if(kind==='bad')st.chordMiss++;else st.chordHit++;if(why==='mismatch')st.mismatch++;}
   if(kind!=='bad'&&off!=null){G.st.offSum+=off;G.st.offN++;G.st.offs.push(off);}
   fxJudge(tg,kind,why);
+  if(G.sealLife!=null){
+    G.sealLife=SealedRoute.remaining(G.sealLife,kind,n);
+    if(G.sealLife===0){finishSong();return;}
+  }
   if(D)checkDanFail();
   if(G.streak&&!OniStreak.canClear(G.st,CLEAR[G.chart.course]))finishSong();}
 function rollHit(r,color,t=G.now){
@@ -3709,6 +3768,23 @@ function finalizeChord(tg){G.openChord=null;const b=tg.buf;let kind,why=null;
   judge(tg,kind,b.offs.reduce((a,x)=>a+x,0)/b.offs.length,why);}
 function nearestTarget(t,color,stream=false){return TaikoMatchRules.nearestTarget(G,t,color,stream);}
 function mobileTiming(){return G?.match?G.match.device==='mobile':UI.touch;}
+function trySealedTransition(time){
+  const run=G;
+  while(run.sealedRoutes?.length&&run.sealedRoutes[0].sealedRoute.at<=time){
+    const chart=run.sealedRoutes.shift(),route=chart.sealedRoute;
+    if(!SealedRoute.qualifies(route,run.sealedCharacter,run.sealedCharLevel,run.targets))continue;
+    stopRecord(run,true);
+    const tail=newRun(chart);
+    tail.endAt=Math.max(tail.endAt,run.src.buffer.duration*1000);
+    tail.targets=tail.targets.filter(t=>t.t>=route.at);
+    tail.rolls=tail.rolls.filter(r=>r.end>route.at).map(r=>({...r,t:Math.max(r.t,route.at)}));
+    const {src,gain,acZero,perfZero,latency,synced,rate,t0,introAt,bgImg}=run;
+    G={...tail,src,gain,acZero,perfZero,latency,synced,rate,t0,introAt,bgImg,now:Math.max(time,run.now),
+      sealLife:SealedRoute.life};
+    layoutStage();
+    return;
+  }
+}
 function press(role,t,auto){
   if(!G||G.finished||G.paused)return;
   if(G.match){
@@ -3716,6 +3792,7 @@ function press(role,t,auto){
     t=Math.round(Math.max(t,G.lastMatchHit??-Infinity));
     G.lastMatchHit=t;taikoOnline.hit(ROLES.indexOf(role),t);
   }
+  trySealedTransition(t);
   const color=ROLE_COLOR[role];
   G.flash[role]=performance.now();playSE(color==='d'?'don':'ka');
   if(G.openChord&&t>G.openChord.gatherEnd)finalizeChord(G.openChord);
@@ -3728,7 +3805,7 @@ function press(role,t,auto){
     const next=nearestTarget(t,color);
     if(next&&next.t>gathering.t&&(next.type==='chord'||next.color===color)&&
       Math.abs(t-next.t)<=G.win.ok&&Math.abs(t-next.t)<Math.abs(t-gathering.t)){
-      finalizeChord(gathering);tg=next;
+      finalizeChord(gathering);if(G.finished)return;tg=next;
     }
   }
   const oc=G.openChord;
@@ -3775,8 +3852,11 @@ function update(now){
   if(G.auto)autoplay(now);
   // 処理が遅れたタッチを待ってから失効させる。良・可・不可の判定幅はイベントの時刻に適用する。
   const expireAt=now-(mobileTiming()&&!G.auto?TOUCH_DELIVERY_GRACE*(G.rate||1):0);
+  trySealedTransition(expireAt);
   if(G.openChord&&expireAt>G.openChord.gatherEnd)finalizeChord(G.openChord);
+  if(G.finished)return;
   expireTargets(expireAt);
+  if(G.finished)return;
   for(const r of G.rolls)if(!r.done&&expireAt>r.end)r.done=true;
   if(!G.finished&&now>G.endAt&&!G.openChord)finishSong();}
 function checkDanFail(){if(!D||D.failCond)return;
@@ -3844,7 +3924,7 @@ function fadeMusic(sec){if(!G||!G.gain||!AC)return;try{const g=G.gain.gain;g.can
 async function startNormal(chart){if(waitForLibrary())return;ensureAudio();D=null;await runSong(chart);}
 // オート演奏ON時のみ：この曲の重以外の全難易度の譜面を1つに重ね、同時にオート再生する。
 const AUTOALL_STAMP='autoall:';
-function autoAllCharts(set){return COURSE_ORDER.filter(k=>k!=='kasane').flatMap(k=>set.charts.filter(c=>c.course===k&&!isLocked(c)));}
+function autoAllCharts(set){return COURSE_ORDER.filter(k=>k!=='kasane'&&k!=='sealed').flatMap(k=>set.charts.filter(c=>c.course===k&&!isLocked(c)));}
 function mergeCharts(set,charts){
   // 本家の1P・2P…のように、難易度ごとに1レーン（row）を割り当てて同時に流す。
   const base=charts[charts.length-1],targets=[],rolls=[],barMap=new Map();let total=0;
@@ -3868,6 +3948,10 @@ async function danInterlude(){const chart=D.dan.songs[D.idx];G=null;D.interlude=
   const p=getAudio(chart);await Promise.all([p.catch(()=>null),wait(2800)]);if(!D)return;D.interlude=null;await runSong(chart);}
 let songLoad=0;
 async function runSong(chart,prac,streakRun=null){
+  if(chart.course==='sealed'&&!chart.set.editorAudio&&isLocked(chart)){
+    if(!$('#stage').hidden)closeStage();
+    toast(sealedLockText(chart));return;
+  }
   const ticket=++songLoad;
   if($('#stage').hidden)openStage();G=null;UI.loading=murechoText(`読み込み中 — ${chart.set.title}`);startLoop();
   let buf;try{buf=await getAudio(chart);}catch(e){
@@ -3883,7 +3967,15 @@ async function runSong(chart,prac,streakRun=null){
   if(ticket!==songLoad||$('#stage').hidden)return;
   G=newRun(chart,prac,null,streakRun);if(D){G.auto=D.auto;G.disp=D.st.score;G.lastCombo=D.st.combo;}
   layoutStage();
-  if(!prac&&!D&&!streakRun)startRecord(G);
+  if(!prac&&!D&&!streakRun){
+    const routes=G.auto?[]:chart.set.charts.filter(c=>c.sealedSource===chart);
+    if(routes.length&&calcPotential()>=SealedRoute.requiredPotential){
+      G.sealedCharacter=selectedChar();
+      G.sealedCharLevel=CHARS_SAVE.prog[G.sealedCharacter?.id]?.lv||1;
+      G.sealedRoutes=routes.sort((a,b)=>a.sealedRoute.at-b.sealedRoute.at);
+    }
+    startRecord(G);
+  }
   if(S.fx!=='low'&&chart.set.bgUrl){G.bgImg=new Image();G.bgImg.src=chart.set.bgUrl;}
   const rate=prac?prac.rate:1,t0=prac?Math.max(0,prac.from-2400):0,lead=prac&&prac.from>0?1000:Math.max(1400,2800-Math.max(0,chart.firstT),1000-chart.firstT/rate);
   const src=AC.createBufferSource();src.buffer=buf;src.playbackRate.value=rate;const g=AC.createGain();g.gain.value=loudnessGain(buf);src.connect(g);g.connect(musicGain);
@@ -3902,7 +3994,7 @@ async function prepareMatchChart(info){
     set.repoHash=info.hash;
     chart=set.charts.find(c=>c.uid===info.uid);
   }
-  if(!chart||chart.stats.chords||chart.length!==info.length)throw new Error('対戦譜面が一致しません。');
+  if(!chart||chart.course==='sealed'||chart.stats.chords||chart.length!==info.length)throw new Error('対戦譜面が一致しません。');
   chart={...chart,course:info.course,level:info.level};
   return {chart,buffer:await getAudio(chart)};
 }
@@ -3946,7 +4038,22 @@ function showMatchResult(match,profile){
   $('#result').hidden=false;
   UI.resultAt=performance.now();
 }
-function finishSong(){if(!G||G.finished)return;G.finished=true;fadeMusic(G.streak ? .35 : .8);
+function finishSealedRun(run){
+  const survived=run.sealLife>0,chart=run.chart,key=sealedUnlockKey(chart),unlocked=!!Lib.unlocks[key];
+  if(survived&&!unlocked){
+    Lib.unlocks[key]='red';store.set('kt.unlocks',Lib.unlocks);
+  }
+  cancelAnimationFrame(rafId);rafId=0;setResultChar(null);
+  const card=$('#resultCard');card.className='ov-card';
+  card.replaceChildren(
+    el('div',{class:'eyebrow'},'封印ハードモード'),
+    el('h2',null,survived?(unlocked?'完走':'封印譜面 解禁'):'挑戦失敗'),
+    el('p',null,`${chart.set.title} ／ ${chart.meta.version} ・ ライフ ${run.sealLife} / ${SealedRoute.life}`),
+    el('div',{class:'ov-btns'},el('button',{class:'btn primary','data-result-back':true,onclick:()=>{closeStage();backToSongs();}},'曲選択へ')));
+  $('#result').hidden=false;UI.resultAt=performance.now();
+}
+function finishSong(){if(!G||G.finished)return;G.finished=true;if(G.sealLife===0)stopSong();else fadeMusic(G.streak ? .35 : .8);
+  if(G.sealLife!=null){finishSealedRun(G);return;}
   if(G.streak){finishStreakSong(G);return;}
   if(G.match){taikoOnline.finish();return;}
   const finishedRun=G;setTimeout(()=>stopRecord(finishedRun),900);// 音の減衰が入るよう少し後で止める
@@ -3967,7 +4074,7 @@ function finishSong(){if(!G||G.finished)return;G.finished=true;fadeMusic(G.strea
 function pauseGame(){if(!G||G.match||G.paused||G.finished||!AC)return;G.paused=true;G.pauseAt=performance.now();AC.suspend();
   const pb=$('#pauseBtns');pb.innerHTML='';
   pb.append(el('button',{class:'btn primary',onclick:resumeGame},'続ける'));
-  if(!D&&!G.streak)pb.append(el('button',{class:'btn',onclick:()=>{const c=G.chart,pr=G.prac;$('#pause').hidden=true;AC.resume();stopSong();runSong(c,pr);}},G.prac?'区間のはじめから':'はじめから'));
+  if(!D&&!G.streak&&G.sealLife==null)pb.append(el('button',{class:'btn',onclick:()=>{const c=G.chart,pr=G.prac;$('#pause').hidden=true;AC.resume();stopSong();runSong(c,pr);}},G.prac?'区間のはじめから':'はじめから'));
   pb.append(el('button',{class:'btn ghost',onclick:()=>{AC.resume();closeStage();}},D?'段位をやめる':G.streak?'鬼レンチャンをやめる':'曲選択へ戻る'));
   $('#pause').hidden=false;}
 function resumeGame(){if(!G||!G.paused)return;$('#pause').hidden=true;const run=G;let done=false;
@@ -4004,9 +4111,10 @@ function startRecord(run){
       toast(`録画を保存しました（${ext}）`+(ext==='webm'?'。このブラウザではmp4で録画できなかったのでwebmです':''));};
     rec.start(1000);showRecBadge(true);
   }catch(e){REC.rec=null;REC.run=null;toast('録画を開始できませんでした：'+e.message,'err');}}
-function stopRecord(run){
+function stopRecord(run,discard=false){
   if(!REC.rec||(run&&REC.run!==run))return;
   const rec=REC.rec;REC.rec=null;REC.run=null;showRecBadge(false);
+  if(discard){rec.ondataavailable=null;rec.onstop=null;REC.chunks=[];}
   if(rec.state!=='inactive')rec.stop();}
 
 /* ---------- 結果 ---------- */
@@ -4100,7 +4208,7 @@ function showWeaknessResult(res,targets){
     last?'元の難所をもう一度':lesson.rounds[index+1]===origin?'元の難所に挑戦':'次の類題へ');
   card.append(el('div',{class:'ov-btns'},next,
     last&&index>0?el('button',{class:'btn',type:'button',onclick:()=>playWeaknessRound(lesson,0)},'似た配置をもう一度'):null,
-    el('button',{class:'btn',type:'button','data-result-back':true,onclick:closeStage},'曲選択へ')));
+    el('button',{class:'btn',type:'button','data-result-back':true,onclick:()=>{closeStage();backToSongs();}},'曲選択へ')));
   $('#result').hidden=false;UI.resultAt=performance.now();next.focus({preventScroll:true});
 }
 
@@ -4619,7 +4727,7 @@ function draw(now){const c=ctx,W=view.W,H=view.H,L=view.L,g=G;if(!L)return;const
     const cg=c.createLinearGradient(x-r*.18,0,x+r*.18,0);cg.addColorStop(0,tg.judged?'#6c75a0':'#ffe58a');cg.addColorStop(1,tg.judged?'#454d75':'#d99a1c');rr(c,x-r*.17,yA,r*.34,yB-yA,r*.17);c.fillStyle=cg;c.fill();c.globalAlpha=1;
     for(let q=tg.notes.length-1;q>=0;q--){const n=tg.notes[q];drawNote(c,x,ys[q],n.big?r*bigMul:r,n.color,al);drawNoise(c,x,ys[q],n.big?r*bigMul:r,n.noise,al,pn);}}
   // レールとゴーゴーの炎
-  c.fillStyle='#d34d43';c.fillRect(0,top-4,W,4);c.fillRect(0,top+fh,W,4);c.fillStyle='#ffd475';c.fillRect(0,top-4,W,1);c.fillRect(0,top+fh+3,W,1);
+  c.fillStyle=g.sealLife!=null?'#a361c9':'#d34d43';c.fillRect(0,top-4,W,4);c.fillRect(0,top+fh,W,4);c.fillStyle='#ffd475';c.fillRect(0,top-4,W,1);c.fillRect(0,top+fh+3,W,1);
   if(k>.01&&!REDUCED&&!LOWFX()){drawFlames(top-4,L.panelW,W,pn,k,beat);if(k>.5&&Math.random()<.4)fx.parts.push({x:jx+Math.random()*(W-jx),y:top+fh,vx:(Math.random()-.5)*.03,vy:-(.04+Math.random()*.07),grav:0,t:pn,life:1300,col:Math.random()<.5?'#ffb347':'#ff7a3c',sz:1.4+Math.random()*1.8,ember:true});}
   drawEffects(pn);if(g.chart.multiRow)drawPanelRows(pn);else drawPanel(pn);drawJudgePop(pn);drawRollCounter(now,pn);drawHud(now,pn);drawFlyers(pn);drawBanner(pn);
   if(g.match)drawOpponentLane(top+fh+7,now);
@@ -4790,7 +4898,7 @@ function drawHud(now,pn){const c=ctx,W=view.W,g=G,C=COURSES[g.chart.course],gz=v
   if(!fallingPlay()){drawArcadeHud(now,pn);return;}
   const hb=c.createLinearGradient(0,0,0,96);hb.addColorStop(0,'rgba(7,9,22,.95)');hb.addColorStop(1,'rgba(7,9,22,0)');c.fillStyle=hb;c.fillRect(0,0,W,96);
   c.fillStyle='rgba(242,236,220,.08)';c.fillRect(0,0,W,3);c.fillStyle=C.color;c.fillRect(0,0,W*clamp(now/Math.max(1,g.chart.length),0,1),3);
-  c.font=`700 13px ${FB}`;const lab=`${C.jp} ${levelText(g.chart)}`,bw=c.measureText(lab).width+18;rr(c,16,14,bw,25,6);c.fillStyle=C.color;c.fill();
+  c.font=`700 13px ${FB}`;const lab=g.sealLife!=null?'封印 HARD':`${C.jp} ${levelText(g.chart)}`,bw=c.measureText(lab).width+18;rr(c,16,14,bw,25,6);c.fillStyle=C.color;c.fill();
   c.textBaseline='middle';c.fillStyle='#15101a';c.fillText(lab,25,27);c.font=`700 14px ${FB}`;c.fillStyle='#f2ecdc';c.fillText(fit(c,g.chart.set.title,gz.x-40-bw),28+bw,27);c.textBaseline='alphabetic';
   const st=D?D.st:g.st;g.disp+=(st.score-g.disp)*.2;if(Math.abs(st.score-g.disp)<1)g.disp=st.score;
   c.font=`600 28px ${FN}`;c.fillStyle='#f2ecdc';const sTxt=fmtNum(g.disp);c.fillText(sTxt,16,74);const sw=c.measureText(sTxt).width;
@@ -4798,13 +4906,14 @@ function drawHud(now,pn){const c=ctx,W=view.W,g=G,C=COURSES[g.chart.course],gz=v
   g.fx.scorePops=g.fx.scorePops.filter(p=>pn-p.t<650);const sp=g.fx.scorePops[g.fx.scorePops.length-1];
   if(sp){const dt=pn-sp.t;c.globalAlpha=1-dt/650;c.font=`600 13px ${FN}`;c.fillStyle='#f6c35c';c.fillText('+'+fmtNum(sp.v),26+sw,68-dt*.015);c.globalAlpha=1;}
   let clearV=CLEAR[g.chart.course]/10000;if(D){const gc=D.conds.find(x=>x.key==='gauge');clearV=gc?gc.red.v/100:0;}
-  const v=st.gauge/10000;if(clearV>0&&v>=clearV&&!g.normaAt)g.normaAt=pn;drawGauge(v,clearV,pn);
+  if(g.sealLife!=null)clearV=0;
+  const v=g.sealLife!=null?g.sealLife/SealedRoute.life:st.gauge/10000;if(clearV>0&&v>=clearV&&!g.normaAt)g.normaAt=pn;drawGauge(v,clearV,pn);
   const na=pn-(g.normaAt||-1e9);if(na<1600){const a=na<200?na/200:na>1200?1-(na-1200)/400:1,gx=gz.x+gz.w*clearV,s=REDUCED?1:1+(1-easeOut(Math.min(1,na/250)))*.6;
     c.save();c.globalAlpha=a;c.translate(clamp(gx,gz.x+70,W-150),gz.y+gz.h+56);c.scale(s,s);c.textAlign='center';c.font=`800 17px ${FD}`;c.lineWidth=5;c.lineJoin='round';c.strokeStyle='#0a0d1e';
     const nt=D?'合格ライン！':'ノルマクリア！';c.strokeText(nt,0,0);c.fillStyle='#f2bc3d';c.fillText(nt,0,0);c.restore();
     if(na<500){c.save();c.globalAlpha=1-na/500;rr(c,gz.x-6,gz.y-6,gz.w+12,gz.h+12,9);c.strokeStyle='#ffe58a';c.lineWidth=3;c.stroke();c.restore();}}
   if(clearV>0){const mx=gz.x+gz.w*clearV;c.font=`700 10px ${FB}`;c.fillStyle=v>=clearV?'#f2bc3d':'#a2a8ca';c.textAlign='center';c.fillText(D?'合格':'クリア',mx,gz.y+gz.h+14);}
-  c.font=`600 12px ${FN}`;c.fillStyle='#a2a8ca';c.textAlign='right';c.fillText(`${D?'段位 ':''}魂 ${(st.gauge/100).toFixed(1)}%`,view.H<=520?W-130:W-16,gz.y+gz.h+32);c.textAlign='left';}
+  c.font=`600 12px ${FN}`;c.fillStyle='#a2a8ca';c.textAlign='right';c.fillText(g.sealLife!=null?`ライフ ${g.sealLife}`:`${D?'段位 ':''}魂 ${(st.gauge/100).toFixed(1)}%`,view.H<=520?W-130:W-16,gz.y+gz.h+32);c.textAlign='left';}
 function drawArcadeHud(now,pn){
   const c=ctx,W=view.W,g=G,L=view.L,C=COURSES[g.chart.course],st=D?D.st:g.st;
   c.save();
@@ -4812,7 +4921,7 @@ function drawArcadeHud(now,pn){
   c.fillStyle='#5e1740';c.fillRect(0,0,W,5);
   c.fillStyle='#ffd75f';c.fillRect(0,0,W*progress,5);
   const label=g.streak?'鬼レンチャン '+(g.streak.cleared.length+1)+' / '+g.streak.stages.length:
-    g.chart.multiRow?'全難易度同時':C.jp+' '+levelText(g.chart);
+    g.sealLife!=null?'封印 HARD':g.chart.multiRow?'全難易度同時':C.jp+' '+levelText(g.chart);
   c.font=`800 13px ${FB}`;
   const badgeWidth=c.measureText(label).width+16;
   rr(c,10,12,badgeWidth,23,5);c.fillStyle=C.color;c.fill();
@@ -4825,21 +4934,22 @@ function drawArcadeHud(now,pn){
   c.textAlign='left';c.font=`900 ${W<540?15:24}px ${FN}`;
   c.strokeText(fmtNum(g.disp),11,L.top-12);c.fillText(fmtNum(g.disp),11,L.top-12);
   const condition=D?.conds.find(x=>x.key==='gauge');
-  drawGauge(st.gauge/10000,condition?condition.red.v/100:CLEAR[g.chart.course]/10000,pn);
+  if(g.sealLife!=null)drawGauge(g.sealLife/SealedRoute.life,0,pn);
+  else drawGauge(st.gauge/10000,condition?condition.red.v/100:CLEAR[g.chart.course]/10000,pn);
   c.restore();
 }
-function drawGauge(v,clearV,pn){const c=ctx,{x,y,w,h}=view.gauge,full=v>=.9999;
+function drawGauge(v,clearV,pn){const c=ctx,{x,y,w,h}=view.gauge,full=v>=.9999,hard=G.sealLife!=null;
   rr(c,x-3,y-3,w+6,h+6,7);c.fillStyle='#05070f';c.fill();rr(c,x,y,w,h,4);c.fillStyle='#1d2242';c.fill();
   const n=Math.max(16,Math.round(w/10)),sw=w/n;
   for(let i=0;i<n;i++){const s0=i/n,above=clearV>0&&s0+1e-6>=clearV,on=v>s0+1e-9;let col;
-    if(!on)col=above?'#3b3418':'#3b1d23';else if(full)col=`hsl(${(pn*.25+i*14)%360},85%,62%)`;else col=above?'#f2bc3d':'#ee4a2b';
+    if(hard)col=on?(v<=.2?'#ff5c63':'#cf8aef'):'#482d54';else if(!on)col=above?'#3b3418':'#3b1d23';else if(full)col=`hsl(${(pn*.25+i*14)%360},85%,62%)`;else col=above?'#f2bc3d':'#ee4a2b';
     const fw=on?Math.min(1,(v-s0)*n):1;c.fillStyle=col;c.fillRect(x+i*sw+1,y+2,(sw-2)*fw,h-4);}
   if(clearV>0){c.fillStyle='#f2ecdc';c.fillRect(x+w*clearV-1,y-4,2,h+8);}
   const ox=x+w+16,oy=y+h/2,R=13,fl=clamp(1-(pn-(G.gaugeFlash||-1e9))/160,0,1),reached=clearV>0&&v>=clearV;
   c.beginPath();c.arc(ox,oy,R+2,0,TAU);c.fillStyle='#05070f';c.fill();
   c.beginPath();c.arc(ox,oy,R,0,TAU);c.fillStyle=full?`hsl(${(pn*.25)%360},85%,60%)`:reached?'#f2bc3d':'#343c6c';c.fill();
   if(fl>0){c.beginPath();c.arc(ox,oy,R+5*fl,0,TAU);c.strokeStyle=`rgba(255,240,200,${fl})`;c.lineWidth=2;c.stroke();}
-  c.font=`800 ${Math.round(R*1.1)}px ${FD}`;c.textAlign='center';c.textBaseline='middle';c.fillStyle=full||reached?'#1a1405':'#a2a8ca';c.fillText('魂',ox,oy+1);c.textAlign='left';c.textBaseline='alphabetic';}
+  c.font=`800 ${Math.round(R*1.1)}px ${FD}`;c.textAlign='center';c.textBaseline='middle';c.fillStyle=full||reached?'#1a1405':'#a2a8ca';c.fillText(hard?G.sealLife:'魂',ox,oy+1);c.textAlign='left';c.textBaseline='alphabetic';}
 function drawBanner(pn){const go=pn-(G.fx.gogo||-1e9);if(go<1400){const c=ctx,L=view.L,W=view.W,a=go<150?go/150:go>1000?1-(go-1000)/400:1,x=(W+L.judgeX)/2,y=L.top+L.fieldH/2+12,s=REDUCED?1:1+(1-easeOut(Math.min(1,go/260)))*.5;
     c.save();c.globalAlpha=a*.95;c.translate(x,y);c.rotate(-.04);c.scale(s,s);c.textAlign='center';c.font=`900 ${Math.round(Math.min(48,W*.08))}px ${FD}`;c.lineWidth=8;c.lineJoin='round';c.strokeStyle='#3a0d06';
     c.strokeText('ゴーゴータイム！',0,0);const gr=c.createLinearGradient(0,-40,0,4);gr.addColorStop(0,'#fff3c4');gr.addColorStop(.5,'#ffb347');gr.addColorStop(1,'#ff5a2a');c.fillStyle=gr;c.fillText('ゴーゴータイム！',0,0);c.restore();}
@@ -5462,7 +5572,7 @@ const taikoOnline=createTaikoMultiplayer({
   wait:()=>{$('#matchWaiting').hidden=false;},
 });
 const chartEditor=createKasaneEditor({
-  pane:$('#tab-editor'),charts:()=>Lib.charts,courseInfo:COURSES,parseOsu,rateChart,sortCharts,levelText,norm,text:murechoText,
+  pane:$('#tab-editor'),charts:()=>Lib.charts,characters:()=>Lib.characters,courseInfo:COURSES,parseOsu,rateChart,sortCharts,levelText,norm,text:murechoText,
   loadNoise,saveNoise,noiseId,noiseEligible,findFile,decodeText,demoOsu,nk,coverElement,
   audio:()=>ensureAudio(),decodeAudio:decodeGameAudio,getAudio,hit:playSE,noiseData,sameVersion,effectiveFolders,folderTrail,
   saveDraft:(draft)=>IDB.tx('readwrite',s=>s.put(draft,'editor-draft'),'repository'),

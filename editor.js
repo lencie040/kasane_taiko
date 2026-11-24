@@ -67,6 +67,19 @@ function createKasaneEditor(game) {
         <label>推定レベル<output id="edLevel">—</output></label>
         <label>出力名<input id="edFilename" placeholder="曲名"></label>
       </div>
+      <fieldset id="edSealed" class="ed-folders" hidden>
+        <legend>封印譜面の解禁条件</legend>
+        <p>移行元と同じ音源を使います。解禁後は、この譜面を最初から遊べます。</p>
+        <div class="ed-meta">
+          <label>移行元の通常譜面<select id="edSealedSource"></select></label>
+          <label>移行位置（ms）<input id="edSealedAt" type="number" min="1" step="1" required></label>
+          <button class="btn" id="edSealedHere" type="button">現在の再生位置を使う</button>
+          <label>キャラクター<select id="edSealedCharacter"></select></label>
+          <label>キャラクター Lv 以上<input id="edSealedMinLevel" type="number" min="1" max="100" step="1" required></label>
+          <label>不可の上限<input id="edSealedMaxBad" type="number" min="0" step="1" required></label>
+          <label>可の上限<input id="edSealedMaxOk" type="number" min="0" step="1" required></label>
+        </div>
+      </fieldset>
       <div class="ed-cover-controls">
         <div id="edCoverPreview" aria-label="ジャケ絵のプレビュー"></div>
         <label class="btn ed-upload">ジャケ絵を選ぶ<input id="edCover" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif,.png,.jpg,.jpeg,.webp,.gif,.avif"></label>
@@ -276,13 +289,39 @@ function createKasaneEditor(game) {
       selected.length?`${selected.length}個を選択中`:`${draft.objects.length}個のオブジェクト`;
     field('Delete').disabled=!selected.length;
   }
+  const sealedNumbers={At:'at',MinLevel:'minLevel',MaxBad:'maxBad',MaxOk:'maxOk'};
+  function sealedSources() {
+    if(!original||original.set.demo)return [];
+    return original.set.charts.filter(c=>SealedRoute.ordinary(c)&&(draft.newDifficulty||c!==original));
+  }
+  function sealedSource() {
+    return sealedSources().find(c=>game.nk(c.sourcePath)===game.nk(draft.sealedRoute?.sourcePath));
+  }
+  function syncSealed() {
+    const route=draft.sealedRoute;
+    const sources=sealedSources();
+    const source=field('SealedSource');
+    source.replaceChildren(...sources.map(c=>opt(c.sourcePath,`${c.meta.version} ・ ${game.levelText(c)}`)));
+    source.value=sealedSource()?.sourcePath||'';
+    const character=field('SealedCharacter');
+    const chars=game.characters();
+    character.replaceChildren(opt('','キャラクターなし'),...chars.map(c=>opt(c.id,c.name)));
+    if(route?.character&&!chars.some(c=>c.id===route.character))character.add(opt(route.character,route.character));
+    character.value=route?.character??'';
+    for(const [id,key] of Object.entries(sealedNumbers))field('Sealed'+id).value=route?.[key]??'';
+  }
   function refresh() {
     const stacked=[...groups(draft.objects).values()].some(notes=>notes.length>1);
-    const course=stacked?'kasane':draft.meta.course;
-    field('Course').disabled=stacked;
+    const sealed=draft.meta.course==='sealed';
+    const course=stacked&&!sealed?'kasane':draft.meta.course;
+    field('Course').disabled=stacked&&!sealed&&!sealedSources().length;
+    field('Sealed').hidden=!sealed;
+    field('SealedMinLevel').disabled=!draft.sealedRoute?.character;
+    field('Audio').disabled=sealed;
+    field('Audio').closest('label').hidden=sealed;
     field('Course').value=course;
     field('Project').textContent=(original?`${original.set.title} / ${draft.newDifficulty?'新規譜面':original.meta.version}`:'新規譜面')+(dirty?' ・ 未保存':'');
-    field('AudioName').textContent=buffer?`${draft.audioFile?.name||original?.audio||'デモ音源'} ・ ${clock(buffer.duration*1000)}`:'音源なし';
+    field('AudioName').textContent=buffer?`${(sealed?sealedSource()?.audio:draft.audioFile?.name||original?.audio)||'デモ音源'} ・ ${clock(buffer.duration*1000)}`:'音源なし';
     field('Play').disabled=!buffer;
     field('Measure').disabled=!buffer;
     field('Test').disabled=!buffer||!draft.objects.length;
@@ -294,7 +333,7 @@ function createKasaneEditor(game) {
   function syncFields() {
     for(const [id,key] of Object.entries(metadata))field(id).value=draft.meta[key];
     field('Snap').value=draft.snap;
-    syncTiming();renderFolderOptions();refresh();
+    syncTiming();syncSealed();renderFolderOptions();refresh();
   }
   function syncTiming() {
     const points=reds();
@@ -374,6 +413,11 @@ function createKasaneEditor(game) {
       if(p.time>=start&&p.time<=start+span){
         ctx.fillStyle='#ff796e';ctx.fillRect(toX(p.time),18,2,53);
       }
+    }
+    if(draft.meta.course==='sealed'&&draft.sealedRoute?.at>0){
+      const x=toX(draft.sealedRoute.at);
+      ctx.fillStyle='#ca97ff';ctx.fillRect(x,18,2,height-28);
+      ctx.font='bold 11px system-ui,sans-serif';ctx.fillText('封印へ移行',x+4,32);
     }
     const list=gesture?.moving?gesture.projected:draft.objects;
     const stacks=groups(list);
@@ -621,6 +665,7 @@ function createKasaneEditor(game) {
       d.meta.version=version;d.meta.course='oni';
       return d;
     }
+    if(chart.sealedRoute)d.sealedRoute={...chart.sealedRoute};
     d.objects=chartObjects(chart).map((o,i)=>({...o,id:i+1}));
     return d;
   }
@@ -694,7 +739,9 @@ function createKasaneEditor(game) {
     say('音源を読み込み中…');
     try {
       game.audio();
-      const file=draft.audioFile,chart=original;
+      const sealed=draft.meta.course==='sealed';
+      const file=sealed?null:draft.audioFile,chart=sealed?sealedSource():original;
+      if(!chart&&!file)throw new Error('移行元の譜面がありません');
       const value=file?await game.decodeAudio(await file.arrayBuffer()):await game.getAudio(chart);
       if(token!==audioJob)return;
       sourceAudio=file||(!chart.set.demo&&game.findFile(chart.set,chart.audio,chart.dir,'audio'))||null;
@@ -702,7 +749,7 @@ function createKasaneEditor(game) {
     }catch(error){if(token===audioJob)say('音源を開けませんでした。対応する音源を選び直してください。',true);}
   }
   async function upload(file) {
-    if(!file)return;
+    if(!file||draft.meta.course==='sealed')return;
     const token=++audioJob;
     pause();say('音源を読み込み中…');
     try {
@@ -983,7 +1030,16 @@ function createKasaneEditor(game) {
       if(game.noiseEligible(t)&&notes.some(o=>o.seal))noise[game.noiseId(t,i)]=notes.map(o=>o.seal||null);
     });
     chart.archiveNoise=noise;
-    chart.course=chart.stats.chords?'kasane':draft.meta.course;
+    chart.course=draft.meta.course==='sealed'?'sealed':chart.stats.chords?'kasane':draft.meta.course;
+    if(chart.course==='sealed'&&!preview){
+      const route=SealedRoute.parse(draft.sealedRoute),source=sealedSource();
+      if(!source)throw new Error('同じ曲の通常譜面を移行元に指定してください。');
+      if(!route)throw new Error('封印の移行位置・キャラクターLv・可と不可の上限を確認してください。');
+      if(!SealedRoute.validSplit(route,source,chart)){
+        throw new Error('移行元には切り替え前に、封印譜面には切り替え後にノーツを配置してください。移行位置は移行元の演奏区間内に設定してください。');
+      }
+      chart.sealedRoute=route;
+    }
     const rating=game.rateChart(chart);
     chart.level=rating.level;
     return {text,chart,noise,rating,course:chart.course,level:rating.level};
@@ -1037,13 +1093,20 @@ function createKasaneEditor(game) {
       while(sourceChart?.set.files[game.nk(archivePath(file))])file=base+'-'+(n++)+ext;
       return file;
     };
-    const audioName=uniquePath('editor-audio','.'+suffix.toLowerCase());
+    const routeAudio=draft.meta.course==='sealed'&&src?.name;
+    const audioName=routeAudio||uniquePath('editor-audio','.'+suffix.toLowerCase());
     const content=build(audioName);
     if(siblings.some(c=>game.sameVersion(c.meta.version,content.chart.meta.version))){
       throw new Error('同じ難易度名がすでにあります。別の名前にしてください。');
     }
     const replacing=sourceChart&&!draft.newDifficulty;
     const chartPath=replacing?sourceChart.sourcePath:archivePath(uniquePath('editor-chart','.osu'));
+    for(const sibling of siblings){
+      const route=sibling.sealedRoute;
+      if(replacing&&route&&game.nk(route.sourcePath)===game.nk(chartPath)&&!SealedRoute.validSplit(route,content.chart,sibling)){
+        throw new Error(`封印譜面「${sibling.meta.version}」の移行条件を満たす通常譜面を残してください。`);
+      }
+    }
     const set=sourceChart?.set,song={key:draft.key,title:content.chart.meta.titleU,artist:content.chart.meta.artistU,
       aliases:set?[...new Set([...(set.aliases||[]),set.title,set.file])]:[],...folderMetadata()};
     const cover=draft.coverFile;
@@ -1060,11 +1123,13 @@ function createKasaneEditor(game) {
         zip.file(asset.name,await asset.async('uint8array'));
       }
     }
-    const bytes=src instanceof Blob?await src.arrayBuffer():src?await src.async('uint8array'):toWav(audio);
-    zip.file(archivePath(audioName),bytes);
+    if(!routeAudio){
+      const bytes=src instanceof Blob?await src.arrayBuffer():src?await src.async('uint8array'):toWav(audio);
+      zip.file(archivePath(audioName),bytes);
+    }
     zip.file(chartPath,content.text);
-    const charts=siblings.map(c=>({path:c.sourcePath,version:c.meta.version,course:c.course,level:c.level,noise:game.noiseData(c)}));
-    const entry={path:chartPath,version:content.chart.meta.version,course:content.course,level:content.level,noise:content.noise};
+    const charts=siblings.map(c=>({path:c.sourcePath,version:c.meta.version,course:c.course,level:c.level,noise:game.noiseData(c),sealedRoute:c.sealedRoute}));
+    const entry={path:chartPath,version:content.chart.meta.version,course:content.course,level:content.level,noise:content.noise,sealedRoute:content.chart.sealedRoute};
     if(replacing)charts.splice(sourceChart.set.charts.indexOf(sourceChart),0,entry);
     else charts.push(entry);
     zip.file('kasane.json',JSON.stringify({format:1,song,charts}));
@@ -1083,8 +1148,38 @@ function createKasaneEditor(game) {
   }
 
   for(const [id,key] of Object.entries(metadata)){
+    if(id==='Course')continue;
     field(id).addEventListener('input',()=>{draft.meta[key]=field(id).value;mark();});
   }
+  field('Course').onchange=()=>{
+    const course=field('Course').value,wasSealed=draft.meta.course==='sealed';
+    if(course==='sealed'&&!sealedSources().length){
+      refresh();say('封印譜面は「同じ曲に新規譜面」から作成し、移行元の通常譜面を残してください。',true);return;
+    }
+    draft.meta.course=course;
+    if(course==='sealed'&&!sealedSource()){
+      const source=sealedSources()[0];
+      draft.sealedRoute={sourcePath:source.sourcePath,at:null,character:null,minLevel:1,maxBad:0,maxOk:0};
+    }
+    syncSealed();mark();
+    if(wasSealed!==(course==='sealed')){pause();setBuffer(null);loadDraftAudio();}
+  };
+  field('SealedSource').onchange=()=>{
+    draft.sealedRoute.sourcePath=field('SealedSource').value;
+    pause();setBuffer(null);mark();loadDraftAudio();
+  };
+  field('SealedCharacter').onchange=()=>{
+    draft.sealedRoute.character=field('SealedCharacter').value||null;
+    if(!draft.sealedRoute.character){draft.sealedRoute.minLevel=1;field('SealedMinLevel').value=1;}
+    mark();
+  };
+  for(const [id,key] of Object.entries(sealedNumbers)){
+    const input=field('Sealed'+id);
+    input.oninput=()=>{draft.sealedRoute[key]=Number.isNaN(input.valueAsNumber)?null:input.valueAsNumber;mark();};
+  }
+  field('SealedHere').onclick=()=>{
+    draft.sealedRoute.at=Math.round(cursor);field('SealedAt').value=draft.sealedRoute.at;mark();
+  };
   field('New').onclick=()=>{if(allowReplace())replaceDraft(newDraft());};
   field('Browse').onclick=browseLibrary;
   field('LibraryClose').onclick=()=>field('Library').close();

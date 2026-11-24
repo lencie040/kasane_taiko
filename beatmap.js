@@ -1,7 +1,7 @@
 'use strict';
 
-const COURSE_ORDER=['easy','normal','hard','oni','ura','kasane'];
-const COURSE_ALIAS={easy:'easy',kantan:'easy','かんたん':'easy','簡単':'easy',normal:'normal',futsuu:'normal','ふつう':'normal','普通':'normal',hard:'hard',muzukashii:'hard','むずかしい':'hard','難しい':'hard',oni:'oni','おに':'oni','鬼':'oni',ura:'ura','inner oni':'ura','ura oni':'ura','裏':'ura','おに裏':'ura','裏おに':'ura','裏鬼':'ura','鬼裏':'ura',kasane:'kasane','重':'kasane','かさね':'kasane',special:'kasane'};
+const COURSE_ORDER=['easy','normal','hard','oni','ura','kasane','sealed'];
+const COURSE_ALIAS={easy:'easy',kantan:'easy','かんたん':'easy','簡単':'easy',normal:'normal',futsuu:'normal','ふつう':'normal','普通':'normal',hard:'hard',muzukashii:'hard','むずかしい':'hard','難しい':'hard',oni:'oni','おに':'oni','鬼':'oni',ura:'ura','inner oni':'ura','ura oni':'ura','裏':'ura','おに裏':'ura','裏おに':'ura','裏鬼':'ura','鬼裏':'ura',kasane:'kasane','重':'kasane','かさね':'kasane',special:'kasane',sealed:'sealed','封印':'sealed'};
 
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 

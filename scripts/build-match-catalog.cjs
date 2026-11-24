@@ -17,7 +17,7 @@ for (const pack of packs) {
     seen.add(norm(version));
     chart.meta.version = version;
     const course = chart.stats.chords ? 'kasane' : (COURSE_ALIAS[norm(entry.course)] || guessCourse(chart));
-    if (course==='kasane' || !chart.targets.length) continue;
+    if (COURSE_ALIAS[norm(entry.course)]==='sealed'||course==='kasane'||!chart.targets.length) continue;
 
     const seals = chart.targets.map((note,index) => {
       const id = index+':'+note.t+':'+note.color+(note.big?'B':'');
