@@ -16,6 +16,7 @@ function createKasaneEditor(game) {
     newDifficulty:false,folders:[],
   });
   let draft = newDraft(), original = null, buffer = null, wave = null, audioJob = 0, sourceAudio = null;
+  let coverJob=0, coverBusy=false, coverPreviewUrl=null;
   let nextId = 1, tool = 'don', cursor = 0, start = 0, span = 6000, timingIndex = 0;
   let selection = new Set(), history = [], future = [], clipboard = [], dirty = false;
   let pending = null, gesture = null, geometry, playing = null, raf = 0, lastTick = 0, estimate = null;
@@ -65,6 +66,11 @@ function createKasaneEditor(game) {
         <label>コース<select id="edCourse"></select></label>
         <label>推定レベル<output id="edLevel">—</output></label>
         <label>出力名<input id="edFilename" placeholder="曲名"></label>
+      </div>
+      <div class="ed-cover-controls">
+        <div id="edCoverPreview" aria-label="ジャケ絵のプレビュー"></div>
+        <label class="btn ed-upload">ジャケ絵を選ぶ<input id="edCover" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif,.png,.jpg,.jpeg,.webp,.gif,.avif"></label>
+        <button id="edCoverRemove" class="btn small" type="button" disabled>ジャケ絵を外す</button>
       </div>
       <details class="ed-rating"><summary>難易度の内訳</summary>
         <p>表示レベルに換算する前の各項目の加点</p><dl id="edRatingBreakdown"></dl>
@@ -619,12 +625,45 @@ function createKasaneEditor(game) {
     return d;
   }
   function replaceDraft(value,chart=null) {
-    pause();audioJob++;
+    pause();audioJob++;coverJob++;coverBusy=false;
     draft=value;original=chart;sourceAudio=null;
     nextId=value.objects.reduce((max,o)=>Math.max(max,o.id),0)+1;
     cursor=0;start=0;timingIndex=0;selection.clear();pending=null;gesture=null;history=[];future=[];
     dirty=false;
-    setBuffer(null);syncFields();queueRating();selectTool('don');say('');
+    setBuffer(null);syncFields();renderCover();queueRating();selectTool('don');say('');
+  }
+  function renderCover(){
+    if(coverPreviewUrl)URL.revokeObjectURL(coverPreviewUrl);
+    coverPreviewUrl=draft.coverFile instanceof Blob?URL.createObjectURL(draft.coverFile):null;
+    const url=draft.coverFile===undefined?original?.set.coverUrl:coverPreviewUrl;
+    field('CoverPreview').replaceChildren(game.coverElement(url));
+    field('CoverRemove').disabled=!url&&!coverBusy;
+  }
+  async function uploadCover(file){
+    if(!file)return;
+    const token=++coverJob,url=URL.createObjectURL(file);
+    coverBusy=true;
+    field('CoverRemove').disabled=false;
+    try{
+      const image=new Image();
+      image.src=url;
+      await image.decode();
+      const scale=Math.min(1,512/Math.max(image.naturalWidth,image.naturalHeight));
+      const canvas=document.createElement('canvas');
+      canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));
+      canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));
+      canvas.getContext('2d').drawImage(image,0,0,canvas.width,canvas.height);
+      const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/webp',.88));
+      if(!blob)throw new Error('ジャケ絵を書き出せませんでした。');
+      if(token!==coverJob)return;
+      draft.coverFile=blob;
+      mark();
+      say('ジャケ絵を追加しました。');
+    }catch(error){if(token===coverJob)say('この画像をジャケ絵として読み込めませんでした。',true);}
+    finally{
+      URL.revokeObjectURL(url);
+      if(token===coverJob){coverBusy=false;renderCover();}
+    }
   }
   function allowReplace() {
     return !dirty||confirm('現在の編集を閉じます。未保存の変更を破棄しますか？');
@@ -985,6 +1024,7 @@ function createKasaneEditor(game) {
   }
   async function pack() {
     if(!buffer)throw new Error('音源を選んでください。');
+    if(coverBusy)throw new Error('ジャケ絵の読み込みが終わってから書き出してください。');
     if(typeof JSZip==='undefined')throw new Error('ZIPライブラリを読み込めませんでした。');
     const src=sourceAudio,sourceChart=original?.set.demo?null:original,audio=buffer,name=fileName();
     const suffix=/\.(mp3|wav|ogg|m4a|aac|flac|opus|webm)$/i.exec(src?.name||'')?.[1]||'wav';
@@ -1006,6 +1046,12 @@ function createKasaneEditor(game) {
     const chartPath=replacing?sourceChart.sourcePath:archivePath(uniquePath('editor-chart','.osu'));
     const set=sourceChart?.set,song={key:draft.key,title:content.chart.meta.titleU,artist:content.chart.meta.artistU,
       aliases:set?[...new Set([...(set.aliases||[]),set.title,set.file])]:[],...folderMetadata()};
+    const cover=draft.coverFile;
+    song.cover=cover===undefined?set?.coverFile?.name??null:null;
+    if(cover instanceof Blob){
+      song.cover=archivePath(uniquePath('editor-cover',cover.type==='image/webp'?'.webp':'.png'));
+      zip.file(song.cover,await cover.arrayBuffer());
+    }
     if(sourceChart){
       for(const asset of Object.values(sourceChart.set.files)){
         const path=game.nk(asset.name);
@@ -1089,6 +1135,11 @@ function createKasaneEditor(game) {
   });
   quoteCanvas.addEventListener('pointercancel',()=>{quoteDrag=null;});
   field('Audio').onchange=e=>{upload(e.target.files[0]);e.target.value='';};
+  field('Cover').onchange=e=>{uploadCover(e.target.files[0]);e.target.value='';};
+  field('CoverRemove').onclick=()=>{
+    coverJob++;coverBusy=false;draft.coverFile=null;renderCover();mark();
+    say('ジャケ絵を外しました。');
+  };
   pane.addEventListener('drop',e=>{
     const file=[...(e.dataTransfer?.files||[])].find(f=>f.type.startsWith('audio/')||/\.(mp3|wav|ogg|m4a|aac|flac|opus|webm)$/i.test(f.name));
     if(!file)return;
@@ -1138,10 +1189,10 @@ function createKasaneEditor(game) {
     timingIndex=0;syncTiming();mark();
   };
   field('Save').onclick=safeAction(async()=>{
-    const saving=draft, state=JSON.stringify({...saving,audioFile:null});
+    const saving=draft,cover=draft.coverFile,state=JSON.stringify({...saving,audioFile:null,coverFile:null});
     const key=await game.saveDraft({format:1,draft:{...saving}});
     if(!key)throw new Error('下書きを保存できませんでした。');
-    if(draft===saving&&state===JSON.stringify({...draft,audioFile:null})){dirty=false;refresh();}
+    if(draft===saving&&cover===draft.coverFile&&state===JSON.stringify({...draft,audioFile:null,coverFile:null})){dirty=false;refresh();}
     say('このブラウザに下書きを保存しました。');
   });
   field('Restore').onclick=safeAction(async()=>{
@@ -1154,14 +1205,14 @@ function createKasaneEditor(game) {
     if(!buffer&&record.draft.sourceUid&&!chart)say('元の譜面が見つかりません。音源を選び直してください。',true);
   });
   field('Export').onclick=safeAction(async()=>{
-    const button=field('Export'), exporting=draft, audio=draft.audioFile;
-    const state=JSON.stringify({...draft,audioFile:null});
+    const button=field('Export'), exporting=draft, audio=draft.audioFile,cover=draft.coverFile;
+    const state=JSON.stringify({...draft,audioFile:null,coverFile:null});
     button.disabled=true;say('書き出し中…');
     try{
       const result=await pack();
       download(result.name,result.blob);
       if(draft===exporting){
-        if(audio===draft.audioFile&&state===JSON.stringify({...draft,audioFile:null}))dirty=false;
+        if(audio===draft.audioFile&&cover===draft.coverFile&&state===JSON.stringify({...draft,audioFile:null,coverFile:null}))dirty=false;
         say(`${result.name} を書き出しました。`);
       }
     }finally{refresh();}
@@ -1229,6 +1280,6 @@ function createKasaneEditor(game) {
   if(typeof ResizeObserver!=='undefined')new ResizeObserver(draw).observe(canvas);
   if(typeof ResizeObserver!=='undefined')new ResizeObserver(drawQuote).observe(quoteCanvas);
   window.addEventListener('resize',draw);
-  syncFields();selectTool(tool);
+  syncFields();renderCover();selectTool(tool);
   return {open,pause,openChart};
 }

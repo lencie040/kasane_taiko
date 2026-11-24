@@ -1027,6 +1027,19 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 }
 #songlist :is(.song,.folder-entry):focus-visible{outline:2px dashed #542545;outline-offset:2px}
 #songlist .song .chips{width:100%;margin-top:6px}
+.song-cover{position:relative;display:grid;place-items:center;width:var(--cover-size,72px);aspect-ratio:1;flex:none;
+  overflow:hidden;border:2px solid #69445c;border-radius:8px;background:#f1e0d2;color:#634257}
+.song-cover img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#261a2c}
+.song-cover span{padding:1px;text-align:center;font-size:clamp(7px,1.5vw,11px);font-weight:800;line-height:1.1}
+#songlist .song{--cover-size:clamp(28px,5vw,39px);padding-left:calc(var(--cover-size) + 13px);padding-right:38px}
+#songlist .song.is-on{--cover-size:clamp(46px,10vw,82px);padding-left:calc(var(--cover-size) + 13px);padding-right:38px}
+#songlist .song>.song-cover{position:absolute;left:7px;top:50%;translate:0 -50%}
+#songlist .song .song-t{width:100%;justify-content:center}
+#songlist .song-a{max-width:100%}
+#detail .hero.cover-hero{display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:clamp(10px,2vw,20px)}
+.cover-hero>.song-cover{--cover-size:clamp(64px,19vw,124px)}
+.cover-hero .hero-text{min-width:0;padding-right:20px}
+.ed-cover-controls{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:10px 0}
 .arcade-songboard{display:grid;grid-template-columns:minmax(0,1fr);align-items:center}
 .arcade-songboard:has(.arcade-character:not([hidden])){
   grid-template-columns:clamp(52px,15%,180px) minmax(0,1fr);
@@ -1353,7 +1366,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 <script src="oni-streak.js"></script>
 <script src="weakness.js?v=context"></script>
 <script src="editor-tempo.js"></script>
-<script src="editor.js"></script>
+<script src="editor.js?v=cover-art"></script>
 <script>
 'use strict';
 /* ================= 定数 ================= */
@@ -1523,6 +1536,7 @@ function decodeZipName(bytes){bytes=toBytes(bytes);
 /* zip 内のパス: Mac の濁点分解(NFD)・\ 区切り・大文字小文字の差をならす */
 function nk(p){return String(p||'').normalize('NFC').replace(/\\/g,'/').replace(/^\.\//,'').toLowerCase();}
 const AUDIO_EXT=/\.(mp3|ogg|wav|m4a|aac|flac|opus|webm)$/;
+const COVER_EXT=/\.(png|jpe?g|webp|gif|avif)$/i;
 function findFile(set,name,dir,kind){const files=set.files,keys=Object.keys(files),n=nk(name);
   if(n){if(dir&&files[dir+'/'+n])return files[dir+'/'+n];if(files[n])return files[n];
     const base=n.split('/').pop(),sq=s=>s.replace(/\s+/g,'');
@@ -1569,14 +1583,21 @@ async function loadKtz(name,buf,repoPath=null,detached=false){
   set.setId=set.charts[0].meta.setId;set.preview=set.charts[0].preview;
   const bgF=set.charts.map(c=>c.bg&&findFile(set,c.bg,c.dir)).find(Boolean);
   if(!detached&&bgF&&typeof URL!=='undefined'&&URL.createObjectURL){try{const blob=await bgF.async('blob');set.bgUrl=URL.createObjectURL(blob);}catch(e){}}
+  const coverPath=Object.hasOwn(song,'cover')?nk(song.cover):
+    Object.keys(files).find(path=>/(?:^|\/)(?:cover(?:[-_ ]art)?|jacket|ジャケット|ジャケ絵)\.(?:png|jpe?g|webp|gif|avif)$/i.test(path));
+  if(coverPath&&COVER_EXT.test(coverPath)&&files[coverPath]){
+    set.coverFile=files[coverPath];
+    if(!detached){try{set.coverUrl=URL.createObjectURL(await set.coverFile.async('blob'));}catch{}}
+  }
   for(const c of set.charts)c.uid=set.key+'::'+c.meta.version;
   if(detached)return set;
-  const old=Lib.sets.find(s=>s.key===set.key||repoPath&&s.repoPath===repoPath);if(old){if(repoPath&&!old.repoPath){if(set.bgUrl)URL.revokeObjectURL(set.bgUrl);return old;}
+  const old=Lib.sets.find(s=>s.key===set.key||repoPath&&s.repoPath===repoPath);if(old){if(repoPath&&!old.repoPath){releaseSongImages(set);return old;}
     for(const key of audioCache.keys())if(key.startsWith(old.key+'|'))audioCache.delete(key);
     removeSet(old,!repoPath&&!!old.storeName&&old.storeName!==name);}
   Lib.sets.push(set);Lib.charts.push(...set.charts);return set;
 }
-function removeSet(set,persist=true){Lib.sets=Lib.sets.filter(s=>s!==set);Lib.charts=Lib.charts.filter(c=>c.set!==set);if(set.bgUrl)URL.revokeObjectURL(set.bgUrl);if(persist&&set.storeName)IDB.del(set.storeName);}
+function releaseSongImages(set){for(const url of [set.bgUrl,set.coverUrl])if(url)URL.revokeObjectURL(url);}
+function removeSet(set,persist=true){Lib.sets=Lib.sets.filter(s=>s!==set);Lib.charts=Lib.charts.filter(c=>c.set!==set);releaseSongImages(set);if(persist&&set.storeName)IDB.del(set.storeName);}
 
 /* ================= IndexedDB ================= */
 const IDB={db:null,
@@ -2713,11 +2734,17 @@ function selectArcadeEntry(entry,movement){UI.returnFolder=null;
     UI.folderCursor=entry.index;UI.selSet=null;UI.selChart=null;stopPreview();renderSongList(movement);
   }else selectSet(entry.set.key,true,movement);
 }
+function coverElement(url){
+  const box=el('span',{class:'song-cover','aria-hidden':'true'},el('span',null,'No Image'));
+  if(url)box.append(el('img',{src:url,alt:'',decoding:'async',onerror:event=>event.currentTarget.remove()}));
+  return box;
+}
 function songStrip(set,selected,choose){
   const top=sortCharts(set.charts).filter(c=>!isLocked(c)).pop()||set.charts[0],fav=!!Lib.fav[set.key];
   const curFolder=effectiveFolders().folders.find(f=>f.id===UI.folder);
   const folderTint=curFolder?.color,folderText=curFolder?.textColor;
   const row=el('li',{class:'song'+(selected?' is-on':'')+(folderText?' has-tcolor':''),tabindex:'0',role:'button',style:`--sc:${folderTint||COURSES[top.course].color}`+(folderText?`;--ftext:${folderText}`:'')},
+    coverElement(set.coverUrl),
     el('div',{class:'song-t'},el('span',null,set.title)),
     el('div',{class:'song-a'},el('span',null,set.artist||'—')),
     selected?el('div',{class:'chips'},songChips(set)):null,
@@ -3172,7 +3199,10 @@ function paintSealSprite(c,x,y,r,side,alpha,pn){if(!side)return;
 function renderDetail(){const d=$('#detail');$('#arcadeMenu').hidden=!!UI.chooseCourse;d.hidden=!UI.chooseCourse;if(d.hidden)return;d.innerHTML='';const s=UI.folderCursor==null?visibleSets().find(x=>x.key===UI.selSet):null;
   if(!s){UI.chooseCourse=false;$('#arcadeMenu').hidden=false;d.hidden=true;return;}
   d.append(el('div',{class:'course-top'},el('h2',null,'むずかしさをえらぶ')));
-  const hero=el('div',{class:'hero'+(s.bgUrl?'':' gen'),style:`--hue:${hashHue(s.title)}`},el('span',{class:'eq',hidden:UI.previewKey!==s.key||null,title:'試聴中','aria-label':'試聴中'},el('i'),el('i'),el('i'),el('i')),el('div',{class:'eyebrow'},s.demo?'デモ曲':'.ktz'),el('h2',null,s.title),el('div',{class:'art'},s.artist||''),s.demo?null:el('div',{class:'file'},s.file+'.ktz'));
+  const hero=el('div',{class:'hero cover-hero'+(s.bgUrl?'':' gen'),style:`--hue:${hashHue(s.title)}`},
+    coverElement(s.coverUrl),el('div',{class:'hero-text'},el('div',{class:'eyebrow'},s.demo?'デモ曲':'.ktz'),
+      el('h2',null,s.title),el('div',{class:'art'},s.artist||''),s.demo?null:el('div',{class:'file'},s.file+'.ktz')),
+    el('span',{class:'eq',hidden:UI.previewKey!==s.key||null,title:'試聴中','aria-label':'試聴中'},el('i'),el('i'),el('i'),el('i')));
   if(s.bgUrl)hero.style.setProperty('--bgimg',`url("${s.bgUrl}")`);d.append(hero);
   const folderControl=folderAssignmentControl(s);if(folderControl)d.append(folderControl);
   const courses=visibleCourses(s);
@@ -5433,7 +5463,7 @@ const taikoOnline=createTaikoMultiplayer({
 });
 const chartEditor=createKasaneEditor({
   pane:$('#tab-editor'),charts:()=>Lib.charts,courseInfo:COURSES,parseOsu,rateChart,sortCharts,levelText,norm,text:murechoText,
-  loadNoise,saveNoise,noiseId,noiseEligible,findFile,decodeText,demoOsu,nk,
+  loadNoise,saveNoise,noiseId,noiseEligible,findFile,decodeText,demoOsu,nk,coverElement,
   audio:()=>ensureAudio(),decodeAudio:decodeGameAudio,getAudio,hit:playSE,noiseData,sameVersion,effectiveFolders,folderTrail,
   saveDraft:(draft)=>IDB.tx('readwrite',s=>s.put(draft,'editor-draft'),'repository'),
   readDraft:()=>IDB.tx('readonly',s=>s.get('editor-draft'),'repository'),
