@@ -336,4 +336,16 @@ function chartRadarScores(rating) {
     .map(value => Math.round(Math.max(0, Math.min(1.5, value)) * 100));
 }
 
-if (typeof module === 'object') module.exports = { estimateKasaneDifficulty, chartRadarScores };
+function manualLevelLimits(course) {
+  return course === 'kasane' ? { max:10, step:1 } : { max:12.9, step:.1 };
+}
+
+function validManualLevel(course, value) {
+  const {max,step} = manualLevelLimits(course);
+  if (!Number.isFinite(value) || value < 1 || value > max) return undefined;
+  const units = value / step, rounded = Math.round(units);
+  if (Math.abs(units - rounded) > 1e-8) return undefined;
+  return step === 1 ? rounded : rounded / 10;
+}
+
+if (typeof module === 'object') module.exports = { estimateKasaneDifficulty, chartRadarScores, validManualLevel };

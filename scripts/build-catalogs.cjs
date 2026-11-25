@@ -1,7 +1,7 @@
 const {readFileSync, writeFileSync} = require('node:fs');
 const {join} = require('node:path');
 const {COURSE_ALIAS, norm, parseOsu, guessCourse} = require('../beatmap');
-const {estimateKasaneDifficulty,chartRadarScores} = require('../difficulty');
+const {estimateKasaneDifficulty,chartRadarScores,validManualLevel} = require('../difficulty');
 const SealedRoute = require('../sealed-route');
 
 const archivePath = path => String(path ?? '').normalize('NFC').replace(/\\/g,'/').replace(/^\.\//,'').toLowerCase();
@@ -40,6 +40,8 @@ function readCharts(pack){
     };
     chart.seals = chart.targets.map(sealAt);
     chart.rating = estimateKasaneDifficulty(chart,chart.course,(_,i)=>chart.seals[i]);
+    chart.manualLevel = validManualLevel(chart.course,entry.manualLevel);
+    chart.level = chart.manualLevel ?? chart.rating.level;
     chart.route = chart.course==='sealed'?SealedRoute.parse(entry.sealedRoute):null;
     charts.push(chart);
   }
@@ -55,13 +57,14 @@ function readCharts(pack){
 }
 
 function databaseChart(chart){
-  const {rating,stats,route,bpm,length,firstT,uid,course,meta,targets,rolls,seals} = chart;
+  const {rating,level,manualLevel,stats,route,bpm,length,firstT,uid,course,meta,targets,rolls,seals} = chart;
   let don=0,ka=0,big=0;
   for(const target of targets)for(const note of target.type==='single'?[target]:target.notes){
     if(note.color==='d')don++;else ka++;
     if(note.big)big++;
   }
-  return {uid,course,version:meta.version,creator:meta.creator,level:rating.level,bpm,length,firstT,
+  return {uid,course,version:meta.version,creator:meta.creator,level,bpm,length,firstT,
+    ...(manualLevel===undefined?{}:{estimatedLevel:rating.level}),
     notes:stats.notes,don,ka,big,chords:stats.chords,maxLanes:stats.maxLanes,
     rolls:rolls.filter(r=>r.type==='roll').length,balloons:rolls.filter(r=>r.type==='balloon').length,
     sealedNotes:seals.reduce((total,sides)=>total+sides.filter(Boolean).length,0),route,
@@ -69,8 +72,8 @@ function databaseChart(chart){
 }
 
 function matchChart(chart,pack){
-  const {uid,course,length,firstT,rating,targets,rolls,seals} = chart;
-  return {uid,title:pack.song.title,path:pack.path,hash:pack.hash,course,level:rating.level,length,firstT,
+  const {uid,course,length,firstT,level,targets,rolls,seals} = chart;
+  return {uid,title:pack.song.title,path:pack.path,hash:pack.hash,course,level,length,firstT,
     targets:targets.map(({t,type,color,big},i)=>({t,type,color,big,noise:seals[i][0]??null})),
     rolls:rolls.map(({t,end,big,hits})=>({t,end,big,hits}))};
 }

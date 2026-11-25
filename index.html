@@ -1386,7 +1386,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 
 <script src="content/fonts/murecho-glyphs.js"></script>
 <script src="beatmap.js?v=sealed"></script>
-<script src="difficulty.js?v=db-radar"></script>
+<script src="difficulty.js?v=manual-level"></script>
 <script src="multiplayer-rules.js?v=opponent-lane"></script>
 <script src="vendor/peerjs.min.js"></script>
 <script src="multiplayer-peer.js?v=opponent-lane"></script>
@@ -1396,7 +1396,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 <script src="weakness.js?v=context"></script>
 <script src="editor-tempo.js"></script>
 <script src="sealed-route.js"></script>
-<script src="editor.js?v=sealed"></script>
+<script src="editor.js?v=manual-level"></script>
 <script>
 'use strict';
 /* ================= 定数 ================= */
@@ -1609,6 +1609,7 @@ async function loadKtz(name,buf,repoPath=null,detached=false){
     c.sourcePath=p;
     const course=COURSE_ALIAS[norm(extra.course)];
     if(COURSE_ORDER.includes(course))c.defCourse=course;
+    if(Object.hasOwn(extra,'manualLevel'))c.manualLevel=extra.manualLevel;
     if(course==='sealed')c.sealedRoute=SealedRoute.parse(extra.sealedRoute);
     if(extra.noise&&typeof extra.noise==='object'&&!Array.isArray(extra.noise))c.archiveNoise=extra.noise;
     if(c.stats.trimmed)Lib.loadWarn.push(`${name}: 「${c.meta.version}」で同時押しが ドン2・カッ2 を超える箇所があり、${c.stats.trimmed}個のノーツを外しました`);
@@ -1656,7 +1657,8 @@ const IDB={db:null,
 function resolveAll(){
   for(const c of Lib.charts){
     c.course=c.defCourse==='sealed'?'sealed':c.stats.chords>0?'kasane':c.defCourse||guessCourse(c);
-    c.level=rateChart(c).level;
+    c.manualLevel=validManualLevel(c.course,c.manualLevel);
+    c.level=c.manualLevel??rateChart(c).level;
   }
   buildDans();
   evaluateCharacters();

@@ -22,7 +22,7 @@ function createKasaneEditor(game) {
   let pending = null, gesture = null, geometry, playing = null, raf = 0, lastTick = 0, estimate = null;
   let quoted = null, quoteDrag = null;
   let librarySignature='', librarySongs=[], librarySetKey='', libraryChartUid='';
-  let ratingFrame=0;
+  let ratingFrame=0, estimatedLevel;
 
   pane.innerHTML = `
     <div class="ed-heading">
@@ -65,6 +65,11 @@ function createKasaneEditor(game) {
         <label>難易度名<input id="edVersion" autocomplete="off"></label>
         <label>コース<select id="edCourse"></select></label>
         <label>推定レベル<output id="edLevel">—</output></label>
+        <label>難易度の設定<select id="edLevelMode"><option value="auto">自動推定</option><option value="manual">手動設定</option></select></label>
+        <label id="edManualLevelField" hidden>手動レベル
+          <input id="edManualLevel" type="number" min="1" inputmode="decimal" aria-describedby="edManualLevelHelp">
+          <small id="edManualLevelHelp"></small>
+        </label>
         <label>出力名<input id="edFilename" placeholder="曲名"></label>
       </div>
       <fieldset id="edSealed" class="ed-folders" hidden>
@@ -320,6 +325,11 @@ function createKasaneEditor(game) {
     field('Audio').disabled=sealed;
     field('Audio').closest('label').hidden=sealed;
     field('Course').value=course;
+    field('LevelMode').value=draft.manualLevel===undefined?'auto':'manual';
+    field('ManualLevelField').hidden=draft.manualLevel===undefined;
+    const levelInput=field('ManualLevel'),{max,step}=manualLevelLimits(course);
+    levelInput.max=max;levelInput.step=step;
+    field('ManualLevelHelp').textContent=course==='kasane'?'1〜10の整数（I〜X）':'1.0〜12.9（0.1刻み）';
     field('Project').textContent=(original?`${original.set.title} / ${draft.newDifficulty?'新規譜面':original.meta.version}`:'新規譜面')+(dirty?' ・ 未保存':'');
     field('AudioName').textContent=buffer?`${(sealed?sealedSource()?.audio:draft.audioFile?.name||original?.audio)||'デモ音源'} ・ ${clock(buffer.duration*1000)}`:'音源なし';
     field('Play').disabled=!buffer;
@@ -332,6 +342,7 @@ function createKasaneEditor(game) {
   }
   function syncFields() {
     for(const [id,key] of Object.entries(metadata))field(id).value=draft.meta[key];
+    field('ManualLevel').value=draft.manualLevel??'';
     field('Snap').value=draft.snap;
     syncTiming();syncSealed();renderFolderOptions();refresh();
   }
@@ -665,6 +676,7 @@ function createKasaneEditor(game) {
       d.meta.version=version;d.meta.course='oni';
       return d;
     }
+    d.manualLevel=chart.manualLevel;
     if(chart.sealedRoute)d.sealedRoute={...chart.sealedRoute};
     d.objects=chartObjects(chart).map((o,i)=>({...o,id:i+1}));
     return d;
@@ -674,7 +686,7 @@ function createKasaneEditor(game) {
     draft=value;original=chart;sourceAudio=null;
     nextId=value.objects.reduce((max,o)=>Math.max(max,o.id),0)+1;
     cursor=0;start=0;timingIndex=0;selection.clear();pending=null;gesture=null;history=[];future=[];
-    dirty=false;
+    dirty=false;estimatedLevel=undefined;
     setBuffer(null);syncFields();renderCover();queueRating();selectTool('don');say('');
   }
   function renderCover(){
@@ -1041,18 +1053,23 @@ function createKasaneEditor(game) {
       chart.sealedRoute=route;
     }
     const rating=game.rateChart(chart);
-    chart.level=rating.level;
-    return {text,chart,noise,rating,course:chart.course,level:rating.level};
+    chart.manualLevel=validManualLevel(chart.course,draft.manualLevel);
+    if(!preview&&draft.manualLevel!==undefined&&chart.manualLevel===undefined){
+      throw new Error('手動レベルは'+(chart.course==='kasane'?'1〜10の整数':'1.0〜12.9の0.1刻み')+'で入力してください。');
+    }
+    chart.level=chart.manualLevel??rating.level;
+    return {text,chart,noise,rating,course:chart.course,level:chart.level};
   }
   function queueRating() {
     cancelAnimationFrame(ratingFrame);
     ratingFrame=requestAnimationFrame(()=>{
       const level=field('Level'),breakdown=field('RatingBreakdown');
-      level.value='—';level.removeAttribute('title');breakdown.replaceChildren();
+      estimatedLevel=undefined;level.value='—';level.removeAttribute('title');breakdown.replaceChildren();
       if(!draft.objects.length)return;
       try{
         const {chart,rating}=build('editor-audio.wav',true);
-        level.value=game.levelText(chart);
+        estimatedLevel=rating.level;
+        level.value=game.levelText({...chart,level:rating.level});
         if(chart.course!=='kasane')level.title=`内部定数 ${rating.level.toFixed(1)}`;
         breakdown.replaceChildren(...ratingParts.map(([key,label])=>{
           const part=document.createElement('div');
@@ -1128,8 +1145,8 @@ function createKasaneEditor(game) {
       zip.file(archivePath(audioName),bytes);
     }
     zip.file(chartPath,content.text);
-    const charts=siblings.map(c=>({path:c.sourcePath,version:c.meta.version,course:c.course,level:c.level,noise:game.noiseData(c),sealedRoute:c.sealedRoute}));
-    const entry={path:chartPath,version:content.chart.meta.version,course:content.course,level:content.level,noise:content.noise,sealedRoute:content.chart.sealedRoute};
+    const charts=siblings.map(c=>({path:c.sourcePath,version:c.meta.version,course:c.course,level:c.level,manualLevel:c.manualLevel,noise:game.noiseData(c),sealedRoute:c.sealedRoute}));
+    const entry={path:chartPath,version:content.chart.meta.version,course:content.course,level:content.level,manualLevel:content.chart.manualLevel,noise:content.noise,sealedRoute:content.chart.sealedRoute};
     if(replacing)charts.splice(sourceChart.set.charts.indexOf(sourceChart),0,entry);
     else charts.push(entry);
     zip.file('kasane.json',JSON.stringify({format:1,song,charts}));
@@ -1151,6 +1168,17 @@ function createKasaneEditor(game) {
     if(id==='Course')continue;
     field(id).addEventListener('input',()=>{draft.meta[key]=field(id).value;mark();});
   }
+  field('LevelMode').onchange=()=>{
+    draft.manualLevel=field('LevelMode').value==='manual'?(estimatedLevel??null):undefined;
+    field('ManualLevel').value=draft.manualLevel??'';
+    mark();
+    if(draft.manualLevel!==undefined)field('ManualLevel').focus();
+  };
+  field('ManualLevel').oninput=()=>{
+    const level=field('ManualLevel').valueAsNumber;
+    draft.manualLevel=Number.isFinite(level)?level:null;
+    mark();
+  };
   field('Course').onchange=()=>{
     const course=field('Course').value,wasSealed=draft.meta.course==='sealed';
     if(course==='sealed'&&!sealedSources().length){

@@ -48,6 +48,9 @@ function chartStats(chart){
     ['大音符',fmt(chart.big)],['同時押し',fmt(chart.chords)+'箇所'],['封印ノーツ',fmt(chart.sealedNotes)],
     ['連打',fmt(chart.rolls)],['風船',fmt(chart.balloons)],['最大レーン',fmt(chart.maxLanes)]
   ];
+  if(chart.estimatedLevel!==undefined){
+    stats.splice(1,0,['設定方法','手動'],['推定レベル',constant({...chart,level:chart.estimatedLevel})]);
+  }
   return node('section','',node('h3','','譜面情報'),node('dl','stats',...stats.map(([label,value])=>pair(label,value))));
 }
 
