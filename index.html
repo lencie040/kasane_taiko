@@ -3166,14 +3166,14 @@ function chartRadar(chart){
   const rating=rateChart(chart);
   const scores=CHART_RADAR_AXES.map(([,references])=>{
     const load=Object.entries(references).reduce((total,[key,reference])=>total+rating[key]/reference,0);
-    return Math.round(clamp(load,0,1)*100);
+    return Math.round(clamp(load,0,1.5)*100);
   });
   const canvas=el('canvas',{width:660,height:456,'aria-hidden':true});
   drawChartRadar(canvas,scores);
   const axes=CHART_RADAR_AXES.map(([label,,hint],i)=>el('div',
     {class:'radar-axis'+(scores[i]?'':' is-zero'),title:hint},el('dt',null,label),el('dd',null,String(scores[i]))));
   return el('figure',{class:'chart-radar','aria-labelledby':'chartRadarHeading'},
-    el('figcaption',null,el('h3',{id:'chartRadarHeading'},'譜面レーダー'),el('span',null,'0〜100 ・ 外側ほど特徴が強い')),
+    el('figcaption',null,el('h3',{id:'chartRadarHeading'},'譜面レーダー'),el('span',null,'0〜150 ・ 外側ほど特徴が強い（100が外周）')),
     el('div',{class:'radar-plot'},canvas,el('dl',{class:'radar-axes'},axes)));
 }
 
