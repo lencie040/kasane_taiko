@@ -70,7 +70,8 @@ function sealedRoute(route){
   const character=route.character===null?'なし':(characters.get(route.character)?.name||route.character)+' Lv '+route.minLevel+'以上';
   const {potential,life,ok,bad}=data.sealed;
   const list=node('dl','stats',pair('移行元',source),pair('移行位置',time(route.at,true)),pair('ポテンシャル',potential.toFixed(2)+'以上'),
-    pair('キャラクター',character),pair('移行前の可',fmt(route.maxOk)+'以下'),pair('移行前の不可',fmt(route.maxBad)+'以下'));
+    pair('キャラクター',character),pair('移行前の可',fmt(route.maxOk)+'以下'),pair('移行前の不可',fmt(route.maxBad)+'以下'),
+    pair('移行前の最大コンボ',route.minCombo?fmt(route.minCombo)+'以上':'条件なし'));
   return node('section','route',node('h3','','封印の解禁条件'),list,
     node('p','',`移行後はライフ ${life} で開始。可で −${ok}、不可で −${bad}。ライフを残して最後まで演奏すると解禁。`));
 }

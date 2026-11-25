@@ -83,6 +83,9 @@ function createKasaneEditor(game) {
           <label>キャラクター Lv 以上<input id="edSealedMinLevel" type="number" min="1" max="100" step="1" required></label>
           <label>不可の上限<input id="edSealedMaxBad" type="number" min="0" step="1" required></label>
           <label>可の上限<input id="edSealedMaxOk" type="number" min="0" step="1" required></label>
+          <label>最大コンボの下限<input id="edSealedMinCombo" type="number" min="0" step="1" required aria-describedby="edSealedComboHelp">
+            <small id="edSealedComboHelp">移行前に一度でも到達。0で条件なし。</small>
+          </label>
         </div>
       </fieldset>
       <div class="ed-cover-controls">
@@ -294,7 +297,7 @@ function createKasaneEditor(game) {
       selected.length?`${selected.length}個を選択中`:`${draft.objects.length}個のオブジェクト`;
     field('Delete').disabled=!selected.length;
   }
-  const sealedNumbers={At:'at',MinLevel:'minLevel',MaxBad:'maxBad',MaxOk:'maxOk'};
+  const sealedNumbers={At:'at',MinLevel:'minLevel',MaxBad:'maxBad',MaxOk:'maxOk',MinCombo:'minCombo'};
   function sealedSources() {
     if(!original||original.set.demo)return [];
     return original.set.charts.filter(c=>SealedRoute.ordinary(c)&&(draft.newDifficulty||c!==original));
@@ -313,7 +316,9 @@ function createKasaneEditor(game) {
     character.replaceChildren(opt('','キャラクターなし'),...chars.map(c=>opt(c.id,c.name)));
     if(route?.character&&!chars.some(c=>c.id===route.character))character.add(opt(route.character,route.character));
     character.value=route?.character??'';
-    for(const [id,key] of Object.entries(sealedNumbers))field('Sealed'+id).value=route?.[key]??'';
+    for(const [id,key] of Object.entries(sealedNumbers)){
+      field('Sealed'+id).value=route?.[key]??(route&&key==='minCombo'&&route[key]===undefined?0:'');
+    }
   }
   function refresh() {
     const stacked=[...groups(draft.objects).values()].some(notes=>notes.length>1);
@@ -1046,7 +1051,7 @@ function createKasaneEditor(game) {
     if(chart.course==='sealed'&&!preview){
       const route=SealedRoute.parse(draft.sealedRoute),source=sealedSource();
       if(!source)throw new Error('同じ曲の通常譜面を移行元に指定してください。');
-      if(!route)throw new Error('封印の移行位置・キャラクターLv・可と不可の上限を確認してください。');
+      if(!route)throw new Error('封印の移行位置・キャラクターLv・可と不可の上限・最大コンボの下限を確認してください。');
       if(!SealedRoute.validSplit(route,source,chart)){
         throw new Error('移行元には切り替え前に、封印譜面には切り替え後にノーツを配置してください。移行位置は移行元の演奏区間内に設定してください。');
       }
@@ -1187,7 +1192,7 @@ function createKasaneEditor(game) {
     draft.meta.course=course;
     if(course==='sealed'&&!sealedSource()){
       const source=sealedSources()[0];
-      draft.sealedRoute={sourcePath:source.sourcePath,at:null,character:null,minLevel:1,maxBad:0,maxOk:0};
+      draft.sealedRoute={sourcePath:source.sourcePath,at:null,character:null,minLevel:1,maxBad:0,maxOk:0,minCombo:0};
     }
     syncSealed();mark();
     if(wasSealed!==(course==='sealed')){pause();setBuffer(null);loadDraftAudio();}

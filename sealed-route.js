@@ -11,8 +11,9 @@ const SealedRoute = (() => {
        !Number.isInteger(value.minLevel)||value.minLevel<1||value.minLevel>100||
        !Number.isInteger(value.maxBad)||value.maxBad<0||
        !Number.isInteger(value.maxOk)||value.maxOk<0)return null;
-    const {sourcePath,at,character,minLevel,maxBad,maxOk}=value;
-    return {sourcePath,at,character,minLevel,maxBad,maxOk};
+    const {sourcePath,at,character,minLevel,maxBad,maxOk,minCombo=0}=value;
+    if(!Number.isSafeInteger(minCombo)||minCombo<0)return null;
+    return {sourcePath,at,character,minLevel,maxBad,maxOk,minCombo};
   }
 
   const ordinary = c => c && c.course!=='sealed' && c.course!=='kasane' &&
@@ -25,14 +26,18 @@ const SealedRoute = (() => {
 
   function qualifies(route,character,level,targets) {
     if((character?.id??null)!==route.character||(character&&level<route.minLevel))return false;
-    let bad=0,ok=0;
+    let bad=0,ok=0,combo=0,maxCombo=0;
     for(const note of targets){
       if(note.t>=route.at)break;
-      if(!note.judged||note.res==='bad')bad++;
-      else if(note.res==='ok')ok++;
+      if(!note.judged||note.res==='bad'){
+        bad++;combo=0;
+      }else{
+        if(note.res==='ok')ok++;
+        maxCombo=Math.max(maxCombo,++combo);
+      }
       if(bad>route.maxBad||ok>route.maxOk)return false;
     }
-    return true;
+    return maxCombo>=(route.minCombo??0);
   }
 
   const remaining = (value,kind,count=1) => Math.max(0,value-count*(kind==='bad'?20:kind==='ok'?2:0));
