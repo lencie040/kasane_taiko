@@ -1480,7 +1480,7 @@ const UI=Object.assign({tab:'select',selSet:null,selChart:null,binding:null,touc
 const sealedUnlockKey=c=>'sealed:'+c.uid;
 const isSealedUnlocked=c=>!!Lib.unlocks[sealedUnlockKey(c)];
 function isLocked(c){
-  if(c.course==='sealed')return !c.sealedSource||!isSealedUnlocked(c)||calcPotential()<SealedRoute.requiredPotential;
+  if(c.course==='sealed')return !c.sealedSource||!isSealedUnlocked(c)||calcPotential()<SealedRoute.minPotentialOf(c.sealedRoute);
   return c.course==='kasane'&&!S.unlockAll&&!Lib.unlocks[c.uid]&&!Lib.danExcludedSets.has(c.set);
 }
 
@@ -3257,7 +3257,8 @@ function paintSealSprite(c,x,y,r,side,alpha,pn){if(!side)return;
 
 function sealedLockText(chart){
   if(!chart.sealedSource)return '移行元の通常譜面が見つかりません。';
-  return calcPotential()<SealedRoute.requiredPotential?'封印にはポテンシャル9.00以上が必要です。':
+  const need=SealedRoute.minPotentialOf(chart.sealedRoute);
+  return calcPotential()<need?`封印にはポテンシャル${need.toFixed(2)}以上が必要です。`:
     `「${chart.sealedSource.meta.version}」から移行し、ライフを残して完走すると解禁されます。`;
 }
 function renderDetail(){const d=$('#detail');$('#arcadeMenu').hidden=!!UI.chooseCourse;d.hidden=!UI.chooseCourse;if(d.hidden)return;d.innerHTML='';const s=UI.folderCursor==null?visibleSets().find(x=>x.key===UI.selSet):null;
@@ -3799,7 +3800,7 @@ function trySealedTransition(time){
   const run=G;
   while(run.sealedRoutes?.length&&run.sealedRoutes[0].sealedRoute.at<=time){
     const chart=run.sealedRoutes.shift(),route=chart.sealedRoute;
-    if(!SealedRoute.qualifies(route,run.sealedCharacter,run.sealedCharLevel,run.targets))continue;
+    if(!SealedRoute.qualifies(route,run.sealedCharacter,run.sealedCharLevel,run.targets,run.sealedPotential))continue;
     stopRecord(run,true);
     const tail=newRun(chart);
     tail.endAt=Math.max(tail.endAt,run.src.buffer.duration*1000);
@@ -4006,8 +4007,10 @@ async function runSong(chart,prac,streakRun=null){
   G=newRun(chart,prac,null,streakRun);if(D){G.auto=D.auto;G.disp=D.st.score;G.lastCombo=D.st.combo;}
   layoutStage();
   if(!prac&&!D&&!streakRun){
-    const routes=G.auto?[]:chart.set.charts.filter(c=>c.sealedSource===chart&&!isSealedUnlocked(c));
-    if(routes.length&&calcPotential()>=SealedRoute.requiredPotential){
+    const pot=calcPotential();
+    const routes=G.auto?[]:chart.set.charts.filter(c=>c.sealedSource===chart&&!isSealedUnlocked(c)&&pot>=SealedRoute.minPotentialOf(c.sealedRoute));
+    if(routes.length){
+      G.sealedPotential=pot;
       G.sealedCharacter=selectedChar();
       G.sealedCharLevel=CHARS_SAVE.prog[G.sealedCharacter?.id]?.lv||1;
       G.sealedRoutes=routes.sort((a,b)=>a.sealedRoute.at-b.sealedRoute.at);

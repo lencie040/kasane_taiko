@@ -2,6 +2,8 @@
 
 const SealedRoute = (() => {
   const requiredPotential = 9;
+  // 路線ごとのポテンシャル下限。未指定の既存データは従来どおり 9。
+  const minPotentialOf = route => route?.minPotential ?? requiredPotential;
   const life = 100;
 
   function parse(value) {
@@ -13,7 +15,9 @@ const SealedRoute = (() => {
        !Number.isInteger(value.maxOk)||value.maxOk<0)return null;
     const {sourcePath,at,character,minLevel,maxBad,maxOk,minCombo=0}=value;
     if(!Number.isSafeInteger(minCombo)||minCombo<0)return null;
-    return {sourcePath,at,character,minLevel,maxBad,maxOk,minCombo};
+    const minPotential=value.minPotential??requiredPotential;
+    if(typeof minPotential!=='number'||!Number.isFinite(minPotential)||minPotential<0||minPotential>15)return null;
+    return {sourcePath,at,character,minLevel,maxBad,maxOk,minCombo,minPotential};
   }
 
   const ordinary = c => c && c.course!=='sealed' && c.course!=='kasane' &&
@@ -24,8 +28,9 @@ const SealedRoute = (() => {
       target.targets.some(t=>t.t>=route.at);
   }
 
-  function qualifies(route,character,level,targets) {
+  function qualifies(route,character,level,targets,potential=requiredPotential) {
     if((character?.id??null)!==route.character||(character&&level<route.minLevel))return false;
+    if(potential<minPotentialOf(route))return false;
     let bad=0,ok=0,combo=0,maxCombo=0;
     for(const note of targets){
       if(note.t>=route.at)break;
@@ -41,7 +46,7 @@ const SealedRoute = (() => {
   }
 
   const remaining = (value,kind,count=1) => Math.max(0,value-count*(kind==='bad'?20:kind==='ok'?2:0));
-  return {parse,ordinary,validSplit,qualifies,remaining,requiredPotential,life};
+  return {parse,ordinary,validSplit,qualifies,remaining,requiredPotential,minPotentialOf,life};
 })();
 
 if(typeof module==='object')module.exports=SealedRoute;
