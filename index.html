@@ -3303,7 +3303,7 @@ function renderDetail(){const d=$('#detail');$('#arcadeMenu').hidden=!!UI.choose
   const hint=el('span',{class:'course-progress',id:'rimProgress','aria-live':'polite'});
   d.append(el('div',{class:'row course-rims'},pickerRimButton(-1,'◀ 左カツ'),hint,pickerRimButton(1,'右カツ ▶'),
     sealed?el('button',{class:'btn',type:'button',onclick:backToSongs},'曲選択へ戻る'):null,
-    S.auto&&autoAllCharts(s).length?el('button',{class:'btn auto-all',type:'button',title:'重譜面以外の全難易度の譜面を重ねて、同時にオート演奏します（記録されません）',onclick:()=>{UI.gesture=true;startAutoAll(s);}},'▶ 全難易度同時再生'):null));
+    S.auto&&autoAllCharts(s).length?el('button',{class:'btn auto-all',type:'button',title:'通常譜面と解禁済みの封印譜面を重ねて、同時にオート演奏します（スコアは記録されません）',onclick:()=>{UI.gesture=true;startAutoAll(s);}},'▶ 全難易度同時再生'):null));
   paintRimProgress();
   if(UI.courseBack&&!sealed){
     if(unlockedSealed)d.append(el('p',{class:'opt-note course-variants'},'左カツ10回で封印譜面を表示。Escで曲選択に戻れます。'));
@@ -3951,15 +3951,24 @@ function startLoop(){if(!rafId)rafId=requestAnimationFrame(frame);}
 function stopSong(){if(G&&G.src){try{G.src.stop();}catch(e){}G.src=null;}}
 function fadeMusic(sec){if(!G||!G.gain||!AC)return;try{const g=G.gain.gain;g.cancelScheduledValues(AC.currentTime);g.setValueAtTime(g.value,AC.currentTime);g.linearRampToValueAtTime(0,AC.currentTime+sec);G.src.stop(AC.currentTime+sec+.05);}catch(e){}}
 async function startNormal(chart){if(waitForLibrary())return;ensureAudio();D=null;await runSong(chart);}
-// オート演奏ON時のみ：この曲の重以外の全難易度の譜面を1つに重ね、同時にオート再生する。
+// オート演奏ON時のみ：通常譜面と解禁済みの封印譜面を重ねて再生する。
 const AUTOALL_STAMP='autoall:';
-function autoAllCharts(set){return COURSE_ORDER.filter(k=>k!=='kasane'&&k!=='sealed').flatMap(k=>set.charts.filter(c=>c.course===k&&!isLocked(c)));}
+function autoAllCharts(set){
+  return COURSE_ORDER.filter(course=>course!=='kasane').flatMap(course=>
+    set.charts.filter(c=>c.course===course&&(course!=='sealed'||c.sealedSource&&isSealedUnlocked(c))));
+}
 function mergeCharts(set,charts){
   // 本家の1P・2P…のように、難易度ごとに1レーン（row）を割り当てて同時に流す。
-  const base=charts[charts.length-1],targets=[],rolls=[],barMap=new Map();let total=0;
+  const base=charts.findLast(c=>c.course!=='sealed')||charts.at(-1),targets=[],rolls=[],barMap=new Map();
   charts.forEach((c,row)=>{
     loadNoise(c);
-    for(const t of c.targets){const ns=t.type==='single'?[t]:t.notes;for(const n of ns){targets.push({type:'single',t:t.t,color:n.color,big:n.big,noise:n.noise,speed:t.speed,row});total++;}}
+    for(const t of c.targets){
+      const notes=t.type==='single'?[t]:t.notes;
+      for(const [i,n] of notes.entries()){
+        const stack=notes.length>1?{index:i,count:notes.length}:null;
+        targets.push({type:'single',t:t.t,color:n.color,big:n.big,noise:n.noise,speed:t.speed,row,stack});
+      }
+    }
     for(const r of c.rolls)rolls.push({...r,row});
     // 小節線は全難易度の和集合（同じ時刻の線は1本にまとめる）
     for(const b of c.bars){const k=Math.round(b.t);if(!barMap.has(k))barMap.set(k,b);}});
@@ -3967,7 +3976,7 @@ function mergeCharts(set,charts){
   const bars=[...barMap.values()].sort((a,b)=>a.t-b.t);
   const length=Math.max(...charts.map(c=>c.length)),firstT=Math.min(...charts.map(c=>c.firstT));
   return {...base,uid:AUTOALL_STAMP+set.key,course:'oni',multiRow:true,rowCourses:charts.map(c=>c.course),targets,rolls,bars,length,firstT,
-    meta:{...base.meta,version:'全難易度同時'},stats:{notes:total,chords:0,chordNotes:0,maxLanes:Math.min(5,charts.length),trimmed:0}};}
+    meta:{...base.meta,version:'全難易度同時'},stats:{notes:targets.length,chords:0,chordNotes:0,maxLanes:charts.length,trimmed:0}};}
 let AUTOALL_FALLING=null;
 async function startAutoAll(set){if(waitForLibrary())return;const q=autoAllCharts(set);if(!q.length)return;ensureAudio();D=null;
   if(S.falling===true){AUTOALL_FALLING=true;S.falling=false;}// 複数レーン表示は太鼓画面のみ
@@ -4334,7 +4343,7 @@ function computeLayout(){const W=view.W,H=view.H;const gw=clamp(W*.4,130,440);
   const avail=Math.max(100,H-hudH-gap-below-10),preferred=clamp(Math.min(avail/N,N===1?104:88,W*.19),40,104);
   const normalTop=Math.min(hudH+gap+Math.max(0,(avail-preferred*N)*.4),Math.max(80,H*.25));
   const top=G.match?Math.min(normalTop,Math.max(46,H-view.countH-view.opponentSpace-84)):normalTop;
-  const laneH=Math.max(18,Math.min(preferred,(H-top-view.countH-view.opponentSpace-24)/N)),fieldH=laneH*N;
+  const laneH=Math.max(G.chart.multiRow?1:18,Math.min(preferred,(H-top-view.countH-view.opponentSpace-24)/N)),fieldH=laneH*N;
   const r=laneH*.33,judgeX=Math.max(clamp(W*.2,96,250),r*1.55+6+66);
   view.L={laneH,fieldH,top,r,judgeX,panelW:judgeX-r*1.55-6};
   if(!fallingPlay())view.gauge={x:Math.max(96,W-gw-40),y:top-25,w:Math.min(gw,W-125),h:14};}
@@ -4752,7 +4761,12 @@ function draw(now){const c=ctx,W=view.W,H=view.H,L=view.L,g=G;if(!L)return;const
   const hi=visibleTargetEnd(g,s0,now,(W-jx+noteMargin)/sp);
   for(let i=hi-1;i>=s0;i--){const tg=T[i];if(tg.judged&&tg.res!=='bad')continue;const x=jx+(tg.t-now)*tg.speed*sp;if(x>W+noteMargin||x<-r*2)continue;let al=tg.judged?.35:1;
     if(g.hidden&&!tg.judged){al*=clamp((x-(jx+(W-jx)*.32))/((W-jx)*.16),0,1);if(al<=.01)continue;}
-    if(tg.type==='single'){const ys1=top+lh*((tg.row??0)+.5);drawNote(c,x,ys1,tg.big?r*bigMul:r,tg.color,al);drawNoise(c,x,ys1,tg.big?r*bigMul:r,tg.noise,al,pn);continue;}
+    if(tg.type==='single'){
+      const stack=tg.stack;
+      const y=top+lh*((tg.row??0)+(stack?(stack.index+.5)/stack.count:.5));
+      const radius=stack?Math.min(r,lh*.44/stack.count):tg.big?r*bigMul:r;
+      drawNote(c,x,y,radius,tg.color,al);drawNoise(c,x,y,radius,tg.noise,al,pn);continue;
+    }
     const ys=tg.notes.map(n=>top+lh*(n.lane+.5)),yA=ys[0],yB=ys[ys.length-1];
     c.globalAlpha=al;rr(c,x-r*.3,yA,r*.6,yB-yA,r*.3);c.fillStyle='#141019';c.fill();
     const cg=c.createLinearGradient(x-r*.18,0,x+r*.18,0);cg.addColorStop(0,tg.judged?'#6c75a0':'#ffe58a');cg.addColorStop(1,tg.judged?'#454d75':'#d99a1c');rr(c,x-r*.17,yA,r*.34,yB-yA,r*.17);c.fillStyle=cg;c.fill();c.globalAlpha=1;
@@ -4906,10 +4920,11 @@ function drawPanelRows(pn){const c=ctx,L=view.L,g=G,pw=Math.max(44,L.panelW),lh=
   g.chart.rowCourses.forEach((k,i)=>{const C=COURSES[k],y=top+lh*i;
     if(i>0){c.fillStyle='rgba(255,220,150,.25)';c.fillRect(2,y-.5,pw-6,1);}
     c.fillStyle=C.color;c.fillRect(2,y+3,4,lh-6);
-    const fs=Math.max(11,Math.min(18,lh*.3));c.font=`900 ${fs}px ${FB}`;c.lineWidth=4;c.strokeStyle='#2a140b';
+    const fs=Math.max(8,Math.min(18,lh*.3));c.font=`900 ${fs}px ${FB}`;c.lineWidth=4;c.strokeStyle='#2a140b';
     c.strokeText(`${i+1}P`,pw/2+2,y+lh*.44);c.fillStyle='#fffaf0';c.fillText(`${i+1}P`,pw/2+2,y+lh*.44);
-    const f2=Math.max(9,Math.min(12,lh*.19));c.font=`800 ${f2}px ${FB}`;const lab=fit(c,C.jp,pw-12);c.lineWidth=3;
-    c.strokeText(lab,pw/2+2,y+lh*.44+f2+3);c.fillStyle=C.color;c.fillText(lab,pw/2+2,y+lh*.44+f2+3);});
+    const f2=Math.max(7,Math.min(12,lh*.19)),textY=y+lh*.44+Math.min(f2+3,lh*.45);
+    c.font=`800 ${f2}px ${FB}`;const lab=fit(c,C.jp,pw-12);c.lineWidth=3;
+    c.strokeText(lab,pw/2+2,textY);c.fillStyle=C.color;c.fillText(lab,pw/2+2,textY);});
   c.restore();}
 function drawJudgePop(pn){const g=G,L=view.L,c=ctx;
   const bp=pn-(g.fx.bigPop||-1e9);if(bp<500){c.save();c.globalAlpha=bp<350?1:1-(bp-350)/150;c.font=`800 18px ${FD}`;c.lineWidth=5;c.lineJoin='round';c.strokeStyle='#0a0d1e';
