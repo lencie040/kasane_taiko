@@ -186,22 +186,42 @@ def deterministic_entry(name, compression=0):
     return entry
 
 
-def build_match_catalog(output, manifest):
+def cover_for_database(output, pack, names, song, song_hash):
+    if 'cover' in song:
+        name = archive_path(song['cover']).lower() if isinstance(song['cover'], str) else ''
+    else:
+        name = next((n for n in names if re.search(
+            r'(?:^|/)(?:cover(?:[-_ ]art)?|jacket|ジャケット|ジャケ絵)\.(?:png|jpe?g|webp|gif|avif)$', n)), '')
+    ext = Path(name).suffix
+    if name not in names or ext not in {'.png', '.jpg', '.jpeg', '.webp', '.gif', '.avif'}:
+        return None
+    path = Path('covers') / f'{song_hash}{ext}'
+    destination = output / 'db' / path
+    destination.parent.mkdir(exist_ok=True)
+    with pack.open(names[name]) as source, destination.open('wb') as target:
+        shutil.copyfileobj(source, target)
+    return path.as_posix()
+
+
+def build_catalogs(output, manifest, folders):
+    shutil.copytree(ROOT / 'db', output / 'db', dirs_exist_ok=True)
     packs = []
     for url in manifest['songs']:
         with ZipFile(output / unquote(url)) as pack:
             data = json.loads(pack.read('kasane.json'))
-            names = {archive_path(name).lower(): name for name in pack.namelist()}
+            names = {archive_path(archive_name(info)).lower(): info for info in pack.infolist() if not info.is_dir()}
             entries = []
             for entry in data['charts']:
                 path = archive_path(entry['path']).lower()
                 if path in names and path.endswith('.osu'):
                     entries.append({'entry': entry, 'text': decode(pack.read(names[path]))})
-            packs.append({'key': data['song']['key'], 'title': data['song']['title'],
-                          'path': url, 'hash': manifest['hashes'][url], 'entries': entries})
-    with (output / 'content/match-catalog.json').open('wb') as destination:
-        subprocess.run(['node', str(ROOT / 'scripts/build-match-catalog.cjs')], check=True,
-                       input=json.dumps(packs, ensure_ascii=False).encode('utf-8'), stdout=destination)
+            song = data['song']
+            song_hash = manifest['hashes'][url]
+            packs.append({'song': song, 'path': url, 'hash': song_hash, 'entries': entries,
+                          'files': list(names), 'cover': cover_for_database(output, pack, names, song, song_hash)})
+    data = {'packs': packs, 'folders': folders, 'characters': shared_csv(CONTENT / 'characters.csv')}
+    subprocess.run(['node', str(ROOT / 'scripts/build-catalogs.cjs'), str(output)], check=True,
+                   input=json.dumps(data, ensure_ascii=False).encode('utf-8'))
 
 
 def build(output):
@@ -284,7 +304,7 @@ def build(output):
         if (assets / name).is_file():
             manifest[key] = register(assets / name)
     (assets / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding='utf-8')
-    build_match_catalog(output, manifest)
+    build_catalogs(output, manifest, folders)
     endpoint = os.environ.get('MATCH_ENDPOINT', '').strip()
     if endpoint:
         parsed = urlsplit(endpoint)

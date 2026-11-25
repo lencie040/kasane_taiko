@@ -330,4 +330,10 @@ function estimateKasaneDifficulty(chart, course, sealAt) {
 
 const chartDifficultyMeasurements = new WeakMap();
 
-if (typeof module === 'object') module.exports = { estimateKasaneDifficulty };
+function chartRadarScores(rating) {
+  return [rating.radarVolume, rating.radarTechnique, rating.rhythm / 2.15,
+    rating.visibility / .48, rating.radarGimmick]
+    .map(value => Math.round(Math.max(0, Math.min(1.5, value)) * 100));
+}
+
+if (typeof module === 'object') module.exports = { estimateKasaneDifficulty, chartRadarScores };

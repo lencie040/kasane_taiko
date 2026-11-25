@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="重ね太鼓の公開曲・譜面・キャラクターを調べられるデータベース。封印譜面と解禁条件のネタバレを含みます。">
+  <title>譜面データベース | 重ね太鼓</title>
+  <link rel="stylesheet" href="db.css">
+  <script defer src="db.js"></script>
+</head>
+<body>
+  <header class="masthead">
+    <div class="wrap top">
+      <a class="brand" href="../"><span class="drums" aria-hidden="true"></span>重ね太鼓</a>
+      <a class="back" href="../">ゲームに戻る</a>
+    </div>
+  </header>
+  <main class="wrap">
+    <section class="intro" aria-labelledby="page-title">
+      <div>
+        <h1 id="page-title">譜面データベース</h1>
+        <p>公開曲の難易度、ノーツ構成、解禁条件を調べる。</p>
+      </div>
+      <dl id="totals" class="totals" hidden></dl>
+    </section>
+
+    <aside class="spoiler" aria-label="ネタバレ注意">
+      <strong>ネタバレ注意</strong>
+      <span>封印譜面の曲名・定数・移行条件や、キャラクターの入手条件を公開しています。</span>
+    </aside>
+
+    <nav class="views" aria-label="データの種類">
+      <button type="button" data-view="charts" aria-pressed="true">全譜面</button>
+      <button type="button" data-view="sealed" aria-pressed="false">封印譜面</button>
+      <button type="button" data-view="characters" aria-pressed="false">キャラクター</button>
+    </nav>
+
+    <div id="filters" class="filters" hidden>
+      <label class="lookup">検索<input id="query" type="search" placeholder="曲名・アーティスト・譜面名・譜面作者"></label>
+      <label>コース<select id="course"><option value="">すべて</option></select></label>
+      <label>所属フォルダ<select id="folder"><option value="">すべて</option></select></label>
+      <label>並び順<select id="order">
+        <option value="title">曲名順</option>
+        <option value="level-desc">難易度が高い順</option>
+        <option value="level-asc">難易度が低い順</option>
+        <option value="notes">ノーツ数が多い順</option>
+        <option value="bpm">最高BPMが高い順</option>
+      </select></label>
+    </div>
+    <p class="description" id="order-note" hidden>★と重の段階（I〜X）は、それぞれの難易度の尺度で並びます。</p>
+    <p role="status" class="status" id="status">公開データを読み込み中…</p>
+    <section id="results" aria-label="検索結果"></section>
+    <noscript>データベースの表示には JavaScript が必要です。</noscript>
+  </main>
+</body>
+</html>

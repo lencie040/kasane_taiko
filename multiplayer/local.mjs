@@ -32,6 +32,7 @@ const catalog = JSON.parse(await readFile(resolve(site,'content/match-catalog.js
 const service = new MatchService(store,()=>catalog.charts);
 const contentTypes = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8',
   '.css':'text/css; charset=utf-8','.json':'application/json','.png':'image/png','.webp':'image/webp','.svg':'image/svg+xml',
+  '.jpg':'image/jpeg','.jpeg':'image/jpeg','.gif':'image/gif','.avif':'image/avif',
   '.woff2':'font/woff2','.csv':'text/csv; charset=utf-8'};
 
 function json(res,status,value) {
@@ -56,7 +57,11 @@ const server=createServer(async(req,res)=>{
       return json(res,result.error?400:200,result);
     }
     if (req.method!=='GET'&&req.method!=='HEAD') return json(res,405,{error:'利用できない処理です。'});
-    const pathname=decodeURIComponent(url.pathname==='/'?'/index.html':url.pathname);
+    if(url.pathname==='/db'){
+      res.writeHead(308,{'Location':'/db/'+url.search});
+      res.end();return;
+    }
+    const pathname=decodeURIComponent(url.pathname==='/'||url.pathname==='/db/'?url.pathname+'index.html':url.pathname);
     const file=resolve(site,'.'+pathname);
     if(!file.startsWith(site+sep)) return json(res,404,{error:'ファイルがありません。'});
     const info=await stat(file).catch(()=>null);
