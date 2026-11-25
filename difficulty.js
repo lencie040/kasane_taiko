@@ -190,7 +190,7 @@ function chartRadarVolume(measurements) {
   const effectivePace = (sustainedPace + .24 * fastHitPressure) * (1 - .45 * recovery);
   // Keep room above ordinary densities for changes between fast hit intervals.
   const steadyScore = Math.min(1, effectivePace / 14);
-  const speedScore = Math.min(1, Math.max(0, effectivePace - 14) / 12);
+  const speedScore = Math.max(0, effectivePace - 14) / 12;
   const paceScore = .68 * steadyScore + .32 * speedScore;
   const countScore = 1 - 2 ** (-strikes / 100);
   return .90 * paceScore + .10 * countScore;
@@ -198,8 +198,8 @@ function chartRadarVolume(measurements) {
 
 function chartRadarTechnique(technique) {
   const score = technique / 2.45;
-  // Preserve resolution across technical charts and ease into the 100 limit.
-  return score <= .85 ? score : .85 - .15 * Math.expm1(-((score - .85) / .15));
+  // No saturation: values above 1 (100) keep growing, up to the radar's 1.5 (150) cap.
+  return score;
 }
 
 // The expected one-hand pace rises with the chart's baseline skill level.
