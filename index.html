@@ -1316,6 +1316,10 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
         <h3>演奏</h3>
         <div class="setting"><label for="setSpeed">ハイスピード</label><div class="inline"><input id="setSpeed" type="range" min="0.5" max="4" step="0.1"><output id="outSpeed"></output></div></div>
         <div class="setting"><label for="setOffset">オフセット</label><div class="inline"><input id="setOffset" type="range" min="-150" max="150" step="1"><output id="outOffset"></output></div><div class="help">音が遅れて聞こえるときは ＋ に。リザルトに出る平均ズレを目安にしてください。</div></div>
+        <div class="setting">
+          <label class="switch"><input id="setOldestFirst" type="checkbox" aria-describedby="oldestHelp"> 古いノーツを優先</label>
+          <div id="oldestHelp" class="help">判定範囲に残っているノーツを、譜面の時刻が古い順に判定します。ソロ演奏に適用されます。</div>
+        </div>
         <div class="setting"><label for="setMusic">曲の音量</label><div class="inline"><input id="setMusic" type="range" min="0" max="1" step="0.05"><output id="outMusic"></output></div></div>
         <div class="setting"><label for="setSe">太鼓の音量</label><div class="inline"><input id="setSe" type="range" min="0" max="1" step="0.05"><output id="outSe"></output></div></div>
       </div>
@@ -1387,7 +1391,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 <script src="content/fonts/murecho-glyphs.js"></script>
 <script src="beatmap.js?v=sealed"></script>
 <script src="difficulty.js?v=manual-level"></script>
-<script src="multiplayer-rules.js?v=opponent-lane"></script>
+<script src="multiplayer-rules.js?v=oldest-notes"></script>
 <script src="vendor/peerjs.min.js"></script>
 <script src="multiplayer-peer.js?v=opponent-lane"></script>
 <script src="match-config.js"></script>
@@ -1467,7 +1471,7 @@ function starValue(level){
 }
 function levelText(c){if(c.level==null)return c.course==='kasane'?'?':'★?';return c.course==='kasane'?ROMAN[c.level]:'★'+(c.course==='sealed'?c.level.toFixed(1):starValue(c.level));}
 /* ================= 設定・記録 ================= */
-const S=Object.assign({keys:['KeyD','KeyF','KeyJ','KeyK'],skipKeys:['KeyL','KeyS'],speed:1,offset:0,music:.8,se:.7,auto:false,noiseEdit:false,falling:false,sudden:0,laneWidth:100,record:false,balance:true,unlockAll:false,missingGlyphs:false},store.get('kt.settings',{}));
+const S=Object.assign({keys:['KeyD','KeyF','KeyJ','KeyK'],skipKeys:['KeyL','KeyS'],speed:1,offset:0,oldestFirst:false,music:.8,se:.7,auto:false,noiseEdit:false,falling:false,sudden:0,laneWidth:100,record:false,balance:true,unlockAll:false,missingGlyphs:false},store.get('kt.settings',{}));
 S.opt=Object.assign({mirror:false,rand:0,hidden:false},S.opt||{});if(!S.fx)S.fx='high';
 const LOWFX=()=>S.fx==='low'||UI.touch||G?.chart.multiRow;
 function saveS(){store.set('kt.settings',S);}
@@ -3560,6 +3564,7 @@ function renderSettings(){
     b.addEventListener('click',()=>{UI.binding=UI.binding===idx?null:idx;renderSettings();});kb.append(b);});
   $('#setSpeed').value=S.speed;$('#outSpeed').textContent='×'+Number(S.speed).toFixed(1);
   $('#setOffset').value=S.offset;$('#outOffset').textContent=(S.offset>0?'+':'')+S.offset+'ms';
+  $('#setOldestFirst').checked=S.oldestFirst===true;
   $('#setMusic').value=S.music;$('#outMusic').textContent=Math.round(S.music*100)+'%';
   $('#setSe').value=S.se;$('#outSe').textContent=Math.round(S.se*100)+'%';
   $('#setBalance').checked=S.balance!==false;
@@ -3829,12 +3834,13 @@ function press(role,t,auto){
   if(!auto)expireTargets(t);
   if(G.finished)return;
   const stream=mobileTiming()&&!auto;
+  const oldest=!G.match&&!auto&&S.oldestFirst===true;
   const gathering=G.openChord;
-  let tg=gathering?null:nearestTarget(t,color,stream);
-  if(stream&&gathering&&gathering.buf.d===gathering.reqD&&gathering.buf.k===gathering.reqK){
-    const next=nearestTarget(t,color);
-    if(next&&next.t>gathering.t&&(next.type==='chord'||next.color===color)&&
-      Math.abs(t-next.t)<=G.win.ok&&Math.abs(t-next.t)<Math.abs(t-gathering.t)){
+  let tg=gathering?null:oldest?TaikoMatchRules.oldestTarget(G,t):nearestTarget(t,color,stream);
+  if((stream||oldest)&&gathering&&gathering.buf.d===gathering.reqD&&gathering.buf.k===gathering.reqK){
+    const next=oldest?TaikoMatchRules.oldestTarget(G,t,gathering.t):nearestTarget(t,color);
+    if(next&&next.t>gathering.t&&Math.abs(t-next.t)<=G.win.ok&&
+      (oldest||((next.type==='chord'||next.color===color)&&Math.abs(t-next.t)<Math.abs(t-gathering.t)))){
       finalizeChord(gathering);if(G.finished)return;tg=next;
     }
   }
@@ -5288,6 +5294,7 @@ $('#clearLibYes').addEventListener('click',async()=>{for(const s of Lib.sets.fil
 const bindRange=(id,key,fn)=>$(id).addEventListener('input',e=>{S[key]=parseFloat(e.target.value);if(fn)fn();saveS();renderSettings();});
 bindRange('#setSudden','sudden');bindRange('#setLaneW','laneWidth');bindRange('#setSpeed','speed');bindRange('#setOffset','offset');
 bindRange('#setMusic','music',applyGains);bindRange('#setSe','se',applyGains);
+$('#setOldestFirst').addEventListener('change',e=>{S.oldestFirst=e.target.checked;saveS();});
 $('#setBalance').addEventListener('change',e=>{S.balance=e.target.checked;saveS();applyGains();});
 $('#setFalling').addEventListener('change',e=>{S.falling=e.target.value!=='taiko';S.perspective=e.target.value==='perspective';saveS();});
 document.body.classList.toggle('fx-low',S.fx==='low');

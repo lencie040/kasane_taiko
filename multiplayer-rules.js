@@ -87,6 +87,16 @@ const TaikoMatchRules = (() => {
     return target;
   }
 
+  function oldestTarget(run,t,after=-Infinity){
+    const {targets,win,cursor}=run;
+    for(let i=cursor;i<targets.length;i++){
+      const target=targets[i],offset=target.t-t;
+      if(offset>win.bad)break;
+      if(!target.judged&&target.t>after&&offset>=-win.bad)return target;
+    }
+    return null;
+  }
+
   function newScore() {
     return {score:0,reached:null,sequence:null,cursor:0,judged:{},rolls:{},combo:0,effect:null,absorb:null,last:null,keys:[null,null,null,null]};
   }
@@ -175,7 +185,7 @@ const TaikoMatchRules = (() => {
   }
 
   return {WIN_SOFT,WIN_HARD,COLORS,LEAGUES,GOALS,freshProfile,canMatch,chartChoices,chooseChart,advanceProfile,
-    nearestTarget,newScore,scoreInput,acceptInput,winner,playProgress};
+    nearestTarget,oldestTarget,newScore,scoreInput,acceptInput,winner,playProgress};
 })();
 
 if (typeof module === 'object') module.exports = TaikoMatchRules;

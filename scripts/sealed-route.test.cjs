@@ -11,7 +11,7 @@ const chart = (course,times) => ({
 
 test('a sealed chart requires a normal source and notes on both sides of the split',()=>{
   const target = chart('sealed',[2000,2500]);
-  assert.deepEqual(SealedRoute.parse(route),route);
+  assert.deepEqual(SealedRoute.parse(route),{...route,minPotential:SealedRoute.requiredPotential});
   const {minCombo,...legacy}=route;
   assert.equal(SealedRoute.parse(legacy).minCombo,0);
   for(const invalid of [-1,1.5,null,'30'])assert.equal(SealedRoute.parse({...route,minCombo:invalid}),null);
