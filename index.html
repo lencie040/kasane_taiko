@@ -1968,7 +1968,7 @@ function ensureAudio(){
   AC=new(window.AudioContext||window.webkitAudioContext)({latencyHint:'interactive'});
   musicGain=AC.createGain();musicGain.gain.value=S.music;musicGain.connect(AC.destination);
   seGain=AC.createGain();seGain.gain.value=S.se;seGain.connect(AC.destination);
-  recDest=AC.createMediaStreamDestination();musicGain.connect(recDest);seGain.connect(recDest);applyGains();
+  applyGains();
   const sr=AC.sampleRate,mk=(dur,fn)=>{const n=Math.floor(sr*dur),b=AC.createBuffer(1,n,sr),d=b.getChannelData(0);const st={ph:0,ph2:0};for(let i=0;i<n;i++)d[i]=fn(i/sr,st,sr);return b;};
   SE.don=mk(.3,(t,s,sr)=>{const f=58+95*Math.exp(-t*32);s.ph+=f/sr;return(Math.sin(TAU*s.ph)*Math.exp(-t*12)+(Math.random()*2-1)*Math.exp(-t*90)*.25)*.9;});
   SE.ka=mk(.12,(t,s,sr)=>{s.ph+=2350/sr;s.ph2+=3720/sr;return(Math.sin(TAU*s.ph)*.5+Math.sin(TAU*s.ph2)*.35)*Math.exp(-t*55)+(Math.random()*2-1)*Math.exp(-t*110)*.45;});
@@ -4161,9 +4161,12 @@ function resumeGame(){if(!G||!G.paused)return;$('#pause').hidden=true;const run=
   setTimeout(go,1200);}
 
 /* ---------- 録画（演奏画面の映像と音を mp4 で保存） ---------- */
-let recDest=null;
-const REC={rec:null,run:null,chunks:[],mime:'',name:'',badge:null};
-function recSupported(){return typeof MediaRecorder!=='undefined'&&typeof cv.captureStream==='function';}
+const REC={active:null,badge:null};
+function recSupported(){
+  const AudioCtx=window.AudioContext||window.webkitAudioContext;
+  return typeof MediaRecorder!=='undefined'&&typeof cv.captureStream==='function'&&
+    typeof AudioCtx?.prototype.createMediaStreamDestination==='function';
+}
 function recMime(){return['video/mp4;codecs=avc1,mp4a.40.2','video/mp4','video/webm;codecs=vp9,opus','video/webm'].find(m=>MediaRecorder.isTypeSupported(m))||'';}
 function recordName(run){const c=run.chart,d=new Date(),p=n=>String(n).padStart(2,'0');
   const stamp=`${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
@@ -4175,25 +4178,44 @@ function showRecBadge(on){
     document.body.append(b);REC.badge=b;}
   if(REC.badge)REC.badge.hidden=!on;}
 function startRecord(run){
-  if(S.record!==true||!recSupported()||!AC||!recDest||REC.rec)return;
+  if(S.record!==true||!recSupported()||!AC||REC.active)return;
+  const chunks=[],name=recordName(run);
+  let video=[],destination;
+  const release=()=>{
+    if(destination){
+      for(const gain of [musicGain,seGain]){
+        try{gain.disconnect(destination);}catch(e){}
+      }
+      for(const track of destination.stream.getAudioTracks())track.stop();
+    }
+    for(const track of video)track.stop();
+  };
   try{
-    const video=cv.captureStream(30).getVideoTracks(),audio=recDest.stream.getAudioTracks();
-    const mime=recMime();
+    // 録画しない演奏では、音声をスピーカーにだけ出す。
+    video=cv.captureStream(30).getVideoTracks();
+    destination=AC.createMediaStreamDestination();
+    const mime=recMime(),audio=destination.stream.getAudioTracks();
     const rec=new MediaRecorder(new MediaStream([...video,...audio]),{...(mime?{mimeType:mime}:{}),videoBitsPerSecond:6000000,audioBitsPerSecond:192000});
-    REC.chunks=[];REC.mime=rec.mimeType||mime||'video/webm';REC.name=recordName(run);REC.run=run;REC.rec=rec;
-    rec.ondataavailable=e=>{if(e.data&&e.data.size)REC.chunks.push(e.data);};
+    const session={rec,run,discard:false};
+    musicGain.connect(destination);seGain.connect(destination);
+    rec.ondataavailable=e=>{if(!session.discard&&e.data?.size)chunks.push(e.data);};
     rec.onstop=()=>{
-      const type=REC.mime,ext=type.includes('mp4')?'mp4':'webm',blob=new Blob(REC.chunks,{type});REC.chunks=[];
-      const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`${REC.name}.${ext}`;
+      release();
+      if(REC.active===session){REC.active=null;showRecBadge(false);}
+      if(session.discard||!chunks.length)return;
+      const type=rec.mimeType||mime||'video/webm',ext=type.includes('mp4')?'mp4':'webm';
+      const url=URL.createObjectURL(new Blob(chunks,{type})),a=document.createElement('a');a.href=url;a.download=`${name}.${ext}`;
       document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
       toast(`録画を保存しました（${ext}）`+(ext==='webm'?'。このブラウザではmp4で録画できなかったのでwebmです':''));};
-    rec.start(1000);showRecBadge(true);
-  }catch(e){REC.rec=null;REC.run=null;toast('録画を開始できませんでした：'+e.message,'err');}}
+    rec.start(1000);REC.active=session;showRecBadge(true);
+  }catch(e){release();toast('録画を開始できませんでした：'+e.message,'err');}
+}
 function stopRecord(run,discard=false){
-  if(!REC.rec||(run&&REC.run!==run))return;
-  const rec=REC.rec;REC.rec=null;REC.run=null;showRecBadge(false);
-  if(discard){rec.ondataavailable=null;rec.onstop=null;REC.chunks=[];}
-  if(rec.state!=='inactive')rec.stop();}
+  const session=REC.active;
+  if(!session||(run&&session.run!==run))return;
+  REC.active=null;session.discard=discard;showRecBadge(false);
+  if(session.rec.state!=='inactive')session.rec.stop();
+}
 
 /* ---------- 結果 ---------- */
 const RANKS=[[1000000,'極','虹','#ffffff'],[950000,'雅','紫','#b48cf2'],[900000,'雅','桃','#f29cc2'],[800000,'雅','金','#f2bc3d'],[700000,'粋','銀','#c8cdd8'],[600000,'粋','銅','#d08a52'],[500000,'粋','白','#f2ecdc']];
@@ -5380,7 +5402,7 @@ const DBG=touchDiagnostics.has('debug'),DBG_TOUCH_ONLY=DBG&&touchDiagnostics.get
 let dbg;
 function resetTapDiagnostics(){
   if(!DBG)return;
-  dbg={touch:0,pointer:0,duplicates:0,inputs:0,ignored:0,noResponse:0,
+  dbg={touch:0,pointer:0,duplicates:0,inputs:0,ignored:0,preRoll:0,noResponse:0,
     judgedNearby:0,outsideWindow:0,delivery:0,maxDelivery:0,hist:[],spikes:[],
     frameSum:0,frameCount:0,maxFrame:0,outside:[],
     bad:{miss:0,timing:0,color:0,noise:0,mismatch:0}};
@@ -5425,7 +5447,9 @@ const padPress=(role,t)=>{
   const {judged,roll,bigBoth}=run.st, chord=run.openChord, chordHits=chord?.buf.offs.length;
   const result=press(role,st);
   if(result==='no-target'){
-    if(hasJudgedNearby(G,st))dbg.judgedNearby++;
+    const first=Math.min(G.targets[0]?.t??Infinity,G.rolls[0]?.t??Infinity);
+    if(Number.isFinite(first)&&st<first-G.win.bad)dbg.preRoll++;
+    else if(hasJudgedNearby(G,st))dbg.judgedNearby++;
     else{
       dbg.outsideWindow++;
       const near=nearbyTapTarget(G,st);
@@ -5437,10 +5461,10 @@ const padPress=(role,t)=>{
 };
 if(DBG){const box=el('div',{id:'dbgBox',style:'position:fixed;left:6px;top:6px;max-width:calc(100vw - 12px);z-index:999;background:#000e;color:#fff;font:12px/1.4 monospace;padding:4px 6px;border-radius:6px;pointer-events:none;white-space:pre-line'});document.body.append(box);
   setInterval(()=>{const avg=dbg.frameCount?Math.round(dbg.frameSum/dbg.frameCount):0;box.textContent=[
-    `${DBG_TOUCH_ONLY?'Tのみ / ':''}受信 T:${dbg.touch} P:${dbg.pointer} / 重複 ${dbg.duplicates} / 処理 ${dbg.inputs-dbg.ignored}`,
+    `${DBG_TOUCH_ONLY?'Tのみ / ':''}受信 T:${dbg.touch} P:${dbg.pointer} / 重複 ${dbg.duplicates} / 処理 ${dbg.inputs-dbg.ignored-dbg.preRoll}`,
     `入力先なし: 判定済みの付近 ${dbg.judgedNearby} / ノーツ範囲外 ${dbg.outsideWindow} / その他 ${dbg.noResponse}`,
     `不可の内訳 期限切れ ${dbg.bad.miss} / タイミング ${dbg.bad.timing} / 色違い ${dbg.bad.color} / 封印 ${dbg.bad.noise} / 同時押し ${dbg.bad.mismatch}`,
-    `演奏外 ${dbg.ignored} / 到着遅れ ${dbg.delivery}ms（最大 ${dbg.maxDelivery}ms）`,
+    `演奏外 ${dbg.ignored} / 開始前 ${dbg.preRoll} / 到着遅れ ${dbg.delivery}ms（最大 ${dbg.maxDelivery}ms）`,
     `フレーム 平均 ${avg}ms 最大 ${Math.round(dbg.maxFrame)}ms / 停止位置(長さ) ms ${dbg.spikes.join(' ')||'-'}`,
     `判定ズレ ms: ${dbg.hist.join(' ')||'-'}`,
     `範囲外 ms 曲位置:ズレ(到着遅れ) ${dbg.outside.join(' ')||'-'}`
