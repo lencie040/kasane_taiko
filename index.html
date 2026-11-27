@@ -4000,8 +4000,8 @@ function updateFallingDanHud(now){
   }
 }
 function fallingPlay(){return !onlineRun&&S.falling===true;}
-function openStage(){const menu=$('#stageMenu');menu.textContent=onlineRun?'棄権':'一時停止 Esc';stopPreview();clearHitContacts();$('#stage').hidden=false;$('#stage').classList.toggle('touch',UI.touch);document.body.classList.add('playing');$('#result').hidden=true;$('#pause').hidden=true;$('#pads').hidden=libraryWait||!UI.touch||fallingPlay();setupFallingDanHud();layoutStage();startLoop();}
-function closeStage(){if(streak?.phase==='playing')streak=null;stopRecord();clearHitContacts();if(AUTOALL_FALLING){S.falling=true;AUTOALL_FALLING=null;}songLoad++;libraryWait=false;cancelAnimationFrame(rafId);rafId=0;stopSong();G=null;D=null;onlineRun=null;$('#matchHud').hidden=true;$('#stage').hidden=true;setupFallingDanHud();document.body.classList.remove('playing');refreshAll();}
+function openStage(){const menu=$('#stageMenu');menu.textContent=onlineRun?'棄権':'一時停止 Esc';stopPreview();$('#stage').hidden=false;$('#stage').classList.toggle('touch',UI.touch);document.body.classList.add('playing');$('#result').hidden=true;$('#pause').hidden=true;$('#pads').hidden=libraryWait||!UI.touch||fallingPlay();setupFallingDanHud();layoutStage();startLoop();}
+function closeStage(){if(streak?.phase==='playing')streak=null;stopRecord();if(AUTOALL_FALLING){S.falling=true;AUTOALL_FALLING=null;}songLoad++;libraryWait=false;cancelAnimationFrame(rafId);rafId=0;stopSong();G=null;D=null;onlineRun=null;$('#matchHud').hidden=true;$('#stage').hidden=true;setupFallingDanHud();document.body.classList.remove('playing');refreshAll();}
 function startLoop(){if(!rafId){lastStageFrame=null;stageDrawDeferred=false;stageLightUntil=0;rafId=requestAnimationFrame(frame);}}
 function stopSong(){if(G&&G.src){try{G.src.stop();}catch(e){}G.src=null;}}
 function fadeMusic(sec){if(!G||!G.gain||!AC)return;try{const g=G.gain.gain;g.cancelScheduledValues(AC.currentTime);g.setValueAtTime(g.value,AC.currentTime);g.linearRampToValueAtTime(0,AC.currentTime+sec);G.src.stop(AC.currentTime+sec+.05);}catch(e){}}
@@ -5490,7 +5490,7 @@ const padPress=(role,t)=>{
 };
 if(DBG){const box=el('div',{id:'dbgBox',style:'position:fixed;left:6px;top:6px;max-width:calc(100vw - 12px);z-index:999;background:#000e;color:#fff;font:12px/1.4 monospace;padding:4px 6px;border-radius:6px;pointer-events:none;white-space:pre-line'});document.body.append(box);
   setInterval(()=>{const avg=dbg.frameCount?Math.round(dbg.frameSum/dbg.frameCount):0;box.textContent=[
-    `${DBG_TOUCH_ONLY?'Tのみ / ':''}受信 T:${dbg.touch} P:${dbg.pointer} / 重複 ${dbg.duplicates} / 処理 ${dbg.inputs-dbg.ignored-dbg.preRoll}`,
+    `${useTouchStarts?'Tのみ / ':'Pのみ / '}受信 T:${dbg.touch} P:${dbg.pointer} / 重複 ${dbg.duplicates} / 処理 ${dbg.inputs-dbg.ignored-dbg.preRoll}`,
     `入力先なし: 判定済みの付近 ${dbg.judgedNearby} / ノーツ範囲外 ${dbg.outsideWindow} / その他 ${dbg.noResponse}`,
     `不可の内訳 期限切れ ${dbg.bad.miss} / タイミング ${dbg.bad.timing} / 色違い ${dbg.bad.color} / 封印 ${dbg.bad.noise} / 同時押し ${dbg.bad.mismatch}`,
     `演奏外 ${dbg.ignored} / 開始前 ${dbg.preRoll} / 到着遅れ ${dbg.delivery}ms（最大 ${dbg.maxDelivery}ms）`,
@@ -5499,84 +5499,48 @@ if(DBG){const box=el('div',{id:'dbgBox',style:'position:fixed;left:6px;top:6px;m
     `範囲外 ms 曲位置:ズレ(到着遅れ) ${dbg.outside.join(' ')||'-'}`
   ].join('\n');},500);}
 const pads=$('#pads'),padButtons=[...pads.querySelectorAll('button')];
-const touchStarts=new Map(),contactStarts=[];
-const CONTACT_PAIR_MS=24,CONTACT_PAIR_PX=4;
-function clearHitContacts(){touchStarts.clear();contactStarts.length=0;}
-function padRole(input){
-  const node=input.target.nodeType===1?input.target:input.target.parentElement;
-  const button=node?.closest('button[data-role]');
+const stageInput=$('#stage');
+const useTouchStarts=DBG_TOUCH_ONLY||'ontouchstart' in window;
+function stageHitRole(input){
+  const node=input.target;
+  if(node===cv&&fallingPlay())return fallingTouchRole(input);
+  if(pads.hidden)return;
+  const button=node.closest?.('#pads button[data-role]');
   if(button)return button.dataset.role;
-  // 余白やパッド同士の隙間も、一番近い列の入力として扱う。
+  if(!pads.contains(node)){
+    if(node!==cv&&node!==stageInput)return;
+    // 連打で指がパッド上端を少し越えた場合と、下端の安全領域も拾う。
+    const box=pads.getBoundingClientRect();
+    if(input.clientY<box.top-36)return;
+  }
   let closest=null,distance=Infinity;
-  for(const b of padButtons){
-    const box=b.getBoundingClientRect(),d=Math.abs(input.clientX-(box.left+box.width/2));
-    if(d<distance){closest=b;distance=d;}
+  for(const pad of padButtons){
+    const box=pad.getBoundingClientRect(),d=Math.abs(input.clientX-(box.left+box.width/2));
+    if(d<distance){closest=pad;distance=d;}
   }
   return closest?.dataset.role;
 }
-function startHitContact(source,id,input,role,t){
-  const now=performance.now(),{clientX:x,clientY:y}=input;
-  while(contactStarts.length&&now-contactStarts[0].receivedAt>120)contactStarts.shift();
-  // 先に届いたイベントで叩き、別形式で届いた同じ接触だけを1対1で除く。
-  let pair=-1,delta=Infinity;
-  for(let i=0;i<contactStarts.length;i++){
-    const other=contactStarts[i],dt=Math.abs(other.t-t);
-    if(other.source!==source&&dt<=CONTACT_PAIR_MS&&t<=other.end&&dt<delta&&
-      Math.abs(x-other.x)<=CONTACT_PAIR_PX&&Math.abs(y-other.y)<=CONTACT_PAIR_PX){
-      pair=i;delta=dt;
-    }
+stageInput.addEventListener('touchstart',event=>{
+  const t=inputTime(event);
+  for(const contact of event.changedTouches){
+    const role=stageHitRole(contact);
+    if(!role)continue;
+    if(DBG)dbg.touch++;
+    if(!useTouchStarts)continue;
+    event.preventDefault();
+    padPress(role,t);
   }
-  if(pair>=0){if(DBG)dbg.duplicates++;contactStarts.splice(pair,1);return;}
-  contactStarts.push({source,id,x,y,t,end:Infinity,receivedAt:now});
-  padPress(role,t);
-}
-function endHitContact(source,id,t){
-  for(const start of contactStarts){
-    if(start.source===source&&start.id===id&&start.end===Infinity&&t>=start.t)start.end=t;
-  }
-}
-function listenForHits(surface,roleAt){
-  surface.addEventListener('touchstart',e=>{
-    const t=inputTime(e);
-    for(const touch of e.changedTouches){
-      if(!surface.contains(touch.target))continue;
-      const role=roleAt(touch);
-      if(!role)continue;
-      e.preventDefault();
-      if(DBG)dbg.touch++;
-      if(DBG_TOUCH_ONLY&&!G?.match){padPress(role,t);continue;}
-      const id=touch.identifier,last=touchStarts.get(id);
-      if(last!=null&&Math.abs(t-last)<=CONTACT_PAIR_MS){if(DBG)dbg.duplicates++;continue;}
-      touchStarts.set(id,t);
-      startHitContact('touch',id,touch,role,t);
-    }
-  },{passive:false});
-  surface.addEventListener('pointerdown',e=>{
-    if(e.button!==0||(e.pointerType!=='touch'&&e.sourceCapabilities?.firesTouchEvents))return;
-    const role=roleAt(e);
-    if(!role)return;
-    if(e.pointerType==='touch'){
-      if(DBG)dbg.pointer++;
-      if(DBG_TOUCH_ONLY&&!G?.match)return;
-      e.preventDefault();startHitContact('pointer',e.pointerId,e,role,inputTime(e));
-    }else{
-      e.preventDefault();padPress(role,inputTime(e));
-    }
-  });
-}
-listenForHits(pads,padRole);
-listenForHits(cv,fallingTouchRole);
-for(const type of ['touchend','touchcancel'])window.addEventListener(type,e=>{
-  const t=inputTime(e);
-  for(const touch of e.changedTouches){
-    touchStarts.delete(touch.identifier);
-    endHitContact('touch',touch.identifier,t);
-  }
-},true);
-for(const type of ['pointerup','pointercancel'])window.addEventListener(type,e=>{
-  if(e.pointerType==='touch')endHitContact('pointer',e.pointerId,inputTime(e));
-},true);
-window.addEventListener('blur',clearHitContacts);
+},{capture:true,passive:false});
+stageInput.addEventListener('pointerdown',event=>{
+  if(event.button!==0)return;
+  const role=stageHitRole(event);
+  if(!role)return;
+  if(event.pointerType==='touch'){
+    if(DBG)dbg.pointer++;
+    if(useTouchStarts)return;
+  }else if(event.sourceCapabilities?.firesTouchEvents)return;
+  event.preventDefault();padPress(role,inputTime(event));
+},{capture:true});
 // 演奏中のピンチ拡大・ページの動きを止める（Safari のジェスチャーでプレイが中断されるのを防ぐ）
 for(const t of ['gesturestart','gesturechange','gestureend'])document.addEventListener(t,e=>{if(document.body.classList.contains('playing'))e.preventDefault();},{passive:false});
 document.addEventListener('touchmove',e=>{if(document.body.classList.contains('playing')&&!e.target.closest('#result'))e.preventDefault();},{passive:false});
