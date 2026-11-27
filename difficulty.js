@@ -319,7 +319,7 @@ function estimateKasaneDifficulty(chart, course, sealAt) {
   const upperLoad = Math.max(0, load - 11);
   const highLoad = Math.max(0, upperLoad - .7);
   const upperStars = Math.min(.7, upperLoad) - 1.2 * Math.expm1(-highLoad / 1.2);
-  const stars = Math.min(11, load) + .90 * upperStars;
+  const stars = Math.min(11, load) + .73 * upperStars;
   const level = course === 'kasane'
     ? Math.max(1, Math.min(10, Math.round(1 + (load - 4) * .83 + 2.1 * f.chords)))
     : Math.max(1, Math.min(course === 'sealed' ? 12.9 : Infinity, Math.round(stars * 10) / 10));
