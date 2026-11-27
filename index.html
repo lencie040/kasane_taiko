@@ -2998,12 +2998,12 @@ function bindKey(i,code){
   const all=[...S.keys,...S.skipKeys],old=all.indexOf(code);
   if(old>=0&&old!==i)all[old]=all[i];
   all[i]=code;S.keys=all.slice(0,4);S.skipKeys=all.slice(4);saveS();}
-// 7曲分まとめて移動する（step は +7 で下、-7 で上）
+// 曲と「もどる」を数えて、7つ分まとめて移動する。
 function jumpSongs(step){
   const entries=arcadeEntries(),hasSongs=entries.some(entry=>entry.set);
   const stops=new Set();
   entries.forEach((entry,index)=>{
-    if(hasSongs?entry.set:!entry.folder?.back)stops.add(index);
+    if(!hasSongs||entry.set||entry.folder?.back)stops.add(index);
   });
   if(!stops.size)return;
 
