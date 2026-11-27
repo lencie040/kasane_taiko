@@ -8,3 +8,4 @@
 # unlock_text: 表示する入手条件の説明（空欄なら自動で作ります）
 id,name,image,ability,unlock_type,unlock_target,unlock_course,unlock_value,unlock_text
 1,レンゲツシェー,0777.png,seal,song_zen,恋月星,おに,,,
+2,ミルキキシェー,0888.png,gauge_up,song_zen,ミルキキシェー★,おに,,,
