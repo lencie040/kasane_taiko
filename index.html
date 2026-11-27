@@ -3789,9 +3789,28 @@ function inputTime(event){
   if(t>1e12)t-=performance.timeOrigin??(Date.now()-now);
   return t>0&&t<=now+1?Math.min(t,now):now;
 }
-function syncClock(){if(!AC||!AC.getOutputTimestamp||G.paused)return;let ts;try{ts=AC.getOutputTimestamp();}catch(e){return;}
-  if(!ts||!ts.performanceTime||!(ts.contextTime>0))return;const est=ts.performanceTime-(ts.contextTime-G.acZero)*1000;
-  if(Math.abs(est-G.perfZero)>600)return;if(!G.synced){G.perfZero=est;G.synced=true;}else G.perfZero+=(est-G.perfZero)*.04;}
+function firstPlayableTime(run){return Math.min(run.targets[0]?.t??Infinity,run.rolls[0]?.t??Infinity);}
+function audioOutputTime(acTime){
+  if(!AC?.getOutputTimestamp)return null;
+  let ts;try{ts=AC.getOutputTimestamp();}catch(e){return null;}
+  if(!Number.isFinite(ts?.performanceTime)||ts.performanceTime<=0||
+    !Number.isFinite(ts.contextTime)||ts.contextTime<=0)return null;
+  return ts.performanceTime+(acTime-ts.contextTime)*1000;
+}
+function syncClock(){
+  const run=G;
+  if(!AC||run.paused||run.clockLocked)return;
+  // スマホのソロは開始前に出力時刻を合わせ、演奏中の時刻の飛びを防ぐ。
+  if(UI.touch&&!run.match&&songTime(performance.now())>=firstPlayableTime(run)-250){
+    run.clockLocked=true;
+    if(DBG)dbg.clock=run.synced?'開始前に同期':'遅延推定';
+    return;
+  }
+  const est=audioOutputTime(run.acZero);
+  if(est==null||Math.abs(est-run.perfZero)>600)return;
+  if(!run.synced){run.perfZero=est;run.synced=true;}
+  else run.perfZero+=(est-run.perfZero)*.04;
+}
 
 function addStats(st,kind,n,chord,base){
   if(kind==='tokuryo'){st.tokuryo+=n;st.good+=n;}else st[kind]+=n;
@@ -3837,8 +3856,8 @@ function trySealedTransition(time){
     tail.endAt=Math.max(tail.endAt,run.src.buffer.duration*1000);
     tail.targets=tail.targets.filter(t=>t.t>=route.at);
     tail.rolls=tail.rolls.filter(r=>r.end>route.at).map(r=>({...r,t:Math.max(r.t,route.at)}));
-    const {src,gain,acZero,perfZero,latency,synced,rate,t0,introAt,bgImg}=run;
-    G={...tail,src,gain,acZero,perfZero,latency,synced,rate,t0,introAt,bgImg,now:Math.max(time,run.now),
+    const {src,gain,acZero,perfZero,latency,synced,clockLocked,rate,t0,introAt,bgImg}=run;
+    G={...tail,src,gain,acZero,perfZero,latency,synced,clockLocked,rate,t0,introAt,bgImg,now:Math.max(time,run.now),
       sealLife:SealedRoute.life};
     layoutStage();
     G.fx.sealedAt=performance.now();
@@ -4615,7 +4634,7 @@ function frame(now){rafId=requestAnimationFrame(frame);
   if(G&&!G.paused){
     syncClock();G.now=songTime(performance.now());
     if(!G.finished){
-      if(DBG&&frameGap>0&&G.now>=G.chart.firstT)recordPlayFrame(G.now,frameGap);
+      if(DBG&&frameGap>0&&G.now>=firstPlayableTime(G))recordPlayFrame(G.now,frameGap);
       update(G.now);
     }
   }
@@ -5217,11 +5236,21 @@ function calStart(){ensureAudio();UI.gesture=true;if(AC.state==='suspended')AC.r
   for(let i=0;i<n;i++){const o=AC.createOscillator(),g=AC.createGain(),t=t0+i*iv/1000;o.type='square';o.frequency.value=i%4===0?1760:1175;
     g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.22,t+.002);g.gain.exponentialRampToValueAtTime(.0001,t+.06);o.connect(g);g.connect(seGain);o.start(t);o.stop(t+.08);}
   const lat=((AC.outputLatency||0)+(AC.baseLatency||0))*1000;
-  Object.assign(CAL,{on:true,p0:performance.now()+lead*1000+lat,iv,n,count,taps:[],result:null});
+  Object.assign(CAL,{on:true,p0:performance.now()+(t0-AC.currentTime)*1000+lat,t0,iv,n,count,taps:[],result:null,locked:false});
   $('#calApply').hidden=true;$('#calStart').disabled=true;calLoop();}
 function calTap(ts){if(!CAL.on)return;const i=Math.round((ts-CAL.p0)/CAL.iv);if(i<CAL.count||i>=CAL.n)return;const d=ts-(CAL.p0+i*CAL.iv);if(Math.abs(d)>CAL.iv*.4)return;
   CAL.taps.push(d);playSE('don');const b=$('#calBeat');b.classList.add('tap');setTimeout(()=>b.classList.remove('tap'),90);}
-function calLoop(){if(!CAL.on)return;const now=performance.now(),x=(now-CAL.p0)/CAL.iv,i=Math.floor(x),ph=x-i;
+function calLoop(){
+  if(!CAL.on)return;
+  const now=performance.now();
+  if(UI.touch&&!CAL.locked){
+    if(now>=CAL.p0+CAL.count*CAL.iv-CAL.iv/2)CAL.locked=true;
+    else{
+      const est=audioOutputTime(CAL.t0);
+      if(est!=null&&Math.abs(est-CAL.p0)<=600)CAL.p0=est;
+    }
+  }
+  const x=(now-CAL.p0)/CAL.iv,i=Math.floor(x),ph=x-i;
   $('#calBeat').style.setProperty('--p',i>=0&&i<CAL.n?String(Math.max(0,1-ph*3)):'0');
   $('#calMsg').textContent=i<CAL.count?`${Math.min(CAL.count,CAL.count-i)}…（聞くだけ）`:i<CAL.n?`叩いて！ ${CAL.taps.length} / ${CAL.n-CAL.count}`:'集計中…';
   $('#calSub').textContent=i<CAL.count?'4拍目のあとから叩きます':'拍に合わせてドンかカッのキー';
@@ -5404,7 +5433,7 @@ function resetTapDiagnostics(){
   if(!DBG)return;
   dbg={touch:0,pointer:0,duplicates:0,inputs:0,ignored:0,preRoll:0,noResponse:0,
     judgedNearby:0,outsideWindow:0,delivery:0,maxDelivery:0,hist:[],spikes:[],
-    frameSum:0,frameCount:0,maxFrame:0,outside:[],
+    frameSum:0,frameCount:0,maxFrame:0,outside:[],clock:'–',
     bad:{miss:0,timing:0,color:0,noise:0,mismatch:0}};
 }
 resetTapDiagnostics();
@@ -5447,7 +5476,7 @@ const padPress=(role,t)=>{
   const {judged,roll,bigBoth}=run.st, chord=run.openChord, chordHits=chord?.buf.offs.length;
   const result=press(role,st);
   if(result==='no-target'){
-    const first=Math.min(G.targets[0]?.t??Infinity,G.rolls[0]?.t??Infinity);
+    const first=firstPlayableTime(G);
     if(Number.isFinite(first)&&st<first-G.win.bad)dbg.preRoll++;
     else if(hasJudgedNearby(G,st))dbg.judgedNearby++;
     else{
@@ -5466,7 +5495,7 @@ if(DBG){const box=el('div',{id:'dbgBox',style:'position:fixed;left:6px;top:6px;m
     `不可の内訳 期限切れ ${dbg.bad.miss} / タイミング ${dbg.bad.timing} / 色違い ${dbg.bad.color} / 封印 ${dbg.bad.noise} / 同時押し ${dbg.bad.mismatch}`,
     `演奏外 ${dbg.ignored} / 開始前 ${dbg.preRoll} / 到着遅れ ${dbg.delivery}ms（最大 ${dbg.maxDelivery}ms）`,
     `フレーム 平均 ${avg}ms 最大 ${Math.round(dbg.maxFrame)}ms / 停止位置(長さ) ms ${dbg.spikes.join(' ')||'-'}`,
-    `判定ズレ ms: ${dbg.hist.join(' ')||'-'}`,
+    `判定ズレ ms: ${dbg.hist.join(' ')||'-'} / 時計 ${dbg.clock}・オフセット ${S.offset}ms`,
     `範囲外 ms 曲位置:ズレ(到着遅れ) ${dbg.outside.join(' ')||'-'}`
   ].join('\n');},500);}
 const pads=$('#pads'),padButtons=[...pads.querySelectorAll('button')];
