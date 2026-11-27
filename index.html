@@ -1031,6 +1031,10 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
     radial-gradient(ellipse at 100% 85%,#f8c6f5aa,transparent 16%),
     linear-gradient(90deg,#ede7f8 0%,#e8f5fa 9%,#e5f5ef 18%,#eff7db 28%,#f7f7f4 43%,#f7f8e4 61%,#f9efde 76%,#f9e6f6 92%,#fae0f8 100%);
 }
+#songlist :is(.song.folder-rainbow .song-t,.folder-entry.folder-rainbow strong){
+  background:#fff;
+  box-shadow:inset 0 0 0 2px #8d6689,0 2px 3px #39223929;
+}
 #songlist :is(.song,.folder-entry):focus-visible{outline:2px dashed #542545;outline-offset:2px}
 #songlist .song .chips{width:100%;margin-top:6px}
 .song-cover{position:relative;display:grid;place-items:center;width:var(--cover-size,72px);aspect-ratio:1;flex:none;
