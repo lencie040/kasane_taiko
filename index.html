@@ -33,6 +33,8 @@ body{font-family:var(--f-body);font-size:15px;line-height:1.65;
   background-size:56px 28px}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--panel)}
 body.playing{overflow:hidden}
+body.playing:has(> #stage.touch) > :is(header.top, main){visibility:hidden}
+body.playing:has(> #stage.touch) > :is(header.top, main) *{animation-play-state:paused}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--gold);outline-offset:2px}
@@ -3794,6 +3796,7 @@ function addStats(st,kind,n,chord,base){
   st.judged+=n;if(chord)st.chordJudged+=n;}
 function judge(tg,kind,off,why){
   tg.judged=true;tg.res=kind;const chord=tg.type==='chord',n=chord?tg.notes.length:1;
+  if(DBG&&kind==='bad')dbg.bad[why||'timing']+=n;
   addStats(G.st,kind,n,chord,G.base);if(D)addStats(D.st,kind,n,chord,G.base);
   if(chord)for(const st of D?[G.st,D.st]:[G.st]){if(kind==='bad')st.chordMiss++;else st.chordHit++;if(why==='mismatch')st.mismatch++;}
   if(kind!=='bad'&&off!=null){G.st.offSum+=off;G.st.offN++;G.st.offs.push(off);}
@@ -3972,7 +3975,7 @@ function updateFallingDanHud(now){
 function fallingPlay(){return !onlineRun&&S.falling===true;}
 function openStage(){const menu=$('#stageMenu');menu.textContent=onlineRun?'棄権':'一時停止 Esc';stopPreview();clearHitContacts();$('#stage').hidden=false;$('#stage').classList.toggle('touch',UI.touch);document.body.classList.add('playing');$('#result').hidden=true;$('#pause').hidden=true;$('#pads').hidden=libraryWait||!UI.touch||fallingPlay();setupFallingDanHud();layoutStage();startLoop();}
 function closeStage(){if(streak?.phase==='playing')streak=null;stopRecord();clearHitContacts();if(AUTOALL_FALLING){S.falling=true;AUTOALL_FALLING=null;}songLoad++;libraryWait=false;cancelAnimationFrame(rafId);rafId=0;stopSong();G=null;D=null;onlineRun=null;$('#matchHud').hidden=true;$('#stage').hidden=true;setupFallingDanHud();document.body.classList.remove('playing');refreshAll();}
-function startLoop(){if(!rafId){lastStageFrame=null;stageDrawDeferred=false;rafId=requestAnimationFrame(frame);}}
+function startLoop(){if(!rafId){lastStageFrame=null;stageDrawDeferred=false;stageLightUntil=0;rafId=requestAnimationFrame(frame);}}
 function stopSong(){if(G&&G.src){try{G.src.stop();}catch(e){}G.src=null;}}
 function fadeMusic(sec){if(!G||!G.gain||!AC)return;try{const g=G.gain.gain;g.cancelScheduledValues(AC.currentTime);g.setValueAtTime(g.value,AC.currentTime);g.linearRampToValueAtTime(0,AC.currentTime+sec);G.src.stop(AC.currentTime+sec+.05);}catch(e){}}
 async function startNormal(chart){if(waitForLibrary())return;ensureAudio();D=null;await runSong(chart);}
@@ -4349,7 +4352,7 @@ const POP={tokuryo:['特良','#f2bc3d'],good:['良','#f6a531'],ok:['可','#f2ecd
 const STAMP={zentoku:['全特良','#f2bc3d'],zenryo:['全良','#ffd46b'],fc:['フルコンボ','#ff6a45'],clear:['クリア','#f2ecdc'],fail:['クリア失敗','#8ea0e0'],danfail:['不合格','#8ea0e0']};
 const NOTE_COL={d:['#ff8a62','#e8401f','#a3230d'],k:['#8adcf4','#36acd6','#1a6c90'],r:['#ffe58a','#f7c934','#c58f10'],b:['#ffbb78','#f08a3c','#b4541a']};
 const spriteCache=new Map();let bgPat=null;
-let lastStageDraw=-Infinity,lastStageFrame=null,stageDrawDeferred=false;
+let lastStageDraw=-Infinity,lastStageFrame=null,stageDrawDeferred=false,stageLightUntil=0;
 
 function layoutStage(){
   const r=cv.getBoundingClientRect();view.W=r.width;view.H=r.height;
@@ -4580,10 +4583,14 @@ function frame(now){rafId=requestAnimationFrame(frame);
   lastStageFrame=now;
   if(G&&!G.paused){syncClock();G.now=songTime(performance.now());if(!G.finished)update(G.now);}
   updateFallingDanHud(now);
-  // タップが滞ったあと、重い描画を1回だけ明けてイベントを処理しやすくする。
-  if(UI.touch&&G&&!G.paused&&!G.finished&&stalled&&!stageDrawDeferred){stageDrawDeferred=true;return;}
+  // 更新は毎フレーム続け、描画だけを間引いて入力を処理する余裕を作る。
+  const mobilePlay=UI.touch&&G&&!G.paused&&!G.finished;
+  if(mobilePlay&&stalled){
+    stageLightUntil=now+2000;
+    if(!stageDrawDeferred){stageDrawDeferred=true;return;}
+  }
   stageDrawDeferred=false;
-  // 曲中の更新頻度を維持し、操作を待つ画面だけ描画回数を減らす。
+  if(mobilePlay&&(S.fx==='low'||now<stageLightUntil)&&now-lastStageDraw<30)return;
   if(LOWFX()&&(!G||G.paused)&&now-lastStageDraw<(S.fx==='low'?80:46))return;
   lastStageDraw=now;
   if(!G){if(D&&D.interlude)drawInterlude();else drawLoading();return;}
@@ -5359,7 +5366,8 @@ let dbg;
 function resetTapDiagnostics(){
   if(!DBG)return;
   dbg={touch:0,pointer:0,duplicates:0,inputs:0,ignored:0,noResponse:0,
-    judgedNearby:0,outsideWindow:0,delivery:0,maxDelivery:0,hist:[],spikes:[]};
+    judgedNearby:0,outsideWindow:0,delivery:0,maxDelivery:0,hist:[],spikes:[],
+    bad:{miss:0,timing:0,color:0,noise:0,mismatch:0}};
 }
 resetTapDiagnostics();
 function hasJudgedNearby(run,t){
@@ -5405,6 +5413,7 @@ if(DBG){const box=el('div',{id:'dbgBox',style:'position:fixed;left:6px;top:6px;m
   setInterval(()=>{const avg=fN?Math.round(fSum/fN):0;box.textContent=[
     `${DBG_TOUCH_ONLY?'Tのみ / ':''}受信 T:${dbg.touch} P:${dbg.pointer} / 重複 ${dbg.duplicates} / 処理 ${dbg.inputs-dbg.ignored}`,
     `入力先なし: 判定済みの付近 ${dbg.judgedNearby} / ノーツ範囲外 ${dbg.outsideWindow} / その他 ${dbg.noResponse}`,
+    `不可の内訳 期限切れ ${dbg.bad.miss} / タイミング ${dbg.bad.timing} / 色違い ${dbg.bad.color} / 封印 ${dbg.bad.noise} / 同時押し ${dbg.bad.mismatch}`,
     `演奏外 ${dbg.ignored} / 到着遅れ ${dbg.delivery}ms（最大 ${dbg.maxDelivery}ms）`,
     `フレーム 平均 ${avg}ms 最大 ${Math.round(fMax)}ms / 100ms超の停止 ${dbg.spikes.join(' ')||'-'}`,
     `近いノーツとのずれ ms: ${dbg.hist.join(' ')||'-'}`
