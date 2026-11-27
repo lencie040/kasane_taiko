@@ -573,7 +573,7 @@ body{background-color:var(--ink);background-image:repeating-linear-gradient(135d
 #songlist .folder-entry.has-tcolor strong{background:transparent;border-color:transparent;box-shadow:none}
 /* フォルダの文字色は、その中の曲の文字にも使う */
 #songlist .song.has-tcolor .song-t,#songlist .song.has-tcolor .song-a{color:var(--ftext)}
-#songlist .song.has-tcolor .song-t{background:transparent;border-color:transparent;box-shadow:none}
+#songlist .song.has-tcolor:not(.folder-rainbow) .song-t{background:transparent;border-color:transparent;box-shadow:none}
 .folder-icon{width:24px;height:16px;background:#d56e23;border:2px solid #9a492c;border-radius:3px;position:relative}
 .folder-icon::before{content:'';position:absolute;left:-2px;top:-7px;width:11px;height:6px;background:#d56e23;border:2px solid #9a492c;border-bottom:0;border-radius:3px 3px 0 0}
 .folder-back-icon{text-align:center;font-size:22px;font-weight:900;line-height:1}
@@ -1031,7 +1031,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
     radial-gradient(ellipse at 100% 85%,#f8c6f5aa,transparent 16%),
     linear-gradient(90deg,#ede7f8 0%,#e8f5fa 9%,#e5f5ef 18%,#eff7db 28%,#f7f7f4 43%,#f7f8e4 61%,#f9efde 76%,#f9e6f6 92%,#fae0f8 100%);
 }
-#songlist .song.folder-rainbow .song-t,#songlist .folder-entry.folder-rainbow strong{background:transparent}
+#songlist .folder-entry.folder-rainbow strong{background:transparent}
 #songlist :is(.song,.folder-entry):focus-visible{outline:2px dashed #542545;outline-offset:2px}
 #songlist .song .chips{width:100%;margin-top:6px}
 .song-cover{position:relative;display:grid;place-items:center;width:var(--cover-size,72px);aspect-ratio:1;flex:none;
