@@ -1025,6 +1025,13 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
   outline:3px solid #fff5c4;outline-offset:0;
   box-shadow:inset 0 0 0 2px #fff9,0 0 0 5px #a85058,0 5px 0 5px #6d344253;
 }
+#songlist :is(.song,.folder-entry).folder-rainbow{
+  background:
+    radial-gradient(ellipse at 1% 0%,#dcd0f5a8,transparent 13%),
+    radial-gradient(ellipse at 100% 85%,#f8c6f5aa,transparent 16%),
+    linear-gradient(90deg,#ede7f8 0%,#e8f5fa 9%,#e5f5ef 18%,#eff7db 28%,#f7f7f4 43%,#f7f8e4 61%,#f9efde 76%,#f9e6f6 92%,#fae0f8 100%);
+}
+#songlist .song.folder-rainbow .song-t,#songlist .folder-entry.folder-rainbow strong{background:transparent}
 #songlist :is(.song,.folder-entry):focus-visible{outline:2px dashed #542545;outline-offset:2px}
 #songlist .song .chips{width:100%;margin-top:6px}
 .song-cover{position:relative;display:grid;place-items:center;width:var(--cover-size,72px);aspect-ratio:1;flex:none;
@@ -2509,13 +2516,17 @@ function normalizeHex(value){
   if(!m)return null;
   let hex=m[1].toLowerCase();if(hex.length===3)hex=[...hex].map(ch=>ch+ch).join('');
   return '#'+hex;}
-function folderColor(folder){return folder.color||`hsl(${hashHue(folder.name)} 69% 60%)`;}
+function normalizeFolderBackground(value){
+  const color=String(value??'').trim().toLowerCase();
+  return color==='rainbow'?color:normalizeHex(color);
+}
+function folderColor(folder){return folder.color==='rainbow'?'#f5f0f8':folder.color||`hsl(${hashHue(folder.name)} 69% 60%)`;}
 function parseFolders(source){
   if(!source||source.version!==1||!Array.isArray(source.folders))throw new Error('フォルダ設定の形式が違います');
   const result=emptyFolders(),ids=new Set();
   for(const f of source.folders){
     if(!f||typeof f.id!=='string'||!f.id||f.id===UNASSIGNED||ids.has(f.id)||typeof f.name!=='string'||!f.name.trim())continue;
-    ids.add(f.id);const color=normalizeHex(f.color),textColor=normalizeHex(f.textColor);result.folders.push({id:f.id,name:f.name.trim().slice(0,50),parent:typeof f.parent==='string'?f.parent:'',...(color?{color}:{}),...(textColor?{textColor}:{})});
+    ids.add(f.id);const color=normalizeFolderBackground(f.color),textColor=normalizeHex(f.textColor);result.folders.push({id:f.id,name:f.name.trim().slice(0,50),parent:typeof f.parent==='string'?f.parent:'',...(color?{color}:{}),...(textColor?{textColor}:{})});
   }
   const byId=new Map(result.folders.map(f=>[f.id,f]));
   for(const folder of result.folders){
@@ -2597,13 +2608,13 @@ function folderToolbar(data){
       el('button',{class:'btn small',onclick:()=>moveFolder(data,cursor.id,1)},'▼ 順番を下げる'));
   }
   if(folder){
-    const colorInput=el('input',{type:'text',maxlength:7,value:folder.color||'',placeholder:'背景 #RRGGBB（空で自動）','aria-label':'フォルダの背景色（16進数）'});
+    const colorInput=el('input',{type:'text',maxlength:7,value:folder.color||'',placeholder:'背景 rainbow / #RGB','aria-label':'フォルダの背景色（16進数または rainbow）'});
     const textInput=el('input',{type:'text',maxlength:7,value:folder.textColor||'',placeholder:'文字 #RRGGBB（空で標準）','aria-label':'フォルダの文字色（16進数）'});
     bar.append(el('form',{class:'row',onsubmit:e=>{
       e.preventDefault();
       const value=colorInput.value.trim(),textValue=textInput.value.trim();
-      const color=value?normalizeHex(value):null,textColor=textValue?normalizeHex(textValue):null;
-      if((value&&!color)||(textValue&&!textColor)){toast('色は #RRGGBB の形で入力してください','err');return;}
+      const color=value?normalizeFolderBackground(value):null,textColor=textValue?normalizeHex(textValue):null;
+      if((value&&!color)||(textValue&&!textColor)){toast('背景色は #RRGGBB または rainbow、文字色は #RRGGBB で入力してください','err');return;}
       if(color)folder.color=color;else delete folder.color;
       if(textColor)folder.textColor=textColor;else delete folder.textColor;
       if(saveFolders(data)){toast('フォルダの色を変更しました');renderSongList();}
@@ -2621,7 +2632,7 @@ function folderToolbar(data){
     }
   }
   const add=el('input',{type:'text',maxlength:50,placeholder:'新しいフォルダ名','aria-label':'新しいフォルダ名'});
-  const addColor=el('input',{type:'text',maxlength:7,placeholder:'背景 #RRGGBB（任意）','aria-label':'フォルダの背景色（16進数）'});
+  const addColor=el('input',{type:'text',maxlength:7,placeholder:'背景 rainbow / #RGB','aria-label':'フォルダの背景色（16進数または rainbow）'});
   const addText=el('input',{type:'text',maxlength:7,placeholder:'文字 #RRGGBB（任意）','aria-label':'フォルダの文字色（16進数）'});
   const form=el('form',{class:'row',onsubmit:e=>{
     e.preventDefault();
@@ -2629,8 +2640,8 @@ function folderToolbar(data){
     if(!name||name==='未設定'||data.folders.some(f=>f.parent===parent&&f.name===name)){
       toast('別のフォルダ名を入力してください','err');return;
     }
-    const color=addColor.value.trim()?normalizeHex(addColor.value):null,textColor=addText.value.trim()?normalizeHex(addText.value):null;
-    if((addColor.value.trim()&&!color)||(addText.value.trim()&&!textColor)){toast('色は #RRGGBB の形で入力してください','err');return;}
+    const color=addColor.value.trim()?normalizeFolderBackground(addColor.value):null,textColor=addText.value.trim()?normalizeHex(addText.value):null;
+    if((addColor.value.trim()&&!color)||(addText.value.trim()&&!textColor)){toast('背景色は #RRGGBB または rainbow、文字色は #RRGGBB で入力してください','err');return;}
     const id=globalThis.crypto?.randomUUID?.()||Date.now().toString(36)+Math.random().toString(36).slice(2);
     data.folders.push({id,name,parent,...(color?{color}:{}),...(textColor?{textColor}:{})});if(saveFolders(data))changeFolder(id);
   }},add,addColor,addText,el('button',{class:'btn small',type:'submit'},'フォルダ作成'));
@@ -2664,7 +2675,7 @@ function folderStrip(folder,selected,select){
   return el('li',{class:(folder.back?'is-back-row':'')+(selected?' is-on':'')},el('button',{
     style:`--folder:${folder.back?'#b2b9e8':folderColor(folder)};--ftext:${folder.textColor||'#2d1936'}`,
     'aria-label':folder.back?'親フォルダへもどる':null,
-    class:'folder-entry'+(folder.back?' is-back':'')+(folder.textColor?' has-tcolor':'')+(selected?' is-on':''),onclick:select},
+    class:'folder-entry'+(folder.back?' is-back':'')+(folder.color==='rainbow'?' folder-rainbow':'')+(folder.textColor?' has-tcolor':'')+(selected?' is-on':''),onclick:select},
     el('span',{class:folder.back?'folder-back-icon':'folder-icon','aria-hidden':'true'},folder.back?'←':null),
     el('strong',null,folder.name),el('span',{'aria-hidden':'true'},folder.back?'‹':'›')));
 }
@@ -2798,8 +2809,8 @@ function coverElement(url){
 function songStrip(set,selected,choose){
   const top=sortCharts(set.charts).filter(c=>c.course!=='sealed'&&!isLocked(c)).pop()||set.charts[0],fav=!!Lib.fav[set.key];
   const curFolder=effectiveFolders().folders.find(f=>f.id===UI.folder);
-  const folderTint=curFolder?.color,folderText=curFolder?.textColor;
-  const row=el('li',{class:'song'+(selected?' is-on':'')+(folderText?' has-tcolor':''),tabindex:'0',role:'button',style:`--sc:${folderTint||COURSES[top.course].color}`+(folderText?`;--ftext:${folderText}`:'')},
+  const folderTint=curFolder?.color?folderColor(curFolder):null,folderText=curFolder?.textColor;
+  const row=el('li',{class:'song'+(selected?' is-on':'')+(curFolder?.color==='rainbow'?' folder-rainbow':'')+(folderText?' has-tcolor':''),tabindex:'0',role:'button',style:`--sc:${folderTint||COURSES[top.course].color}`+(folderText?`;--ftext:${folderText}`:'')},
     coverElement(set.coverUrl),
     el('div',{class:'song-t'},el('span',null,set.title)),
     el('div',{class:'song-a'},el('span',null,set.artist||'—')),
