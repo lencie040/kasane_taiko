@@ -1429,6 +1429,7 @@ const COURSES={
 };
 const {WIN_SOFT,WIN_HARD}=TaikoMatchRules;
 const TOKU_WIN=18, CHORD_GATHER=60, CHORD_SETTLE=25, TOUCH_DELIVERY_GRACE=80;
+const SOLO_TOUCH_DELIVERY_GRACE=300;
 const SEALED_ENTRANCE_MS=1150;
 const CLEAR={easy:6000,normal:7000,hard:7000,oni:8000,ura:8000,kasane:8000,sealed:8000};
 const BADMUL={easy:.5,normal:1,hard:1.5,oni:2,ura:2,kasane:2,sealed:2};
@@ -3900,9 +3901,12 @@ function expireTargets(t){
 }
 function update(now){
   if(G.auto)autoplay(now);
-  // 処理が遅れたタッチを待ってから失効させる。良・可・不可の判定幅はイベントの時刻に適用する。
-  const expireAt=now-(mobileTiming()&&!G.auto?TOUCH_DELIVERY_GRACE*(G.rate||1):0);
-  trySealedTransition(expireAt);
+  // フレームが先に再開しても、届いていないタッチを待ってから失効させる。
+  // 良・可・不可は引き続き押した時刻で判定する。
+  const touch=mobileTiming()&&!G.auto,rate=G.rate||1;
+  const grace=touch?(G.match?TOUCH_DELIVERY_GRACE:SOLO_TOUCH_DELIVERY_GRACE):0;
+  const expireAt=now-grace*rate;
+  trySealedTransition(now-(touch?TOUCH_DELIVERY_GRACE*rate:0));
   if(G.openChord&&expireAt>G.openChord.gatherEnd)finalizeChord(G.openChord);
   if(G.finished)return;
   expireTargets(expireAt);
