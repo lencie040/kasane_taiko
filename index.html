@@ -5331,19 +5331,41 @@ $('#resetRec').addEventListener('click',()=>{$('#resetConfirm').hidden=false;});
 $('#resetNo').addEventListener('click',()=>{$('#resetConfirm').hidden=true;});
 $('#resetYes').addEventListener('click',()=>{Lib.best={};Lib.recent=[];Lib.danBest={};Lib.unlocks={};Lib.played={};streakClears={};streak=null;store.set('kt.streakClears',{});store.set('kt.best',{});store.set('kt.recent',[]);store.set('kt.danBest',{});store.set('kt.unlocks',{});store.set('kt.played',{});$('#resetConfirm').hidden=true;refreshAll();toast('記録をリセットしました');});
 $('#stageMenu').addEventListener('click',()=>{if(onlineRun&&$('#result').hidden){taikoOnline.cancel();return;}if(G&&!G.finished)pauseGame();else if(!G||G.finished){if($('#result').hidden)closeStage();}});
-// 診断用（URLに ?debug=1 を付けたときだけ）：入力の受付数・無視数・最後のタップのずれ(ms)を表示する
-const DBG=new URLSearchParams(location.search).has('debug'),dbg={inputs:0,ignored:0,last:'-',hist:[],spikes:[],silent:0,silentLast:'-'};
-const padPress=(role,t)=>{dbg.inputs++;if(!(G&&!G.finished&&!G.paused&&!G.auto&&$('#pause').hidden)){dbg.ignored++;return;}const st=songTime(t);
-  if(DBG&&G.targets){let best=null;for(let i=G.cursor;i<G.targets.length&&i<G.cursor+40;i++){const x=G.targets[i];if(x.judged)continue;if(best===null||Math.abs(x.t-st)<Math.abs(best-st))best=x.t;}if(best!==null){const d=Math.round(st-best);dbg.last=d+'ms';dbg.hist.push(d);if(dbg.hist.length>12)dbg.hist.shift();}}
+// ?debug=1 でタップ処理の段階ごとの数と到着遅れを確認する。
+const DBG=new URLSearchParams(location.search).has('debug');
+const dbg={touch:0,pointer:0,duplicates:0,inputs:0,ignored:0,noResponse:0,delivery:0,maxDelivery:0,hist:[],spikes:[]};
+function tapOffset(run,t){
+  let best=null;
+  for(let i=run.cursor;i<run.targets.length&&i<run.cursor+40;i++){
+    const x=run.targets[i];
+    if(!x.judged&&(best===null||Math.abs(x.t-t)<Math.abs(best-t)))best=x.t;
+  }
+  return best===null?null:Math.round(t-best);
+}
+const padPress=(role,t)=>{
+  if(DBG)dbg.inputs++;
+  const run=G;
+  if(!run||run.finished||run.paused||run.auto||!$('#pause').hidden){if(DBG)dbg.ignored++;return;}
+  const st=songTime(t);
   if(!DBG){press(role,st);return;}
-  // 診断：押したのに判定が1つも増えなかった回数と、そのときの最も近いノーツとのずれ
-  const judgedCount=()=>{let n=0;for(const x of G.targets)if(x.judged)n++;return n;};
-  const before=judgedCount();press(role,st);
-  if(judgedCount()===before){dbg.silent++;let best=null;for(let i=G.cursor;i<G.targets.length&&i<G.cursor+40;i++){const x=G.targets[i];if(x.judged)continue;if(best===null||Math.abs(x.t-st)<Math.abs(best-st))best=x.t;}dbg.silentLast=best===null?'-':Math.round(st-best)+'ms';}};
-if(DBG){const box=el('div',{id:'dbgBox',style:'position:fixed;left:6px;top:6px;z-index:999;background:#000c;color:#fff;font:12px/1.4 monospace;padding:4px 6px;border-radius:6px;pointer-events:none'});document.body.append(box);
+  const delay=Math.max(0,Math.round(performance.now()-t));
+  dbg.delivery=delay;dbg.maxDelivery=Math.max(dbg.maxDelivery,delay);
+  const offset=tapOffset(run,st);
+  if(offset!==null){dbg.hist.push(offset);if(dbg.hist.length>8)dbg.hist.shift();}
+  const {judged,roll,bigBoth}=run.st, chord=run.openChord, chordHits=chord?.buf.offs.length;
+  press(role,st);
+  if(G===run&&run.st.judged===judged&&run.st.roll===roll&&run.st.bigBoth===bigBoth&&
+    run.openChord===chord&&run.openChord?.buf.offs.length===chordHits)dbg.noResponse++;
+};
+if(DBG){const box=el('div',{id:'dbgBox',style:'position:fixed;left:6px;top:6px;max-width:calc(100vw - 12px);z-index:999;background:#000e;color:#fff;font:12px/1.4 monospace;padding:4px 6px;border-radius:6px;pointer-events:none;white-space:pre-line'});document.body.append(box);
   let fLast=performance.now(),fSum=0,fN=0,fMax=0;
   (function frameMeter(){const n=performance.now(),d=n-fLast;fLast=n;fSum+=d;fN++;if(d>fMax)fMax=d;if(d>100&&G&&G.perfZero){dbg.spikes.push(Math.round(n-G.perfZero));if(dbg.spikes.length>5)dbg.spikes.shift();}requestAnimationFrame(frameMeter);})();
-  setInterval(()=>{const avg=fN?Math.round(fSum/fN):0;box.textContent=`入力 ${dbg.inputs} / 無視 ${dbg.ignored} / 判定なし ${dbg.silent}（直近 ${dbg.silentLast}） / フレーム平均 ${avg}ms 最大 ${Math.round(fMax)}ms / 100ms超の止まり（音声開始から ms）: ${dbg.spikes.join(' ')||'-'} / 直近のずれ ms: ${dbg.hist.join(' ')||'-'}`;fSum=0;fN=0;fMax=0;},500);}
+  setInterval(()=>{const avg=fN?Math.round(fSum/fN):0;box.textContent=[
+    `受信 T:${dbg.touch} P:${dbg.pointer} / 重複 ${dbg.duplicates} / 処理 ${dbg.inputs-dbg.ignored}`,
+    `無反応 ${dbg.noResponse} / 演奏外 ${dbg.ignored} / 到着遅れ ${dbg.delivery}ms（最大 ${dbg.maxDelivery}ms）`,
+    `フレーム 平均 ${avg}ms 最大 ${Math.round(fMax)}ms / 100ms超の停止 ${dbg.spikes.join(' ')||'-'}`,
+    `近いノーツとのずれ ms: ${dbg.hist.join(' ')||'-'}`
+  ].join('\n');fSum=0;fN=0;fMax=0;},500);}
 const pads=$('#pads'),padButtons=[...pads.querySelectorAll('button')];
 const touchStarts=new Map(),contactStarts=[];
 const CONTACT_PAIR_MS=24,CONTACT_PAIR_PX=4;
@@ -5372,7 +5394,7 @@ function startHitContact(source,id,input,role,t){
       pair=i;delta=dt;
     }
   }
-  if(pair>=0){contactStarts.splice(pair,1);return;}
+  if(pair>=0){if(DBG)dbg.duplicates++;contactStarts.splice(pair,1);return;}
   contactStarts.push({source,id,x,y,t,end:Infinity,receivedAt:now});
   padPress(role,t);
 }
@@ -5389,8 +5411,9 @@ function listenForHits(surface,roleAt){
       const role=roleAt(touch);
       if(!role)continue;
       e.preventDefault();
+      if(DBG)dbg.touch++;
       const id=touch.identifier,last=touchStarts.get(id);
-      if(last!=null&&Math.abs(t-last)<=CONTACT_PAIR_MS)continue;
+      if(last!=null&&Math.abs(t-last)<=CONTACT_PAIR_MS){if(DBG)dbg.duplicates++;continue;}
       touchStarts.set(id,t);
       startHitContact('touch',id,touch,role,t);
     }
@@ -5401,7 +5424,7 @@ function listenForHits(surface,roleAt){
     if(!role)return;
     e.preventDefault();
     const t=inputTime(e);
-    if(e.pointerType==='touch')startHitContact('pointer',e.pointerId,e,role,t);
+    if(e.pointerType==='touch'){if(DBG)dbg.pointer++;startHitContact('pointer',e.pointerId,e,role,t);}
     else padPress(role,t);
   });
 }
