@@ -1400,7 +1400,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 
 <script src="content/fonts/murecho-glyphs.js"></script>
 <script src="beatmap.js?v=sealed"></script>
-<script src="difficulty.js?v=upper-compression"></script>
+<script src="difficulty.js?v=color-technique"></script>
 <script src="multiplayer-rules.js?v=oldest-notes"></script>
 <script src="vendor/peerjs.min.js"></script>
 <script src="multiplayer-peer.js?v=opponent-lane"></script>
@@ -3143,8 +3143,8 @@ function drawDensity(cvd,c,sel){if(!cvd.isConnected)return;const r=cvd.getBoundi
 
 // Each axis has a fixed reference so profiles stay comparable across charts.
 const CHART_RADAR_AXES=[
-  ['物量','BPMと音符の細かさによる打間隔、密度が続く長さ、休める時間を反映'],
-  ['技術','ドン・カッの複合や、速い同色ノーツを交互に打つ難しさ'],
+  ['物量','打間隔、密度が続く長さ、休める時間、速い同色連打の負荷'],
+  ['技術','ドン・カッの切り替えと複合の難しさ。短い高速複合も評価'],
   ['リズム','音符間隔の変化や裏拍の難しさ'],
   ['視認難','見た目BPMや速度変化による見づらさ'],
   ['ギミック','同時押しと封印ノーツによる負荷'],

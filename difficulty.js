@@ -44,7 +44,7 @@ function measureChartDifficulty(chart) {
   const targets = chart.targets;
   if (!targets.length) {
     return { burst:0, sustained:0, fastRunRate:0, quickThree:0, quickFive:0, pace:0, recovery:0, fastHitPressure:0, color:0, rhythm:0,
-      peakColor:0, peakRhythm:0, peakGridMix:0, offbeatEntries:0, chords:0, chordReading:0,
+      peakColor:0, peakSwitching:0, peakRhythm:0, peakGridMix:0, offbeatEntries:0, chords:0, chordReading:0,
       speedChanges:0, lowScroll:0, highScroll:0, strikes:0 };
   }
 
@@ -60,6 +60,7 @@ function measureChartDifficulty(chart) {
   let timingIndex = 0, previousBeat = 0, previousSubdivision = null, previousOffbeat = false;
   let strikes = 0, chordStrikes = 0, chordReading = 0, color = 0, rhythm = 0, speedChanges = 0;
   let exposure = 0, recentColor = 0, recentRhythm = 0, peakColor = 0, peakRhythm = 0;
+  let recentSwitching = 0, switchingExposure = 0, peakSwitching = 0;
   let offbeatEntries = 0, recentBinary = 0, recentTernary = 0, peakGridMix = 0;
   let quickThree = 0, quickFive = 0, fastRunRate = 0, recoveryMs = 0, fastHitPressure = 0;
 
@@ -122,6 +123,14 @@ function measureChartDifficulty(chart) {
     exposure = exposure * decay + 1;
     recentColor = recentColor * decay + colorCost;
     recentRhythm = recentRhythm * decay + rhythmCost;
+    // A compact pattern can demand rapid color changes immediately before or
+    // after its tightest strikes. Only charge this when the color changes.
+    const switchingDecay = Math.exp(-gap / 480);
+    const nearbyGap = Math.min(gap, priorGap || gap);
+    const switchSpeed = Math.max(1, Math.min(2.25, 100 / nearbyGap));
+    recentSwitching = recentSwitching * switchingDecay + colorCost * switchSpeed;
+    switchingExposure = switchingExposure * switchingDecay + 1;
+    peakSwitching = Math.max(peakSwitching, recentSwitching / Math.max(5, switchingExposure));
     const sample = Math.max(4, exposure);
     peakColor = Math.max(peakColor, recentColor / sample);
     peakRhythm = Math.max(peakRhythm, recentRhythm / sample);
@@ -177,14 +186,14 @@ function measureChartDifficulty(chart) {
   scrollRates.sort((a, b) => a - b);
   const scrollAt = p => scrollRates[Math.floor((scrollRates.length - 1) * p)] || 0;
   return { burst, sustained, fastRunRate, quickThree, quickFive, pace:charges.reduce((a, b) => a + b, 0) * 1000 / duration,
-    color:color / targets.length, rhythm:rhythm / targets.length, peakColor, peakRhythm, peakGridMix,
+    color:color / targets.length, rhythm:rhythm / targets.length, peakColor, peakSwitching, peakRhythm, peakGridMix,
     offbeatEntries:offbeatEntries / targets.length,
     chords:chordStrikes / strikes, chordReading:chordReading / targets.length,
     speedChanges:speedChanges / targets.length, lowScroll:scrollAt(.15), highScroll:scrollAt(.85), strikes,
     recovery:recoveryMs / Math.max(1, span), fastHitPressure:fastHitPressure / Math.max(1, targets.length - 1) };
 }
 
-function chartRadarVolume(measurements) {
+function chartRadarVolume(measurements, repeatedHandLoad) {
   const { sustained, fastRunRate, pace, recovery, fastHitPressure, strikes } = measurements;
   const sustainedPace = .48 * sustained + .32 * fastRunRate + .20 * pace;
   const effectivePace = (sustainedPace + .24 * fastHitPressure) * (1 - .45 * recovery);
@@ -193,7 +202,7 @@ function chartRadarVolume(measurements) {
   const speedScore = Math.max(0, effectivePace - 14) / 12;
   const paceScore = .68 * steadyScore + .32 * speedScore;
   const countScore = 1 - 2 ** (-strikes / 100);
-  return .90 * paceScore + .10 * countScore;
+  return .90 * paceScore + .10 * countScore + .12 * repeatedHandLoad;
 }
 
 function chartRadarTechnique(technique) {
@@ -309,11 +318,10 @@ function estimateKasaneDifficulty(chart, course, sealAt) {
   const sealed = measureSealDifficulty(chart.targets, sealAt);
 
   const baseline = base + visibility + sealed;
-  const alternation = alternatingHandLoad(chart.targets, baseline) * (1 - Math.min(.78, 1.45 * f.recovery));
-  const technique = colorTechnique + alternation;
+  const repeatedHandLoad = alternatingHandLoad(chart.targets, baseline) * (1 - Math.min(.78, 1.45 * f.recovery));
   // Increase the rating contribution of gimmicks independently of the radar scale.
   const gimmickWeight = 1.5;
-  const load = baseline + alternation + (gimmickWeight - 1) * (simultaneous + sealed);
+  const load = baseline + repeatedHandLoad + (gimmickWeight - 1) * (simultaneous + sealed);
   const radarGimmick = simultaneous / .85 + sealed / 1.5;
   // Require a larger difference in load for each tenth above 11.
   const upperLoad = Math.max(0, load - 11);
@@ -323,9 +331,9 @@ function estimateKasaneDifficulty(chart, course, sealAt) {
   const level = course === 'kasane'
     ? Math.max(1, Math.min(10, Math.round(1 + (load - 4) * .83 + 2.1 * f.chords)))
     : Math.max(1, Math.min(course === 'sealed' ? 12.9 : Infinity, Math.round(stars * 10) / 10));
-  return { level, burst:f.burst, quantity, technique, rhythm, visibility,
+  return { level, burst:f.burst, quantity:quantity+repeatedHandLoad, technique:colorTechnique, rhythm, visibility,
     simultaneous:gimmickWeight * simultaneous, sealed:gimmickWeight * sealed,
-    radarVolume:chartRadarVolume(f), radarTechnique:chartRadarTechnique(technique), radarGimmick };
+    radarVolume:chartRadarVolume(f, repeatedHandLoad), radarTechnique:chartRadarTechnique(colorTechnique + 1.4 * f.peakSwitching), radarGimmick };
 }
 
 const chartDifficultyMeasurements = new WeakMap();
