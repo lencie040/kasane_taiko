@@ -1403,7 +1403,7 @@ main:has(#tab-dan:not([hidden])){max-width:1520px}
 <script src="content/fonts/murecho-glyphs.js"></script>
 <script src="beatmap.js?v=sealed"></script>
 <script src="difficulty.js?v=color-technique"></script>
-<script src="multiplayer-rules.js?v=oldest-notes"></script>
+<script src="multiplayer-rules.js?v=solo-touch-target"></script>
 <script src="vendor/peerjs.min.js"></script>
 <script src="multiplayer-peer.js?v=opponent-lane"></script>
 <script src="match-config.js"></script>
@@ -3796,7 +3796,10 @@ function addStats(st,kind,n,chord,base){
   st.judged+=n;if(chord)st.chordJudged+=n;}
 function judge(tg,kind,off,why){
   tg.judged=true;tg.res=kind;const chord=tg.type==='chord',n=chord?tg.notes.length:1;
-  if(DBG&&kind==='bad')dbg.bad[why||'timing']+=n;
+  if(DBG){
+    if(kind==='bad')dbg.bad[why||'timing']+=n;
+    if(off!=null){dbg.hist.push(Math.round(off));if(dbg.hist.length>8)dbg.hist.shift();}
+  }
   addStats(G.st,kind,n,chord,G.base);if(D)addStats(D.st,kind,n,chord,G.base);
   if(chord)for(const st of D?[G.st,D.st]:[G.st]){if(kind==='bad')st.chordMiss++;else st.chordHit++;if(why==='mismatch')st.mismatch++;}
   if(kind!=='bad'&&off!=null){G.st.offSum+=off;G.st.offN++;G.st.offs.push(off);}
@@ -3817,7 +3820,7 @@ function finalizeChord(tg){G.openChord=null;const b=tg.buf;let kind,why=null;
   if(b.dup||b.d!==tg.reqD||b.k!==tg.reqK){kind='bad';why='mismatch';}
   else{const worst=Math.max(...b.offs.map(Math.abs));kind=worst<=TOKU_WIN?'tokuryo':worst<=G.win.good?'good':worst<=G.win.ok?'ok':'bad';}
   judge(tg,kind,b.offs.reduce((a,x)=>a+x,0)/b.offs.length,why);}
-function nearestTarget(t,color,stream=false){return TaikoMatchRules.nearestTarget(G,t,color,stream);}
+function nearestTarget(t,color,stream=false){return TaikoMatchRules.nearestTarget(G,t,color,stream,stream&&!G.match);}
 function mobileTiming(){return G?.match?G.match.device==='mobile':UI.touch;}
 function trySealedTransition(time){
   const run=G;
@@ -3877,7 +3880,7 @@ function press(role,t,auto){
     tg.gatherEnd=Math.min(t+CHORD_GATHER,Math.max(mid,t+15));G.openChord=tg;
     if(tg.buf.d>tg.reqD||tg.buf.k>tg.reqK)finalizeChord(tg);else if(tg.buf.d===tg.reqD&&tg.buf.k===tg.reqK)tg.gatherEnd=Math.min(tg.gatherEnd,t+CHORD_SETTLE);return;}
   const off=t-tg.t,a=Math.abs(off);
-  if(tg.color!==color){judge(tg,'bad',null,'color');return;}
+  if(tg.color!==color){judge(tg,'bad',off,'color');return;}
   const kind=a<=W.good?'good':a<=W.ok?'ok':'bad';judge(tg,kind,off);
   if(tg.big&&!tg.noise&&kind!=='bad')G.absorb={color,role,t,noteTime:tg.t,pts:kind==='ok'?Math.floor(G.base/20)*10:G.base};}
 function autoplayRows(now){const T=G.targets,played={};
@@ -5382,14 +5385,6 @@ function hasJudgedNearby(run,t){
   }
   return false;
 }
-function tapOffset(run,t){
-  let best=null;
-  for(let i=run.cursor;i<run.targets.length&&i<run.cursor+40;i++){
-    const x=run.targets[i];
-    if(!x.judged&&(best===null||Math.abs(x.t-t)<Math.abs(best-t)))best=x.t;
-  }
-  return best===null?null:Math.round(t-best);
-}
 const padPress=(role,t)=>{
   if(DBG)dbg.inputs++;
   const run=G;
@@ -5398,8 +5393,6 @@ const padPress=(role,t)=>{
   if(!DBG){press(role,st);return;}
   const delay=Math.max(0,Math.round(performance.now()-t));
   dbg.delivery=delay;dbg.maxDelivery=Math.max(dbg.maxDelivery,delay);
-  const offset=tapOffset(run,st);
-  if(offset!==null){dbg.hist.push(offset);if(dbg.hist.length>8)dbg.hist.shift();}
   const {judged,roll,bigBoth}=run.st, chord=run.openChord, chordHits=chord?.buf.offs.length;
   const result=press(role,st);
   if(result==='no-target'){
@@ -5416,7 +5409,7 @@ if(DBG){const box=el('div',{id:'dbgBox',style:'position:fixed;left:6px;top:6px;m
     `不可の内訳 期限切れ ${dbg.bad.miss} / タイミング ${dbg.bad.timing} / 色違い ${dbg.bad.color} / 封印 ${dbg.bad.noise} / 同時押し ${dbg.bad.mismatch}`,
     `演奏外 ${dbg.ignored} / 到着遅れ ${dbg.delivery}ms（最大 ${dbg.maxDelivery}ms）`,
     `フレーム 平均 ${avg}ms 最大 ${Math.round(fMax)}ms / 100ms超の停止 ${dbg.spikes.join(' ')||'-'}`,
-    `近いノーツとのずれ ms: ${dbg.hist.join(' ')||'-'}`
+    `判定したノーツとのずれ ms: ${dbg.hist.join(' ')||'-'}`
   ].join('\n');fSum=0;fN=0;fMax=0;},500);}
 const pads=$('#pads'),padButtons=[...pads.querySelectorAll('button')];
 const touchStarts=new Map(),contactStarts=[];

@@ -60,13 +60,14 @@ const TaikoMatchRules = (() => {
     return next;
   }
 
-  function nearestTarget(run,t,color,stream=false){
+  function nearestTarget(run,t,color,stream=false,solo=false){
     const W=run.win,T=run.targets;
-    let target=null,distance=Infinity,firstMatching=null,matching=null,matchingGood=false;
+    let target=null,distance=Infinity,firstMatching=null,matching=null,matchingGood=false,next=null;
     for(let i=run.cursor;i<T.length;i++){
       const x=T[i],off=x.t-t;
       if(off>W.bad||(!stream&&off>distance))break;
       if(x.judged||off< -W.bad)continue;
+      if(solo&&off>0)next??=x;
       const d=Math.abs(off);
       if(d<distance||(d===distance&&target.type==='single'&&target.color!==color&&(x.type==='chord'||x.color===color))){
         target=x;distance=d;
@@ -84,6 +85,10 @@ const TaikoMatchRules = (() => {
     }
     // 次の異色ノーツがまだ判定線に届いていない間は、手前の同色を優先する。
     if(matchingGood||distance>W.good||(matching.t<t&&t<target.t))return matching;
+    // ソロのタップでは、直前の別色に近いだけで次の密集ノーツを奪わない。
+    // 判定線付近の色間違いや、間に別のノーツがある場合は通常通り。
+    if(solo&&matching===next&&target.t<t&&distance>=8&&
+      matching.t-target.t<=60&&matching.t-t<=50)return matching;
     return target;
   }
 
