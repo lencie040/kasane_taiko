@@ -204,21 +204,35 @@ async function start(){
   if(!response.ok)throw new Error('HTTP '+response.status);
   data=await response.json();
   if(data.format!==1)throw new Error('Unknown catalog format');
-  folders=new Map(data.folders.map(f=>[f.id,f]));
   characters=new Map(data.characters.filter(c=>abilities[c.ability]).map(c=>[c.id,c]));
-  rows=data.songs.flatMap(song=>song.charts.map(chart=>({song,chart,
+  for(const [key,label] of Object.entries(courses))controls.course.add(new Option(label,key));
+  applySongVisibility();
+}
+function applySongVisibility(){
+  const excludedIds=RestrictedSongs.folderIds(data.folders);
+  const songs=data.songs.filter(song=>RestrictedSongs.visible||!song.excluded);
+  folders=new Map(data.folders.filter(folder=>RestrictedSongs.visible||!excludedIds.has(folder.id)).map(f=>[f.id,f]));
+  rows=songs.flatMap(song=>song.charts.map(chart=>({song,chart,
     search:fold([song.title,song.artist,...song.aliases,chart.version,chart.creator,courses[chart.course]].join(' '))})));
   byUid=new Map(rows.map(row=>[row.chart.uid,row]));
-  for(const [key,label] of Object.entries(courses))controls.course.add(new Option(label,key));
+  controls.folder.options.length=1;
   const trails=Array.from(folders.keys(),id=>[id,folderTrail(id)]).sort((a,b)=>collator.compare(a[1],b[1]));
   for(const [id,trail] of trails)controls.folder.add(new Option(trail,id));
   controls.folder.add(new Option('未設定','@unassigned'));
   const totals=$('#totals');
-  totals.append(pair('曲',fmt(data.songs.length)),pair('譜面',fmt(rows.length)),
+  totals.replaceChildren(pair('曲',fmt(songs.length)),pair('譜面',fmt(rows.length)),
     pair('封印譜面',fmt(rows.filter(row=>row.chart.route).length)));
   totals.hidden=false;
   render();openHash();
 }
+controls.query.addEventListener('keydown',async event=>{
+  const command=event.target.value.trim();
+  if(!data||event.key!=='Enter'||!['/失格曲','/失格曲を隠す'].includes(command))return;
+  event.preventDefault();event.target.value='';
+  const message=await RestrictedSongs.acceptCommand(command);
+  applySongVisibility();
+  if(message)status.textContent=message;
+});
 start().catch(()=>{
   status.replaceChildren('公開データを読み込めませんでした。 ',fieldLink('再読み込み',location.href));
 });

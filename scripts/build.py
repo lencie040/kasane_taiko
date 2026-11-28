@@ -229,7 +229,7 @@ def build(output):
         raise ValueError('出力先はリポジトリ本体と content/ の外に指定してください')
     output.mkdir(parents=True, exist_ok=True)
     for name in ['index.html', 'difficulty.js', 'weakness.js', 'editor.js', 'editor.css', 'editor-tempo.js', 'beatmap.js',
-                 'multiplayer-rules.js', 'multiplayer-peer.js', 'multiplayer-client.js', 'oni-streak.js', 'sealed-route.js']:
+                 'multiplayer-rules.js', 'multiplayer-peer.js', 'multiplayer-client.js', 'oni-streak.js', 'sealed-route.js', 'restricted-songs.js']:
         shutil.copy2(ROOT / name, output / name)
     shutil.copytree(ROOT / 'vendor', output / 'vendor', dirs_exist_ok=True)
     assets = output / 'content'

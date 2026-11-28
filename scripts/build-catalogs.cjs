@@ -1,3 +1,4 @@
+const RestrictedSongs = require('../restricted-songs.js');
 const {readFileSync, writeFileSync} = require('node:fs');
 const {join} = require('node:path');
 const {COURSE_ALIAS, norm, parseOsu, guessCourse} = require('../beatmap');
@@ -79,23 +80,31 @@ function matchChart(chart,pack){
 }
 
 const {packs,folders,characters} = JSON.parse(readFileSync(0,'utf8'));
-const matches=[],songs=[],folderMap=new Map();
+const matches=[],songs=[],excludedPaths=[],folderMap=new Map();
 for(const folder of folders.folders||[])if(folder?.id&&folder.name)folderMap.set(folder.id,folder);
-for (const pack of packs){
-  const {song,cover} = pack;
+for (const {song} of packs){
   for(const folder of Array.isArray(song.folderCatalog)?song.folderCatalog:[]){
     if(folder?.id&&folder.name&&!folderMap.has(folder.id))folderMap.set(folder.id,folder);
   }
+}
+const excludedIds=RestrictedSongs.folderIds([...folderMap.values()]);
+for (const pack of packs){
+  const {song,cover}=pack;
+  const ids=[...new Set([song.folders,folders.assignments?.[song.key]].flat().filter(id=>typeof id==='string'))];
+  const excluded=ids.some(id=>excludedIds.has(id));
+  if(excluded)excludedPaths.push(pack.path);
   const charts=readCharts(pack);
   if(!charts.length)continue;
   for(const chart of charts){
-    if(chart.course!=='sealed'&&chart.course!=='kasane'&&chart.targets.length)matches.push(matchChart(chart,pack));
+    if(!excluded&&chart.course!=='sealed'&&chart.course!=='kasane'&&chart.targets.length)matches.push(matchChart(chart,pack));
   }
-  const ids=Array.isArray(song.folders)?song.folders:folders.assignments?.[song.key];
   songs.push({key:song.key,title:song.title,artist:song.artist||'',aliases:Array.isArray(song.aliases)?song.aliases:[],
-    cover,folders:[...new Set((Array.isArray(ids)?ids:[ids]).filter(id=>typeof id==='string'))], charts:charts.map(databaseChart)});
+    cover,folders:ids,excluded,charts:charts.map(databaseChart)});
 }
 const output=process.argv[2];
+const manifestPath=join(output,'content/manifest.json');
+const manifest=JSON.parse(readFileSync(manifestPath,'utf8'));
+writeFileSync(manifestPath,JSON.stringify({...manifest,excludedSongs:excludedPaths},null,2));
 writeFileSync(join(output,'content/match-catalog.json'),JSON.stringify({format:1,charts:matches}));
 writeFileSync(join(output,'db/catalog.json'),JSON.stringify({format:1,songs,
   folders:[...folderMap.values()].map(({id,name,parent})=>({id,name,parent})),
