@@ -4421,6 +4421,8 @@ function layoutStage(){
     });
   }
   lastStageDraw=-Infinity;computeLayout();
+  view.canvasLeft=r.left;view.canvasTop=r.top;
+  view.falling=G&&fallingPlay()?fallingLayout():null;
 }
 function computeLayout(){const W=view.W,H=view.H;const gw=clamp(W*.4,130,440);
   view.compactMenu=window.innerHeight<=520;
@@ -4721,7 +4723,7 @@ function visibleTargetEnd(g,start,now,travel){
 }
 
 function drawFalling(now,pn){
-  const c=ctx,g=G,{top,bottom,coverTop,depth,xAt,project}=fallingLayout(),minimal=LOWFX();
+  const c=ctx,g=G,{top,bottom,coverTop,depth,xAt,project}=view.falling,minimal=LOWFX();
   c.fillStyle='#161c33';
   if(!minimal){
     const backdrop=c.createLinearGradient(0,0,0,view.H);
@@ -4818,13 +4820,13 @@ function drawFalling(now,pn){
 }
 
 function fallingTouchRole(input){
-  if(!fallingPlay())return;
-  const box=cv.getBoundingClientRect(),{xAt,top,bottom,coverTop}=fallingLayout();
-  const y=input.clientY-box.top,x=input.clientX-box.left;
+  if(!view.falling)return;
+  const {xAt,top,bottom,coverTop}=view.falling;
+  const y=input.clientY-view.canvasTop,x=input.clientX-view.canvasLeft;
   if(y<coverTop||bottom<=top)return;
   const left=xAt(0,y),width=xAt(4,y)-left;
-  const col=Math.floor((x-left)/width*4);
-  return ROLES[col];
+  if(width<=0||x<left-36||x>left+width+36)return;
+  return ROLES[clamp(Math.floor((x-left)*4/width),0,3)];
 }
 
 function draw(now){const c=ctx,W=view.W,H=view.H,L=view.L,g=G;if(!L)return;const pn=performance.now();
@@ -5531,7 +5533,7 @@ const stageInput=$('#stage');
 const useTouchStarts=DBG_TOUCH_ONLY||'ontouchstart' in window;
 function stageHitRole(input){
   const node=input.target;
-  if(node===cv&&fallingPlay())return fallingTouchRole(input);
+  if(fallingPlay())return node===cv||node===stageInput?fallingTouchRole(input):undefined;
   if(pads.hidden)return;
   if(!pads.contains(node)&&node!==cv&&node!==stageInput)return;
   if(!view.padCenters||input.clientY<view.padTop-36)return;
