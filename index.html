@@ -4413,6 +4413,13 @@ function layoutStage(){
   if(cv.width!==width)cv.width=width;
   if(cv.height!==height)cv.height=height;
   ctx.setTransform(cv.width/Math.max(1,view.W),0,0,cv.height/Math.max(1,view.H),0,0);
+  if(!pads.hidden){
+    view.padTop=pads.getBoundingClientRect().top;
+    view.padCenters=padButtons.map(button=>{
+      const box=button.getBoundingClientRect();
+      return box.left+box.width/2;
+    });
+  }
   lastStageDraw=-Infinity;computeLayout();
 }
 function computeLayout(){const W=view.W,H=view.H;const gw=clamp(W*.4,130,440);
@@ -5433,7 +5440,7 @@ function resetTapDiagnostics(){
   if(!DBG)return;
   dbg={touch:0,pointer:0,duplicates:0,inputs:0,ignored:0,preRoll:0,noResponse:0,
     judgedNearby:0,outsideWindow:0,delivery:0,maxDelivery:0,hist:[],spikes:[],
-    frameSum:0,frameCount:0,maxFrame:0,outside:[],clock:'–',
+    frameSum:0,frameCount:0,maxFrame:0,outside:[],clock:'–',inputTimes:[],
     bad:{miss:0,timing:0,color:0,noise:0,mismatch:0}};
 }
 resetTapDiagnostics();
@@ -5473,6 +5480,7 @@ const padPress=(role,t)=>{
   if(!DBG){press(role,st);return;}
   const delay=Math.max(0,Math.round(performance.now()-t));
   dbg.delivery=delay;dbg.maxDelivery=Math.max(dbg.maxDelivery,delay);
+  dbg.inputTimes.push(st);
   const {judged,roll,bigBoth}=run.st, chord=run.openChord, chordHits=chord?.buf.offs.length;
   const result=press(role,st);
   if(result==='no-target'){
@@ -5488,16 +5496,36 @@ const padPress=(role,t)=>{
   }else if(G===run&&run.st.judged===judged&&run.st.roll===roll&&run.st.bigBoth===bigBoth&&
     run.openChord===chord&&run.openChord?.buf.offs.length===chordHits)dbg.noResponse++;
 };
+function denseTapSummary(run){
+  const times=dbg.inputTimes.slice().sort((a,b)=>a-b);
+  const notes=run.targets;
+  let dense=0,empty=0,j=0;
+  // 隣り合う単音の中点で区切り、その音符の位置に実際の入力があったかを数える。
+  for(let i=1;i+1<notes.length;i++){
+    const prev=notes[i-1],cur=notes[i],next=notes[i+1];
+    if(!cur.judged||cur.type!=='single'||prev.type!=='single'||next.type!=='single')continue;
+    const left=cur.t-prev.t,right=next.t-cur.t;
+    if(Math.min(left,right)<=0||Math.max(left,right)>125)continue;
+    while(j<times.length&&times[j]<cur.t-left/2)j++;
+    dense++;
+    if(j===times.length||times[j]>=cur.t+right/2)empty++;
+  }
+  return dense?`密集区間 ${dense}音中、入力がない位置 ${empty}`:'';
+}
 if(DBG){const box=el('div',{id:'dbgBox',style:'position:fixed;left:6px;top:6px;max-width:calc(100vw - 12px);z-index:999;background:#000e;color:#fff;font:12px/1.4 monospace;padding:4px 6px;border-radius:6px;pointer-events:none;white-space:pre-line'});document.body.append(box);
-  setInterval(()=>{const avg=dbg.frameCount?Math.round(dbg.frameSum/dbg.frameCount):0;box.textContent=[
+  setInterval(()=>{
+    if(G?.paused||G?.finished)dbg.denseSummary??=denseTapSummary(G);
+    else if(G)delete dbg.denseSummary;
+    const avg=dbg.frameCount?Math.round(dbg.frameSum/dbg.frameCount):0;box.textContent=[
     `${useTouchStarts?'Tのみ / ':'Pのみ / '}受信 T:${dbg.touch} P:${dbg.pointer} / 重複 ${dbg.duplicates} / 処理 ${dbg.inputs-dbg.ignored-dbg.preRoll}`,
     `入力先なし: 判定済みの付近 ${dbg.judgedNearby} / ノーツ範囲外 ${dbg.outsideWindow} / その他 ${dbg.noResponse}`,
     `不可の内訳 期限切れ ${dbg.bad.miss} / タイミング ${dbg.bad.timing} / 色違い ${dbg.bad.color} / 封印 ${dbg.bad.noise} / 同時押し ${dbg.bad.mismatch}`,
     `演奏外 ${dbg.ignored} / 開始前 ${dbg.preRoll} / 到着遅れ ${dbg.delivery}ms（最大 ${dbg.maxDelivery}ms）`,
     `フレーム 平均 ${avg}ms 最大 ${Math.round(dbg.maxFrame)}ms / 停止位置(長さ) ms ${dbg.spikes.join(' ')||'-'}`,
     `判定ズレ ms: ${dbg.hist.join(' ')||'-'} / 時計 ${dbg.clock}・オフセット ${S.offset}ms`,
-    `範囲外 ms 曲位置:ズレ(到着遅れ) ${dbg.outside.join(' ')||'-'}`
-  ].join('\n');},500);}
+    `範囲外 ms 曲位置:ズレ(到着遅れ) ${dbg.outside.join(' ')||'-'}`,
+    dbg.denseSummary
+  ].filter(Boolean).join('\n');},500);}
 const pads=$('#pads'),padButtons=[...pads.querySelectorAll('button')];
 const stageInput=$('#stage');
 const useTouchStarts=DBG_TOUCH_ONLY||'ontouchstart' in window;
@@ -5505,20 +5533,14 @@ function stageHitRole(input){
   const node=input.target;
   if(node===cv&&fallingPlay())return fallingTouchRole(input);
   if(pads.hidden)return;
-  const button=node.closest?.('#pads button[data-role]');
-  if(button)return button.dataset.role;
-  if(!pads.contains(node)){
-    if(node!==cv&&node!==stageInput)return;
-    // 連打で指がパッド上端を少し越えた場合と、下端の安全領域も拾う。
-    const box=pads.getBoundingClientRect();
-    if(input.clientY<box.top-36)return;
+  if(!pads.contains(node)&&node!==cv&&node!==stageInput)return;
+  if(!view.padCenters||input.clientY<view.padTop-36)return;
+  // 複数指の接触は、それぞれの実座標を表示中の4列に対応させる。
+  let column=0;
+  for(let i=1;i<view.padCenters.length;i++){
+    if(Math.abs(input.clientX-view.padCenters[i])<Math.abs(input.clientX-view.padCenters[column]))column=i;
   }
-  let closest=null,distance=Infinity;
-  for(const pad of padButtons){
-    const box=pad.getBoundingClientRect(),d=Math.abs(input.clientX-(box.left+box.width/2));
-    if(d<distance){closest=pad;distance=d;}
-  }
-  return closest?.dataset.role;
+  return padButtons[column].dataset.role;
 }
 stageInput.addEventListener('touchstart',event=>{
   const t=inputTime(event);
